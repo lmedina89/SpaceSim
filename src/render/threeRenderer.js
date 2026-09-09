@@ -478,9 +478,7 @@ export class UniverseRenderer {
     };
   }
 
-  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cameraView = null }) {
-    const observing = cameraView?.mode === 'observe' && cameraView.center;
-    referenceFrame.centerOn(observing ? cameraView.center : ship.position);
+  renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments = [] }) {
     this.syncBodies(bodies);
     for (const body of bodies) {
       const visual = this.bodyVisuals.get(body.id);
@@ -507,35 +505,54 @@ export class UniverseRenderer {
     } else {
       this.targetMarker.visible = false;
     }
+  }
 
-    this._motionLines.visible = !observing;
-    if (observing) {
-      const desiredFov = 58;
-      const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.16;
-      if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
-      const pose = computeObservationCameraPose({
-        radiusMeters: cameraView.radiusMeters,
-        metersPerRenderUnit: SIMULATION.metersPerRenderUnit,
-        fovDegrees: this.camera.fov,
-        yaw: cameraView.yaw,
-        pitch: cameraView.pitch,
-        style: cameraView.style,
-        velocity: cameraView.velocity,
-      });
-      this.camera.position.set(...pose.position);
-      this.camera.up.set(...pose.up);
-      this.camera.lookAt(...pose.lookAt);
-    } else {
-      this.updateMotionCue(ship);
-      const desiredFov = 66 + (ship.throttle > 0 ? 5 : 0) + (ship.reverseThrottle > 0 ? 2 : 0);
-      const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.14;
-      if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
-      this.camera.position.set(0, 0, 0);
-      const basis = ship.basis();
-      this.camera.up.set(basis.up[0], basis.up[1], basis.up[2]);
-      this.camera.lookAt(basis.forward[0] * 100, basis.forward[1] * 100, basis.forward[2] * 100);
-    }
+  renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments = [] }) {
+    // Keep the normal flight path deliberately identical to the physically tested v0.1.3.1 path.
+    // Observation support must never alter this code path when cameraMode === 'ship'.
+    referenceFrame.centerOn(ship.position);
+    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments });
+    this._motionLines.visible = true;
+    this.updateMotionCue(ship);
+    const desiredFov = 66 + (ship.throttle > 0 ? 5 : 0) + (ship.reverseThrottle > 0 ? 2 : 0);
+    const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.14;
+    if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
+    this.camera.position.set(0, 0, 0);
+    const basis = ship.basis();
+    this.camera.up.set(basis.up[0], basis.up[1], basis.up[2]);
+    this.camera.lookAt(basis.forward[0] * 100, basis.forward[1] * 100, basis.forward[2] * 100);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cameraView }) {
+    referenceFrame.centerOn(cameraView.center);
+    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments });
+    this._motionLines.visible = false;
+    const desiredFov = 58;
+    const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.16;
+    if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
+    const pose = computeObservationCameraPose({
+      radiusMeters: cameraView.radiusMeters,
+      metersPerRenderUnit: SIMULATION.metersPerRenderUnit,
+      fovDegrees: this.camera.fov,
+      yaw: cameraView.yaw,
+      pitch: cameraView.pitch,
+      style: cameraView.style,
+      velocity: cameraView.velocity,
+    });
+    this.camera.position.set(pose.position[0], pose.position[1], pose.position[2]);
+    this.camera.up.set(pose.up[0], pose.up[1], pose.up[2]);
+    this.camera.lookAt(pose.lookAt[0], pose.lookAt[1], pose.lookAt[2]);
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cameraView = null }) {
+    const observing = Boolean(cameraView && cameraView.mode === 'observe' && cameraView.center);
+    if (!observing) {
+      this.renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments });
+      return;
+    }
+    this.renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments, cameraView });
   }
 
   dispose() {

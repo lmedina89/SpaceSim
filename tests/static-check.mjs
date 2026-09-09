@@ -6,15 +6,15 @@ const required = [
   'src/physics/gravity/directGravitySolver.js','src/physics/integrators/velocityVerlet.js','src/physics/orbitalMetrics.js',
   'src/physics/trajectoryPredictor.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
-  'src/render/threeRenderer.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
+  'src/render/threeRenderer.js','src/render/observationCamera.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
 ];
 for (const file of required) await access(new URL(`../${file}`, import.meta.url), constants.R_OK);
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.3.2')) throw new Error('Shell version is not v0.1.3.2.');
-if (pkg.version !== '0.1.3.2') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.3.2.1')) throw new Error('Shell version is not v0.1.3.2.1.');
+if (pkg.version !== '0.1.3.2.1') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Secondary mobile control drawer missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -47,5 +47,6 @@ if (!impactModel.includes('Math.min(2')) throw new Error('Per-impact resolved-fr
 if (!app.includes('enforceParticleWarpSafety') || !app.includes('spawnParticleField') || !app.includes('fireParticleGun')) throw new Error('Particle app integration missing.');
 for (const token of ['enterObservation','currentCameraView','rendezvousExperiment','experimentNavigationTarget','particleFieldParams','updateParticleLabStatus']) if (!app.includes(token)) throw new Error(`Observation/navigation app function missing: ${token}`);
 const renderer = await readFile(new URL('../src/render/threeRenderer.js', import.meta.url), 'utf8');
-for (const token of ['experimentVisuals','syncParticleExperiments','PointsMaterial','particleExperiments = []','cameraView = null','observing ? cameraView.center : ship.position']) if (!renderer.includes(token)) throw new Error(`Particle renderer token missing: ${token}`);
+for (const token of ['experimentVisuals','syncParticleExperiments','PointsMaterial','particleExperiments = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(ship.position)']) if (!renderer.includes(token)) throw new Error(`Particle renderer token missing: ${token}`);
+if (!app.includes('showRuntimeError') || !app.includes('_runtimeFaulted')) throw new Error('Runtime freeze diagnostic boundary missing.');
 console.log(`Static structure OK (${required.length} required files).`);

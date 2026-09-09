@@ -150,8 +150,26 @@ export class UniverseLabApp {
     this.hud.setRenderer(backend);
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
-    this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.3.2 online. Observation camera + experiment navigation active. Build OBSNAV-132.');
+    this._runtimeFaulted = false;
+    this.renderer.renderer.setAnimationLoop((time) => {
+      if (this._runtimeFaulted) return;
+      try {
+        this.frame(time);
+      } catch (error) {
+        this._runtimeFaulted = true;
+        console.error('Universe Lab runtime frame failure', error);
+        this.running = false;
+        this.hud.showRuntimeError(error);
+      }
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+      if (this._runtimeFaulted) return;
+      this._runtimeFaulted = true;
+      console.error('Universe Lab unhandled promise rejection', event.reason);
+      this.running = false;
+      this.hud.showRuntimeError(event.reason);
+    });
+    this.hud.notify('v0.1.3.2.1 online. Ship renderer isolated from observation mode. Build OBSNAV-1321.');
   }
 
   newSystem(seed) {
@@ -604,7 +622,7 @@ export class UniverseLabApp {
     }
     const summaries = this.particleExperiments.summaries();
     if (!summaries.length) {
-      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.3.2 and are intentionally not written into schema-1 saves.';
+      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.3.2.1 and are intentionally not written into schema-1 saves.';
       if (this.cameraMode === 'observe') this.returnToShipView(false);
       return;
     }

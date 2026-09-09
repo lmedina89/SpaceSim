@@ -74,6 +74,15 @@ export class Hud {
     this.impactReadout = root.querySelector('#impactReadout');
   }
 
+  showRuntimeError(error) {
+    const message = error?.message ? String(error.message) : String(error || 'Unknown runtime error');
+    this.fps.textContent = 'ERR';
+    this.physicsMs.textContent = 'ERR';
+    this.renderMs.textContent = 'ERR';
+    this.speed.textContent = 'ERR';
+    this.notify(`RUNTIME ERROR: ${message}`, 0);
+  }
+
   setRenderer(name) { this.renderer.textContent = name; }
   setSeed(seed) { this.seed.textContent = seed; }
   toggleLab(force) { this.lab.hidden = typeof force === 'boolean' ? !force : !this.lab.hidden; }
@@ -131,7 +140,7 @@ export class Hud {
     }
     this.cameraChip.hidden = false;
     const active = state?.activeCount != null ? Number(state.activeCount).toLocaleString() : '—';
-    this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD OBSNAV-132`;
+    this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD OBSNAV-1321`;
     this.cameraChip.classList.add('observing');
   }
 

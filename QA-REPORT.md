@@ -1,6 +1,6 @@
-# Universe Lab v0.1.3.2 — QA Report
+# Universe Lab v0.1.3.2.1 — QA Report
 
-Release: **Observation & Experiment Navigation Polish**
+Release: **Startup Runtime Recovery & Observation Isolation Hotfix**
 
 ## Automated result
 
@@ -8,20 +8,22 @@ Release: **Observation & Experiment Navigation Polish**
 
 - Static structure check: PASS
 - JavaScript / MJS syntax checks: PASS
-- Node test suite: **55 / 55 PASS**
+- Node test suite: **57 / 57 PASS**
 - Save schema: **1 (unchanged)**
 - Three.js pin: **0.185.0 (unchanged)**
 - Distributable GitHub workflow files: **none**
 
-## New v0.1.3.2 coverage
+## New v0.1.3.2.1 coverage
 
-Five new numerical/architecture regressions verify:
+Seven observation/runtime regressions now verify:
 
 - particle fields spawn just outside their configured extent rather than using the old fixed 40,000 km minimum,
 - deriving an experiment observation centroid / mean velocity / framing radius does not mutate particle state,
 - FRAME camera distance scales with experiment radius in local render coordinates,
 - TRACK places the camera behind the field's mean direction of motion,
-- an experiment can be represented as a massless target for the existing bounded-thrust APPROACH controller.
+- an experiment can be represented as a massless target for the existing bounded-thrust APPROACH controller,
+- normal SHIP VIEW uses an isolated render branch and observation rendering is strictly opt-in,
+- runtime frame exceptions are surfaced visibly as `RUNTIME ERROR` instead of silently freezing the HUD at `—`.
 
 Static checks additionally require the OBSERVE / TRACK / ORBIT / RENDEZVOUS / SHIP VIEW controls, camera indicator, observation app methods, pure observation-camera helper, and restored particle-field parameter/status integration methods.
 
@@ -79,7 +81,7 @@ This is **not an iPhone performance claim**. Physical iPhone Safari remains the 
 
 On iPhone Safari / GitHub Pages verify:
 
-1. HUD/version reports **v0.1.3.2**; MORE contains build marker **OBSNAV-132**.
+1. HUD/version reports **v0.1.3.2.1**; MORE contains build marker **OBSNAV-1321**.
 2. SPAWN + OBSERVE immediately frames the new experiment instead of requiring a long ship flight.
 3. Entering OBSERVE does not change ship speed/position; SHIP VIEW returns to the same physical ship state.
 4. LOOK rotates the observation view rather than spacecraft attitude while OBSERVE is active.
@@ -89,3 +91,7 @@ On iPhone Safari / GitHub Pages verify:
 8. Existing v0.1.3.1 flight HOLD safety, planet readability, impact fragment restraint, iOS hold controls, and particle performance remain intact.
 
 No automated interactive WebGPU iPhone playthrough is claimed.
+
+## Physical-device blocker that triggered this hotfix
+
+The first deployed v0.1.3.2 iPhone test loaded the shell and initialized WebGPU, but the animation loop failed before the first HUD update: FPS/physics/render/ship remained `—`, simulation time remained 0 d, and the 3D world did not populate normally. The container cannot run an interactive WebGPU/EGL browser, so the exact Safari exception could not be reproduced locally. This hotfix therefore isolates the physically tested SHIP render path from the new observation branch and adds a visible frame-error boundary. Physical iPhone Safari remains the only valid interactive confirmation.

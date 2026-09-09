@@ -1,6 +1,14 @@
 # Changelog
 
-## v0.1.3.2 — Observation & Experiment Navigation Polish
+## v0.1.3.2.1 — Startup Runtime Recovery & Observation Isolation Hotfix
+
+- Repairs a physical-iPhone blocker where v0.1.3.2 could initialize WebGPU and the UI shell but fail before the first simulation/HUD frame.
+- Restores an explicitly isolated SHIP VIEW renderer path based on the stable flight renderer; observation rendering now activates only when a valid experiment observation camera is requested.
+- Adds a runtime frame-error boundary: Safari/browser exceptions are shown as a persistent `RUNTIME ERROR` message and `ERR` telemetry instead of silently freezing with `—` values.
+- Retains all v0.1.3.2 observation controls, v0.1.3 particle experiments, v0.1.3.1 strong-gravity navigation safety, and v0.1.2.1 impact/flight stability.
+- Build marker: **OBSNAV-1321**.
+
+## v0.1.3.2.1 — Observation & Experiment Navigation Polish
 
 Built from v0.1.3.1 to remove the need to physically commute to newly spawned particle experiments just to inspect them.
 
@@ -14,7 +22,7 @@ Built from v0.1.3.1 to remove the need to physically commute to newly spawned pa
 - physical RENDEZVOUS to an experiment using the existing bounded-thrust approach computer,
 - smarter nearby field placement based on field radius rather than a 40,000 km minimum,
 - smaller mode-appropriate defaults for Life/Species experiments,
-- OBSNAV-132 build marker to help detect stale mobile deployments,
+- OBSNAV-1321 build marker to help detect stale mobile deployments,
 - restored explicit particle-field parameter/status methods in the v0.1.3.1 app integration path and added static regression coverage for them.
 
 Observation cameras never alter authoritative ship or particle state. Schema 1 remains unchanged; observation/session particle fields are not serialized.
