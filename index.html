@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#02050b">
+  <title>Universe Lab v0.1.0.1</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.webgpu.js",
+      "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.webgpu.js",
+      "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.tsl.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <main id="app" class="app-shell">
+    <section id="viewport" class="viewport" aria-label="3D universe viewport"></section>
+
+    <div class="hud top-hud" aria-live="polite">
+      <div class="brand">UNIVERSE LAB <span>v0.1.0.1</span></div>
+      <div class="stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
+      <div class="stat"><b id="fpsValue">—</b><small>fps</small></div>
+      <div class="stat"><b id="physicsMsValue">—</b><small>physics</small></div>
+      <div class="stat"><b id="speedValue">—</b><small>ship</small></div>
+      <div class="stat"><b id="simTimeValue">0 d</b><small>sim time</small></div>
+    </div>
+
+    <div class="seed-chip">SEED <b id="seedValue">ORIGIN-001</b> · BODIES <b id="bodyCountValue">—</b> · TEST <b id="minorCountValue">—</b></div>
+    <div class="reticle" aria-hidden="true"><span></span><i></i></div>
+
+    <div id="lookPad" class="look-pad" aria-label="Drag to look around">
+      <div class="look-ring"><span>LOOK</span></div>
+    </div>
+
+    <div class="flight-controls">
+      <button id="thrustButton" class="hold-button thrust" type="button">THRUST</button>
+      <button id="brakeButton" class="hold-button brake" type="button">DAMP</button>
+    </div>
+
+    <nav class="bottom-bar" aria-label="Simulation controls">
+      <button id="labToggle" type="button">LAB</button>
+      <button id="scienceToggle" type="button">SCIENCE</button>
+      <button id="homeButton" type="button">HOME</button>
+      <button id="pauseToggle" type="button">PAUSE</button>
+      <button id="saveButton" type="button">SAVE</button>
+      <button id="loadButton" type="button">LOAD</button>
+    </nav>
+
+    <div id="message" class="message">Initializing…</div>
+
+    <aside id="labPanel" class="drawer lab-panel" hidden>
+      <header><div><b>UNIVERSE LAB</b><small>Scientific sandbox controls</small></div><button id="labClose" type="button" aria-label="Close lab">×</button></header>
+      <div class="drawer-grid">
+        <label>System seed<input id="seedInput" value="ORIGIN-001" maxlength="64"></label>
+        <div class="button-row"><button id="regenerate" type="button">GENERATE</button><button id="randomSeed" type="button">RANDOM</button></div>
+        <label>Time warp<select id="timeScale"><option value="1">1× real seconds</option><option value="60" selected>60×</option><option value="3600">3,600×</option><option value="86400">86,400×</option></select></label>
+        <label>Minor test bodies<select id="minorCount"><option value="1000">1,000</option><option value="4000" selected>4,000</option><option value="10000">10,000</option><option value="20000">20,000</option></select></label>
+        <hr>
+        <h3>Mass launcher</h3>
+        <label>Asteroid mass (kg)<input id="asteroidMass" type="number" inputmode="decimal" value="1000000000000000"></label>
+        <label>Launch speed (m/s)<input id="asteroidSpeed" type="number" inputmode="decimal" value="25000"></label>
+        <button id="spawnAsteroid" class="danger" type="button">LAUNCH ASTEROID</button>
+        <hr>
+        <h3>Gravity anomaly</h3>
+        <label>Black-hole mass (solar masses)<input id="blackHoleMass" type="number" inputmode="decimal" value="3" min="0.1" max="100" step="0.1"></label>
+        <button id="spawnBlackHole" class="void" type="button">SPAWN NEWTONIAN BLACK HOLE</button>
+        <p class="warning">Near a black hole, v0.1.0.1 uses Newtonian gravity only. Relativistic trajectories and gravitational lensing are future modules.</p>
+      </div>
+    </aside>
+
+    <aside id="sciencePanel" class="drawer science-panel" hidden>
+      <header><div><b>SCIENTIFIC MODEL</b><small>What is real, approximate, or experimental</small></div><button id="scienceClose" type="button" aria-label="Close science notes">×</button></header>
+      <div class="science-copy">
+        <p><strong>Authoritative units:</strong> SI meters, kilograms, seconds in Float64 arrays.</p>
+        <p><strong>Gravity:</strong> Newton's law using G = 6.67430×10⁻¹¹ m³·kg⁻¹·s⁻².</p>
+        <p><strong>Major-body integration:</strong> velocity Verlet. Massive bodies mutually attract each other.</p>
+        <p><strong>Minor field:</strong> 1k–20k test particles feel major-body gravity but intentionally contribute no gravity in this foundation build.</p>
+        <p><strong>Floating origin:</strong> the renderer stays near the spacecraft while physics coordinates remain astronomical-scale Float64 values.</p>
+        <p><strong>Ship DAMP:</strong> intentionally fictional inertial damping for navigation. THRUST is a 20 m/s² experimental drive.</p>
+        <p><strong>Collisions:</strong> geometric contact and physical impact energy are detected. Deformation, cratering, debris and fluid response are not yet implemented.</p>
+      </div>
+    </aside>
+  </main>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

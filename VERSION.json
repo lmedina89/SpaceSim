@@ -1,0 +1,11 @@
+{
+  "version": "0.1.0.1",
+  "name": "Mobile GitHub Upload Hotfix",
+  "saveSchema": 1,
+  "threeVersion": "0.185.0",
+  "authoritativeUnits": "SI",
+  "physicsPrecision": "Float64",
+  "gravityBackend": "direct-newtonian",
+  "majorIntegrator": "velocity-verlet",
+  "deploymentMode": "github-pages-branch-root"
+}
