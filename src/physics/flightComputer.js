@@ -166,6 +166,32 @@ export function computeApproachAcceleration(ship, target, maxAccelerationMps2, d
   };
 }
 
+
+export function computeTurnAndBurnAcceleration(ship, desiredDirection, maxAccelerationMps2, dtSeconds) {
+  const direction = unit(desiredDirection ?? [0, 0, 1]);
+  const velocity = [ship.velocity[0], ship.velocity[1], ship.velocity[2]];
+  const speedMps = magnitude(velocity);
+  if (speedMps < 0.05) {
+    return { acceleration: [0, 0, 0], complete: true, speedMps, lateralSpeedMps: 0, alongSpeedMps: 0, angleDegrees: 0 };
+  }
+  const alongSpeedMps = dot(velocity, direction);
+  const along = scale(direction, alongSpeedMps);
+  const lateral = subtract(velocity, along);
+  const lateralSpeedMps = magnitude(lateral);
+  const dt = Math.max(1e-3, dtSeconds);
+  const accel = Math.max(0.01, maxAccelerationMps2);
+  let correction = scale(lateral, -1 / dt);
+  // If the ship is actually moving backwards relative to the captured nose direction, reserve
+  // some thrust to reverse that component while the remaining budget removes sideways drift.
+  if (alongSpeedMps < 0) correction = add(correction, scale(direction, Math.min(accel * 0.45, -alongSpeedMps / dt)));
+  const acceleration = capVector(correction, accel);
+  const cosine = clamp(alongSpeedMps / Math.max(1e-9, speedMps), -1, 1);
+  const angleDegrees = Math.acos(cosine) * 180 / Math.PI;
+  const toleranceMps = Math.max(2, Math.min(250, speedMps * 0.0005));
+  const complete = lateralSpeedMps <= toleranceMps && alongSpeedMps >= 0;
+  return { acceleration: complete ? [0, 0, 0] : acceleration, complete, speedMps, lateralSpeedMps, alongSpeedMps, angleDegrees, toleranceMps };
+}
+
 export function computeAbsoluteBrakeAcceleration(ship, maxAccelerationMps2, dtSeconds) {
   const speed = magnitude(ship.velocity);
   if (speed < 0.05) return { acceleration: [0, 0, 0], complete: true, speedMps: speed };
@@ -184,6 +210,12 @@ export function recommendedWarpCap({ mode, targetState, targetRadius = 0, standO
   if (mode === 'match') {
     if (targetState.relativeSpeedMps < 100) return 1;
     if (targetState.relativeSpeedMps < 10_000) return 60;
+    return 600;
+  }
+  if (mode === 'turn-burn') {
+    const lateral = Number(targetState.lateralSpeedMps ?? targetState.relativeSpeedMps ?? 0);
+    if (lateral < 100) return 1;
+    if (lateral < 10_000) return 60;
     return 600;
   }
   if (Number.isFinite(maxAccelerationMps2) && targetGravityMps2 > maxAccelerationMps2 * 0.4) return 60;

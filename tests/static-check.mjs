@@ -4,7 +4,7 @@ import { constants } from 'node:fs';
 const required = [
   'index.html','styles.css','src/main.js','src/app/app.js','src/core/constants.js','src/data/systemGenerator.js',
   'src/physics/gravity/directGravitySolver.js','src/physics/integrators/velocityVerlet.js','src/physics/orbitalMetrics.js',
-  'src/physics/trajectoryPredictor.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/impactResolver.js',
+  'src/physics/trajectoryPredictor.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
   'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
   'src/render/threeRenderer.js','src/render/observationCamera.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
@@ -14,15 +14,32 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.1')) throw new Error('Shell version is not v0.1.4.1.');
-if (!html.includes('EXTREME-141')) throw new Error('EXTREME-141 build marker missing.');
-if (pkg.version !== '0.1.4.1') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.4.1.1')) throw new Error('Shell version is not v0.1.4.1.1.');
+if (!html.includes('NAVLIFE-1411')) throw new Error('NAVLIFE-1411 build marker missing.');
+if (pkg.version !== '0.1.4.1.1') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Secondary mobile control drawer missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
 if (!html.includes('>BRAKE</button>')) throw new Error('Physical BRAKE control missing.');
-for (const id of ['particleMode','particleCount','spawnParticleField','fireParticleGun','clearParticleExperiments','particleStatus','experimentSelect','observeExperiment','trackExperiment','orbitExperiment','rendezvousExperiment','shipViewButton','cameraChip']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Particle experiment control missing: ${id}`);
+for (const id of ['velocityMarker','progradeButton','retrogradeButton','turnBurnButton','transitToggle','transitPanel','transitTargetSource','transitTier','transitAutoCapture','transitEngage']) if (!html.includes(`id="${id}"`)) throw new Error(`Navigation/transit control missing: ${id}`);
+for (const id of ['particleMode','particleCount','spawnParticleField','fireParticleGun','clearParticleExperiments','particleStatus','experimentSelect','observeExperiment','trackExperiment','orbitExperiment','rendezvousExperiment','shipViewButton','replayExperiment','cameraChip']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Particle experiment control missing: ${id}`);
 for (const id of ['cosmosToggle','cosmosPanel','phenomenonSelect','scanPhenomenon','observePhenomenon','orbitPhenomenon','nextPhenomenon','rendezvousPhenomenon','shipViewCosmos','compactObjectType','neutronStarMass','pulsarSpinPeriod','pulsarMagneticField','spawnNeutronStar','extremeObjectType','spawnExtremeObject','spaceWeatherActive','spaceWeatherNext','spaceWeatherStatus','triggerCme','autoWeatherToggle','overlayToggle','overlayPanel','overlayMaster','overlayLagrange','overlayHill','overlayRoche','overlayGravity','overlayOrbitPlane']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Cosmic exploration control missing: ${id}`);
+const app = await readFile(new URL('../src/app/app.js', import.meta.url), 'utf8');
+
+// Direct shell/UI integrity: all HTML ids must be unique and every literal #id selector used by
+// UniverseLabApp must resolve in the shell. This specifically protects mobile drawer integration.
+const htmlIds = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+const htmlIdSet = new Set(htmlIds);
+if (htmlIds.length !== htmlIdSet.size) {
+  const duplicates = [...new Set(htmlIds.filter((id, index) => htmlIds.indexOf(id) !== index))];
+  throw new Error(`Duplicate HTML id(s): ${duplicates.join(', ')}`);
+}
+const literalSelectorIds = new Set();
+for (const match of app.matchAll(/\$\(['"]#([^'"]+)['"]\)/g)) literalSelectorIds.add(match[1]);
+for (const match of app.matchAll(/querySelector\(['"]#([^'"]+)['"]\)/g)) literalSelectorIds.add(match[1]);
+const missingSelectorIds = [...literalSelectorIds].filter((id) => !htmlIdSet.has(id));
+if (missingSelectorIds.length) throw new Error(`Missing HTML id(s) referenced by app: ${missingSelectorIds.join(', ')}`);
+
 const css = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
 if (!css.includes('--app-height')) throw new Error('Visual viewport height CSS hook missing.');
 if (!css.includes('-webkit-touch-callout:none')) throw new Error('iOS touch-callout suppression missing.');
@@ -30,7 +47,6 @@ if (!css.includes('user-select:none')) throw new Error('Game-surface text-select
 if (!css.includes('.hold-button.thrust{grid-row:1 / span 2')) throw new Error('Large thumb-safe thrust cluster missing.');
 const main = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 if (!main.includes('visualViewport')) throw new Error('VisualViewport mobile sizing hook missing.');
-const app = await readFile(new URL('../src/app/app.js', import.meta.url), 'utf8');
 for (const token of ['selectstart','contextmenu','lostpointercapture','document.addEventListener(\'pointerup\'','aria-pressed','is-held']) {
   if (!app.includes(token)) throw new Error(`Hardened iOS hold-input token missing: ${token}`);
 }
@@ -41,7 +57,9 @@ for (const token of ['accretion-disk','photon-rings','relativistic-jets-visual',
 const impactResolver = await readFile(new URL('../src/physics/impactResolver.js', import.meta.url), 'utf8');
 if (!impactResolver.includes('resolveImpact')) throw new Error('Impact resolver missing.');
 const flightComputer = await readFile(new URL('../src/physics/flightComputer.js', import.meta.url), 'utf8');
-for (const token of ['computeApproachAcceleration','computeStationKeepAcceleration','propulsionSafeStandOffDistanceMeters','navigationPhysicsStepLimitSeconds','newtonianModelLimit','computeMatchVelocityAcceleration','computeAbsoluteBrakeAcceleration','recommendedWarpCap']) if (!flightComputer.includes(token)) throw new Error(`Flight-computer function missing: ${token}`);
+for (const token of ['computeApproachAcceleration','computeStationKeepAcceleration','propulsionSafeStandOffDistanceMeters','navigationPhysicsStepLimitSeconds','newtonianModelLimit','computeMatchVelocityAcceleration','computeAbsoluteBrakeAcceleration','computeTurnAndBurnAcceleration','recommendedWarpCap']) if (!flightComputer.includes(token)) throw new Error(`Flight-computer function missing: ${token}`);
+const transitDrive = await readFile(new URL('../src/physics/transitDrive.js', import.meta.url), 'utf8');
+for (const token of ['TRANSIT_TIERS','normalizeTransitMultiple','transitArrivalDistanceMeters','firstTransitGuardHit','advanceTransitPosition']) if (!transitDrive.includes(token)) throw new Error(`Transit-drive function missing: ${token}`);
 const particleManager = await readFile(new URL('../src/experiments/particles/particleExperimentManager.js', import.meta.url), 'utf8');
 for (const token of ['Gravity Cloud','Particle Life','Species Forces','recommendedWarpCap']) if (!particleManager.includes(token)) throw new Error(`Particle framework token missing: ${token}`);
 const spatialHash = await readFile(new URL('../src/experiments/particles/spatialHashGrid.js', import.meta.url), 'utf8');
@@ -53,7 +71,7 @@ const classMethodDefinitions = new Set([...app.matchAll(/^\s{2}(?:async\s+)?([A-
 const directThisCalls = new Set([...app.matchAll(/\bthis\.([A-Za-z_$][\w$]*)\s*\(/g)].map((match) => match[1]));
 for (const method of directThisCalls) if (!classMethodDefinitions.has(method)) throw new Error(`UniverseLabApp calls missing class method: ${method}`);
 if (!classMethodDefinitions.has('enforceParticleWarpSafety')) throw new Error('Particle warp safety method definition missing.');
-for (const token of ['enterObservation','currentCameraView','rendezvousExperiment','experimentNavigationTarget','particleFieldParams','updateParticleLabStatus','phenomenonState','selectPhenomenon','scanPhenomenon','updateCosmosPanel','enterCosmicObservation','rendezvousPhenomenon']) if (!app.includes(token)) throw new Error(`Observation/navigation app function missing: ${token}`);
+for (const token of ['enterObservation','currentCameraView','rendezvousExperiment','experimentNavigationTarget','particleFieldParams','updateParticleLabStatus','replaySelectedExperiment','engageTransit','updateTransit','requestTimeScale','updateVelocityMarker','phenomenonState','selectPhenomenon','scanPhenomenon','updateCosmosPanel','enterCosmicObservation','rendezvousPhenomenon']) if (!app.includes(token)) throw new Error(`Observation/navigation app function missing: ${token}`);
 const renderer = await readFile(new URL('../src/render/threeRenderer.js', import.meta.url), 'utf8');
 for (const token of ['experimentVisuals','syncParticleExperiments','cosmicVisuals','syncCosmicPhenomena','PointsMaterial','particleExperiments = []','cosmicPhenomena = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(ship.position)']) if (!renderer.includes(token)) throw new Error(`Renderer integration token missing: ${token}`);
 const constantsSource = await readFile(new URL('../src/core/constants.js', import.meta.url), 'utf8');

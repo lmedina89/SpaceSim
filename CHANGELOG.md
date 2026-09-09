@@ -1,59 +1,50 @@
 # Changelog
 
-## v0.1.4.1 — Extreme Objects, Space Weather & Scientific Overlays
+## v0.1.4.1.1 — Navigation & Experiment Lifecycle Polish
 
-Built directly from v0.1.4 Cosmic Phenomena & Deep-Space Exploration without changing save schema, Three.js version, core Newtonian solver, particle budgets, impact policy or bounded-thrust navigation.
+Built from v0.1.4.1 Extreme Objects, Space Weather & Scientific Overlays.
 
-### Extreme objects
+### Navigation
 
-- Added `BODY_KIND.WHITE_DWARF`, `BODY_KIND.BROWN_DWARF` and `BODY_KIND.ROGUE_PLANET`.
-- Added LAB `spawn-extreme-star` experiment with Magnetar, White Dwarf, Brown Dwarf and Rogue Planet presets.
-- Magnetar uses the existing neutron-star physical kind/guard plus high-field metadata and a new visual lobe/spark treatment.
-- Added distinct white-dwarf, brown-dwarf and rogue-planet render treatments.
-- Rogue planets are treated as planet-like rocky targets by impact material/crater logic.
+- Added speculative bounded **BOOST** propulsion at 5,000 m/s² main/reverse acceleration.
+- Engine selector now cycles FLIGHT → CRUISE → BOOST.
+- Added actual inertial **velocity-vector (`V⃗`) HUD marker** separate from the nose reticle.
+- Added **PROGRADE** and **RETROGRADE** attitude alignment; attitude only, no thrust.
+- Added physical bounded-thrust **TURN & BURN** to cancel lateral velocity toward a captured nose direction.
+- Renamed MATCH VELOCITY UI to **STOP RELATIVE** for clearer target-relative intent.
+- Added **SPECULATIVE TRANSIT DRIVE** with 1c/10c/100c/500c/1000c coordinate-rate tiers.
+- TRANSIT preserves local Newtonian velocity and moves only spacecraft reference-frame position.
+- Added automatic transit tier step-down near destination.
+- Added transit arrival envelope with physical BOOST braking reserve.
+- Added swept massive-body transit route guard.
+- Added celestial-target or selected-COSMOS transit destination.
+- Added optional AUTO CAPTURE: TRANSIT → BOOST → physical APPROACH/BRAKING/CAPTURE/HOLD.
+- TRANSIT is blocked during live local particle experiments/body contact and locks simulation warp to 1×.
+- Enhanced visual-only star/reference streak and FOV cues during high-tier transit.
 
-### Seeded exploration
+### Particle experiment lifecycle
 
-- Generated systems now have a deterministic chance to include one distant physical rogue planet.
-- Added deterministic `supernova-remnant` COSMOS source with ~8,500 GPU point shell/filament proxy.
-- Rogue planets are also registered as COSMOS phenomena when generated, so they can begin unclassified and use SCAN/OBSERVE/RENDEZVOUS.
-- Free-space cosmic phenomena now render from their own position instead of requiring an anchor body.
+- Added active/complete lifecycle state and completion time.
+- Retains final valid live observation bounds when a field reaches zero particles.
+- Completed fields no longer leave FRAME/TRACK/ORBIT pointed at an empty origin.
+- Completed fields release the 60× particle-safety warp cap immediately.
+- Requested 600×/3,600× warp can be remembered while capped and restored when the final live experiment completes.
+- Added deterministic **REPLAY FIELD**.
+- Added peak/birth/death lifecycle telemetry for Particle Life.
+- Physical RENDEZVOUS refuses completed fields until replayed.
+- Bounded completed-field retention prevents unbounded session history.
 
-### Space weather
+### QA hardening
 
-- Added session-local `SpaceWeatherManager`.
-- Added manual and automatic directional CME generation.
-- CME fronts have explicit speed, half-angle, launch time, expanding radius and live stellar anchor position.
-- Added swept radial-front crossing detection so large simulation substeps cannot skip over a ship crossing.
-- COSMOS drawer exposes active front count, next seeded event countdown, active-front telemetry, TRIGGER CME and AUTO WEATHER toggle.
-- Added GPU-friendly ~2,600-point directional CME front/cone rendering per active event.
-- CME model is explicitly kinematic only; no MHD/radiation/damage model is claimed.
+- Added transit unit tests for tier normalization, arrival braking reserve, automatic tier step-down, no-overshoot advancement, swept route guards and starting-clearance guards.
+- Added BOOST propulsion and TURN & BURN regressions.
+- Added experiment completion/final-frame/warp-release/deterministic-replay regressions.
+- Static check now requires unique HTML IDs and verifies literal app `#id` selectors resolve in the shell.
+- Retains direct `this.method()` class-method integrity audit introduced after the earlier Safari runtime failure.
 
-### Scientific overlays
-
-- Added `cosmic/scientificOverlays.js` pure diagnostic math:
-  - Hill radius,
-  - Roche limit,
-  - instantaneous L1–L5 estimates,
-  - live Newtonian gravity acceleration,
-  - local gravity-vector samples,
-  - instantaneous orbital-plane basis.
-- Added MORE → OVERLAYS drawer.
-- Added target-centric overlay renderer for Lagrange markers, Hill/Roche rings, orbital plane and 25-point local gravity-vector field.
-- Overlay master is off by default and render geometry refresh is throttled to reduce mobile allocation churn.
-
-### Safety / compatibility
+### Unchanged
 
 - Save schema remains 1.
-- Space-weather events, overlay settings and discovery state are session-local.
-- Existing black-hole/neutron-star near-field and 0.1c Newtonian guards remain.
-- Existing normal SHIP VIEW render isolation and visible runtime-error boundary remain.
-- Existing v0.1.4 particle, impact, cosmic observation and mobile input architecture remains intact.
-
-### QA
-
-- Added scientific-overlay math tests.
-- Added extreme-object preset tests.
-- Added CME propagation, directional crossing, automatic scheduling and swept-front crossing tests.
-- Existing cosmic tests now require a deterministic supernova-remnant phenomenon and verify rogue-planet phenomenon/body consistency.
-- Full automated suite: see `QA-REPORT.md`.
+- Three.js remains pinned to 0.185.0.
+- No `.github/workflows/*` files in the mobile distributable.
+- No landing code added.

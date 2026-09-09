@@ -9,6 +9,7 @@ import {
   computeApproachAcceleration,
   computeStationKeepAcceleration,
   computeAbsoluteBrakeAcceleration,
+  computeTurnAndBurnAcceleration,
   recommendedWarpCap,
   propulsionSafeStandOffDistanceMeters,
   targetGravityMps2,
@@ -145,4 +146,21 @@ test('cruise APPROACH to a 3-solar-mass black hole captures at propulsion-safe s
   assert.ok(Math.abs(radius-safe)/safe<1e-5, `${radius} vs ${safe}`);
   assert.ok(Math.hypot(...s.velocity)<10, `residual ${Math.hypot(...s.velocity)}`);
   assert.ok(maxSpeed<PHYSICS.C*0.1, `max speed ${maxSpeed}`);
+});
+
+
+test('TURN & BURN uses bounded acceleration to remove lateral velocity toward captured nose direction',()=>{
+  const s=ship(v(0,0,0),v(1000,0,500));
+  const command=computeTurnAndBurnAcceleration(s,[0,0,1],120,1);
+  assert.ok(Math.hypot(...command.acceleration)<=120+1e-12);
+  assert.ok(command.acceleration[0]<0,'should cancel +x lateral velocity');
+  assert.ok(command.lateralSpeedMps>900);
+  assert.equal(command.complete,false);
+});
+
+test('TURN & BURN is complete when velocity already follows desired direction',()=>{
+  const s=ship(v(0,0,0),v(0,0,1000));
+  const command=computeTurnAndBurnAcceleration(s,[0,0,1],5000,1);
+  assert.equal(command.complete,true);
+  assert.deepEqual(command.acceleration,[0,0,0]);
 });

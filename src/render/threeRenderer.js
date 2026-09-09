@@ -458,12 +458,17 @@ export class UniverseRenderer {
     const dt = Math.min(0.05, Math.max(0, (now - this._lastMotionAt) / 1000));
     this._lastMotionAt = now;
     const speed = Math.hypot(ship.velocity[0], ship.velocity[1], ship.velocity[2]);
-    const inv = speed > 1e-9 ? 1 / speed : 0;
-    const dx = ship.velocity[0] * inv, dy = ship.velocity[1] * inv, dz = ship.velocity[2] * inv;
-    const baseRate = Math.max(0.15, Math.min(8, (Math.log10(speed + 10) - 1) * 1.55));
-    const thrustBoost = ship.throttle > 0 ? 3.5 : ship.reverseThrottle > 0 ? 1.8 : 0;
+    const transitFactor = Math.max(0, Number(ship.transitVisualFactor) || 0);
+    const transitDirection = ship.transitDirection;
+    const directionSpeed = transitFactor > 0 && transitDirection ? Math.hypot(transitDirection[0], transitDirection[1], transitDirection[2]) : speed;
+    const inv = directionSpeed > 1e-9 ? 1 / directionSpeed : 0;
+    const dx = transitFactor > 0 && transitDirection ? transitDirection[0] * inv : ship.velocity[0] * inv;
+    const dy = transitFactor > 0 && transitDirection ? transitDirection[1] * inv : ship.velocity[1] * inv;
+    const dz = transitFactor > 0 && transitDirection ? transitDirection[2] * inv : ship.velocity[2] * inv;
+    const baseRate = transitFactor > 0 ? 18 + 22 * Math.sqrt(transitFactor) : Math.max(0.15, Math.min(8, (Math.log10(speed + 10) - 1) * 1.55));
+    const thrustBoost = transitFactor > 0 ? 0 : ship.throttle > 0 ? 3.5 : ship.reverseThrottle > 0 ? 1.8 : 0;
     const rate = baseRate + thrustBoost;
-    const trail = Math.max(0.04, Math.min(1.35, 0.05 + rate * 0.13));
+    const trail = transitFactor > 0 ? Math.min(5.2, 1.4 + 3.8 * transitFactor) : Math.max(0.04, Math.min(1.35, 0.05 + rate * 0.13));
     const limitX = 34, limitY = 24, limitZ = 34;
     const move = rate * dt;
     for (let i = 0; i < this._motionCueCount; i += 1) {
@@ -485,7 +490,8 @@ export class UniverseRenderer {
       this._motionPositions[p + 5] = z + dz * trail;
     }
     this._motionGeometry.attributes.position.needsUpdate = true;
-    this._motionMaterial.opacity = Math.max(0.04, Math.min(0.32, 0.035 + rate * 0.028));
+    this._motionMaterial.opacity = transitFactor > 0 ? Math.min(0.72, 0.34 + transitFactor * 0.34) : Math.max(0.04, Math.min(0.32, 0.035 + rate * 0.028));
+    this._motionMaterial.color.setHex(transitFactor > 0 ? 0xb7f4ff : 0x8bdfff);
   }
 
   pickBodyAt(clientX, clientY) {
@@ -579,7 +585,8 @@ export class UniverseRenderer {
     this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, ship, elapsedSimSeconds });
     this._motionLines.visible = true;
     this.updateMotionCue(ship);
-    const desiredFov = 66 + (ship.throttle > 0 ? 5 : 0) + (ship.reverseThrottle > 0 ? 2 : 0);
+    const transitFactor = Math.max(0, Number(ship.transitVisualFactor) || 0);
+    const desiredFov = 66 + (ship.throttle > 0 ? 5 : 0) + (ship.reverseThrottle > 0 ? 2 : 0) + transitFactor * 20;
     const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.14;
     if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
     this.camera.position.set(0, 0, 0);

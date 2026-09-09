@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.1</title>
+  <title>Universe Lab v0.1.4.1.1</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.1.1</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -35,6 +35,7 @@
     <div id="navChip" class="nav-chip" hidden>NAV MANUAL</div>
     <div id="cameraChip" class="camera-chip" hidden>CAMERA OBSERVE</div>
     <div class="reticle" aria-hidden="true"><span></span><i></i></div>
+    <div id="velocityMarker" class="velocity-marker" hidden aria-hidden="true">V</div>
 
     <div id="lookPad" class="look-pad" aria-label="Drag to change spacecraft attitude">
       <div class="look-ring"><span>LOOK</span></div>
@@ -73,8 +74,12 @@
       <header><div><b>FLIGHT / SYSTEM</b><small>Secondary controls</small></div><button id="moreClose" type="button" aria-label="Close flight menu">×</button></header>
       <div class="quick-grid">
         <button id="engineModeButton" type="button">ENGINE FLIGHT</button>
-        <button id="matchVelocity" type="button">MATCH VELOCITY</button>
+        <button id="matchVelocity" type="button">STOP RELATIVE</button>
         <button id="pathToggle" type="button">PATH ON</button>
+        <button id="progradeButton" type="button">PROGRADE</button>
+        <button id="retrogradeButton" type="button">RETROGRADE</button>
+        <button id="turnBurnButton" type="button">TURN &amp; BURN</button>
+        <button id="transitToggle" class="void" type="button">TRANSIT DRIVE</button>
         <button id="rcsToggle" type="button">RCS PANEL</button>
         <button id="scienceToggle" type="button">SCIENCE</button>
         <button id="cosmosToggle" type="button">COSMOS</button>
@@ -84,7 +89,19 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s² experimental propulsion. APPROACH and MATCH use bounded real thrust. BRAKE applies thrust opposite current inertial velocity. Observation cameras are massless views and never move the ship. Build marker: <b>EXTREME-141</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>NAVLIFE-1411</b>.</p>
+    </aside>
+
+    <aside id="transitPanel" class="drawer science-panel" hidden>
+      <header><div><b>SPECULATIVE TRANSIT DRIVE</b><small>Fast interplanetary exploration without contaminating local velocity</small></div><button id="transitClose" type="button" aria-label="Close transit drive">×</button></header>
+      <div class="science-copy">
+        <label>Transit target<select id="transitTargetSource"><option value="body" selected>Current celestial TARGET</option><option value="cosmic">Selected COSMOS source</option></select></label>
+        <label>Maximum transit tier<select id="transitTier"><option value="1">1 c</option><option value="10">10 c</option><option value="100" selected>100 c</option><option value="500">500 c</option><option value="1000">1,000 c</option></select></label>
+        <label class="inline-check"><input id="transitAutoCapture" type="checkbox" checked><span>AUTO CAPTURE with BOOST + physical APPROACH on arrival</span></label>
+        <div class="scan-grid"><span>Target</span><b id="transitTargetName">—</b><span>Distance</span><b id="transitDistance">—</b><span>Local relative velocity</span><b id="transitLocalVelocity">—</b><span>Effective transit</span><b id="transitEffectiveSpeed">—</b><span>ETA</span><b id="transitEta">—</b></div>
+        <button id="transitEngage" class="void" type="button">ENGAGE TRANSIT</button>
+        <p class="warning"><strong>FICTIONAL / SPECULATIVE:</strong> TRANSIT translates the spacecraft reference-frame position toward the selected destination over real time. It does not add the displayed multiple-of-c transit rate to the ship's Newtonian velocity. Near arrival it steps down automatically; AUTO CAPTURE then uses bounded BOOST thrust and the existing APPROACH/BRAKING/CAPTURE/HOLD system.</p>
+      </div>
     </aside>
 
     <aside id="labPanel" class="drawer lab-panel" hidden>
@@ -92,7 +109,7 @@
       <div class="drawer-grid">
         <label>System seed<input id="seedInput" value="ORIGIN-001" maxlength="64"></label>
         <div class="button-row"><button id="regenerate" type="button">GENERATE</button><button id="randomSeed" type="button">RANDOM</button></div>
-        <label>Time warp<select id="timeScale"><option value="1">1× real seconds</option><option value="60" selected>60×</option><option value="3600">3,600×</option><option value="86400">86,400×</option></select></label>
+        <label>Time warp<select id="timeScale"><option value="1">1× real seconds</option><option value="60" selected>60×</option><option value="600">600×</option><option value="3600">3,600×</option><option value="86400">86,400×</option></select></label>
         <label>Trajectory horizon<select id="trajectoryHorizon"><option value="3600">1 hour</option><option value="21600">6 hours</option><option value="86400" selected>1 day</option><option value="604800">7 days</option><option value="2592000">30 days</option></select></label>
         <label>Minor test bodies<select id="minorCount"><option value="1000">1,000</option><option value="4000" selected>4,000</option><option value="10000">10,000</option><option value="20000">20,000</option></select></label>
         <hr>
@@ -106,7 +123,7 @@
         <label>Artificial local strength (m/s²)<input id="particleStrength" type="number" inputmode="decimal" value="20" min="0" max="250" step="1"></label>
         <label class="inline-check"><input id="particleMajorGravity" type="checkbox" checked><span>Also feel all major-body Newtonian gravity</span></label>
         <div class="button-row"><button id="randomizeParticleRules" type="button">RANDOMIZE RULE PARAMS</button><button id="spawnParticleField" class="void" type="button">SPAWN + OBSERVE</button></div>
-        <p id="particleStatus" class="prediction">No active particle experiments. Fields are session-local in v0.1.4.1.</p>
+        <p id="particleStatus" class="prediction">No particle experiments. Fields are session-local in v0.1.4.1.1.</p>
         <h3>OBSERVATION / RENDEZVOUS</h3>
         <p class="help">OBSERVE/FRAME/TRACK/ORBIT move only a massless scientific camera. RENDEZVOUS returns to SHIP VIEW and moves the physical spacecraft with bounded thrust and braking.</p>
         <label>Selected experiment<select id="experimentSelect"><option value="">No active experiment</option></select></label>
@@ -116,6 +133,7 @@
           <button id="trackExperiment" type="button">TRACK</button>
           <button id="orbitExperiment" type="button">ORBIT</button>
           <button id="nextExperiment" type="button">NEXT FIELD</button>
+          <button id="replayExperiment" type="button">REPLAY FIELD</button>
           <button id="rendezvousExperiment" class="void" type="button">RENDEZVOUS</button>
           <button id="shipViewButton" type="button">SHIP VIEW</button>
         </div>
@@ -125,7 +143,7 @@
         <label>Gun speed (m/s)<input id="particleGunSpeed" type="number" inputmode="decimal" value="25000" min="0" max="1000000" step="1000"></label>
         <label>Spread (degrees)<input id="particleGunSpread" type="number" inputmode="decimal" value="4" min="0" max="60" step="1"></label>
         <div class="button-row"><button id="fireParticleGun" type="button">FIRE PARTICLE GUN</button><button id="clearParticleExperiments" type="button">CLEAR PARTICLES</button></div>
-        <p class="warning">Particle experiments currently cap global time warp at 60× while active so local numerical integration remains resolved. Gravity Cloud particles do not source gravity; full self-gravity is reserved for the Barnes–Hut/WebGPU scaling phase.</p>
+        <p class="warning">Particle experiments cap global time warp at 60× only while live particles remain. Completed/extinct fields keep a final observation frame but release the cap automatically, restoring a previously requested 600×/3,600× warp when safe. Gravity Cloud particles do not source gravity; full self-gravity is reserved for the Barnes–Hut/WebGPU scaling phase.</p>
         <hr>
         <h3>MASS LAUNCHER</h3>
         <p class="help">Projectile radius is derived from mass and bulk density. The preview integrates the projectile and all major gravity sources mutually under the same Newtonian model used live.</p>
@@ -246,8 +264,9 @@
         <p><strong>Trajectory path:</strong> an N-body forward integration of the current massive system plus the ship/projectile. Future thrust and minor-particle gravity are excluded.</p>
         <p><strong>Scanner orbit:</strong> osculating two-body elements around the selected target. Other-body perturbations are intentionally ignored in those displayed elements.</p>
         <p><strong>Minor field:</strong> 1k–20k typed-array background test particles feel major gravity but intentionally contribute no gravity.</p>
-        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields are session-local in v0.1.4.1 and cap warp at 60× for numerical resolution. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
-        <p><strong>Ship:</strong> FLIGHT thrust is 20 m/s²; CRUISE thrust is 120 m/s² experimental propulsion. BRAKE applies bounded physical thrust opposite inertial velocity. APPROACH uses a propulsion-safe target stand-off, brakes into CAPTURE, then remains in thrust-powered HOLD until the pilot takes over. MATCH uses bounded thrust; none of these modes teleport or delete velocity.</p>
+        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields are session-local in v0.1.4.1.1 and cap warp at 60× only while live particles remain; completed fields preserve a final frame and release the cap automatically. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
+        <p><strong>Ship:</strong> FLIGHT thrust is 20 m/s²; CRUISE thrust is 120 m/s²; BOOST is an explicitly speculative 5,000 m/s² propulsion mode for rapid local velocity-vector changes. BRAKE applies bounded thrust opposite inertial velocity. APPROACH uses a propulsion-safe stand-off and persistent HOLD; STOP RELATIVE matches target velocity; TURN &amp; BURN cancels lateral velocity toward the captured nose direction. PROGRADE/RETROGRADE change attitude only.</p>
+        <p><strong>Transit drive:</strong> explicitly fictional reference-frame travel for convenient exploration. Transit position translation is kept separate from Newtonian velocity, steps down near the destination, and can hand off to BOOST + the physical APPROACH controller. It is blocked around unsafe local conditions and live fine-step particle experiments. It is not an Alcubierre/GR simulation.</p>
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Cosmic phenomena:</strong> physical comet nuclei are live Newtonian gravity sources on high-eccentricity orbits. Asteroid/debris belts and planetary rings use seeded GPU-friendly point-population proxies tied to physical anchor bodies; their individual visible points do not source gravity or collide. Distant colored nebular haze is explicitly visual background.</p>
         <p><strong>Space weather:</strong> CME fronts use seeded directional cones with explicit propagation speeds and geometric arrival/crossing detection. They are kinematic fronts, not magnetohydrodynamic or radiation-transport simulations.</p>

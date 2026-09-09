@@ -48,3 +48,12 @@ test('braking flag alone does not magically damp velocity', () => {
   ship.step(1, []);
   assert.ok(Math.abs(ship.velocity[0] - 100) < 1e-12);
 });
+
+test('speculative BOOST engine is bounded at declared 5,000 m/s²', () => {
+  const ship = new ShipDynamics();
+  ship.engineMode = 'boost';
+  ship.throttle = 1;
+  ship.step(1, []);
+  assert.ok(Math.abs(ship.velocity[2] - 5000) < 1e-9);
+  assert.ok(Math.abs(ship.position[2] - 2500) < 1e-6);
+});

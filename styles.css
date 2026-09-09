@@ -33,3 +33,4 @@ button.is-held{box-shadow:inset 0 0 0 2px rgba(255,255,255,.14),0 0 18px rgba(10
 /* v0.1.4 cosmic explorer */
 .cosmos-select-label{display:grid;gap:6px;color:var(--muted);font-size:10px}.cosmos-select-label select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:8px;background:#09111d;padding:8px 10px;font-size:16px;color:var(--text)}
 .cosmos-panel .prediction{border-color:rgba(102,230,255,.22);background:rgba(6,20,31,.36);color:#cdeeff}
+.velocity-marker{position:absolute;z-index:9;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:1px solid rgba(102,230,255,.92);border-radius:50%;box-shadow:0 0 9px rgba(102,230,255,.55);color:#9ef4ff;font-size:6px;line-height:14px;text-align:center;pointer-events:none;transform:translate(0,0);will-change:transform}.velocity-marker.behind{border-color:rgba(255,210,119,.92);box-shadow:0 0 9px rgba(255,210,119,.5);color:#ffe0a0}.velocity-marker[hidden]{display:none}

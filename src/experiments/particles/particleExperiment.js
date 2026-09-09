@@ -79,7 +79,13 @@ export class ParticleExperiment {
     this.species = new Uint8Array(this.capacity);
     this.age = new Float32Array(this.capacity);
     this.grid = new SpatialHashGrid(this.capacity);
+    this.lifecycle = 'active';
+    this.completedAtSeconds = null;
+    this.peakActiveCount = 0;
+    this.lastLiveObservation = null;
+    this.initialConfig = { ...config, origin: [...config.origin], baseVelocity: [...(config.baseVelocity ?? [0,0,0])], forward: config.forward ? [...config.forward] : undefined };
     this._initialize(config);
+    this.peakActiveCount = this.activeCountValue;
   }
 
   _initialize(config) {
@@ -131,6 +137,14 @@ export class ParticleExperiment {
   }
 
   get activeCount() { return this.activeCountValue; }
+  get isComplete() { return this.lifecycle === 'complete'; }
+
+  markComplete() {
+    if (this.lifecycle === 'complete') return false;
+    this.lifecycle = 'complete';
+    this.completedAtSeconds = this.elapsedSeconds;
+    return true;
+  }
 
   _majorGravityAndDrift(dt, gravitySources) {
     const p = this.position;
@@ -256,6 +270,7 @@ export class ParticleExperiment {
   }
 
   step(dt, gravitySources) {
+    if (this.isComplete) return { simulatedSeconds: 0, droppedSeconds: 0, substeps: 0, completed: true };
     const maxStep = this.requiresFineStep ? 1.0 : 3.0;
     let remaining = Math.max(0, dt);
     let substeps = 0;
@@ -271,10 +286,12 @@ export class ParticleExperiment {
         }
       }
       this.elapsedSeconds += h;
+      this.peakActiveCount = Math.max(this.peakActiveCount, this.activeCountValue);
       remaining -= h;
       substeps += 1;
+      if (this.activeCountValue <= 0) { this.markComplete(); remaining = 0; break; }
     }
-    return { simulatedSeconds: dt - remaining, droppedSeconds: remaining, substeps };
+    return { simulatedSeconds: dt - remaining, droppedSeconds: remaining, substeps, completed: this.isComplete };
   }
 
   observationState(sampleLimit = 30_000) {
@@ -293,11 +310,35 @@ export class ParticleExperiment {
       samples += 1;
     }
     if (!samples) {
+      if (this.lastLiveObservation) {
+        return { ...this.lastLiveObservation, activeCount: 0, elapsedSeconds: this.elapsedSeconds, lifecycle: this.lifecycle, completedAtSeconds: this.completedAtSeconds };
+      }
+      // A field may go extinct before the observation camera ever samples it. In that case the
+      // particle slots still retain their last finite death/absorption positions, which are a much
+      // more useful final-frame record than snapping the camera back to the original spawn point.
+      let finalSamples = 0, fx = 0, fy = 0, fz = 0, fvx = 0, fvy = 0, fvz = 0;
+      for (let i = 0; i < this.count; i += stride) {
+        const k = i * 3;
+        if (![position[k], position[k+1], position[k+2]].every(Number.isFinite)) continue;
+        fx += position[k]; fy += position[k+1]; fz += position[k+2];
+        fvx += velocity[k]; fvy += velocity[k+1]; fvz += velocity[k+2]; finalSamples += 1;
+      }
+      if (finalSamples) {
+        fx /= finalSamples; fy /= finalSamples; fz /= finalSamples; fvx /= finalSamples; fvy /= finalSamples; fvz /= finalSamples;
+        let finalR2 = 0;
+        for (let i = 0; i < this.count; i += stride) {
+          const k = i * 3;
+          if (![position[k], position[k+1], position[k+2]].every(Number.isFinite)) continue;
+          const dx = position[k]-fx, dy = position[k+1]-fy, dz = position[k+2]-fz;
+          finalR2 = Math.max(finalR2, dx*dx+dy*dy+dz*dz);
+        }
+        return { id:this.id,label:this.label,mode:this.mode,activeCount:0,count:this.count,center:new Float64Array([fx,fy,fz]),velocity:new Float64Array([fvx,fvy,fvz]),radiusMeters:Math.max(10_000,Math.sqrt(finalR2),this.radiusMeters*0.08),elapsedSeconds:this.elapsedSeconds,scientificStatus:this.scientificStatus,lifecycle:this.lifecycle,completedAtSeconds:this.completedAtSeconds };
+      }
       return {
         id: this.id, label: this.label, mode: this.mode, activeCount: 0, count: this.count,
-        center: new Float64Array(this.origin),
-        velocity: new Float64Array(this.baseVelocity),
+        center: new Float64Array(this.origin), velocity: new Float64Array(this.baseVelocity),
         radiusMeters: this.radiusMeters, elapsedSeconds: this.elapsedSeconds, scientificStatus: this.scientificStatus,
+        lifecycle: this.lifecycle, completedAtSeconds: this.completedAtSeconds,
       };
     }
     cx /= samples; cy /= samples; cz /= samples;
@@ -309,13 +350,15 @@ export class ParticleExperiment {
       const dx = position[k] - cx, dy = position[k + 1] - cy, dz = position[k + 2] - cz;
       maxR2 = Math.max(maxR2, dx * dx + dy * dy + dz * dz);
     }
-    return {
+    const state = {
       id: this.id, label: this.label, mode: this.mode, activeCount: this.activeCount, count: this.count,
       center: new Float64Array([cx, cy, cz]),
       velocity: new Float64Array([vx, vy, vz]),
       radiusMeters: Math.max(10_000, Math.sqrt(maxR2), this.radiusMeters * 0.08),
-      elapsedSeconds: this.elapsedSeconds, scientificStatus: this.scientificStatus,
+      elapsedSeconds: this.elapsedSeconds, scientificStatus: this.scientificStatus, lifecycle: this.lifecycle, completedAtSeconds: this.completedAtSeconds,
     };
+    this.lastLiveObservation = { ...state, center: new Float64Array(state.center), velocity: new Float64Array(state.velocity) };
+    return state;
   }
 
   summary() {
@@ -330,6 +373,9 @@ export class ParticleExperiment {
       deaths: this.deaths,
       neighborChecks: this.neighborChecks,
       elapsedSeconds: this.elapsedSeconds,
+      peakActiveCount: this.peakActiveCount,
+      lifecycle: this.lifecycle,
+      completedAtSeconds: this.completedAtSeconds,
       scientificStatus: this.scientificStatus,
     };
   }

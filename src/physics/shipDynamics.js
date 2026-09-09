@@ -91,10 +91,12 @@ export class ShipDynamics {
   }
 
   currentMainAcceleration() {
+    if (this.engineMode === 'boost') return SIMULATION.shipBoostAcceleration;
     return this.engineMode === 'cruise' ? SIMULATION.shipCruiseAcceleration : SIMULATION.shipThrustAcceleration;
   }
 
   currentReverseAcceleration() {
+    if (this.engineMode === 'boost') return SIMULATION.shipBoostReverseAcceleration;
     return this.engineMode === 'cruise' ? SIMULATION.shipCruiseReverseAcceleration : SIMULATION.shipReverseAcceleration;
   }
 
@@ -171,7 +173,7 @@ export class ShipDynamics {
     this.yaw = Number(data.yaw) || 0;
     this.pitch = Number(data.pitch) || 0;
     this.roll = Number(data.roll) || 0;
-    this.engineMode = data.engineMode === 'cruise' ? 'cruise' : 'flight';
+    this.engineMode = data.engineMode === 'boost' ? 'boost' : data.engineMode === 'cruise' ? 'cruise' : 'flight';
     this.clearNavigationAcceleration();
     this.braking = false;
     return true;

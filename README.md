@@ -1,140 +1,138 @@
-# Universe Lab v0.1.4.1 — Extreme Objects, Space Weather & Scientific Overlays
+# Universe Lab v0.1.4.1.1 — Navigation & Experiment Lifecycle Polish
 
-Universe Lab is a mobile-first scientific/experimental space sandbox built for static GitHub Pages. One deterministic seeded system is simulated at a time with SI-unit Float64 state, direct Newtonian gravity for major bodies, velocity-Verlet integration, floating-origin rendering, and Three.js 0.185.0 WebGPU rendering.
+Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative local simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and Three.js 0.185.0 for presentation.
 
-**Build marker:** `EXTREME-141`  
+**Build marker:** `NAVLIFE-1411`  
 **Save schema:** 1  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
 
-v0.1.4.1 continues the pre-landing cosmic pass. It keeps all v0.1.4 belts/rings/comets/compact-object rendering and adds more extreme astrophysical objects, traveling space-weather fronts, an ancient supernova-remnant exploration source, occasional physical rogue planets, and target-centric scientific overlays.
+This is a focused navigation/lifecycle release built from v0.1.4.1. It does not add landing code or rewrite the working cosmic/particle systems.
 
-## New in v0.1.4.1
+## Why this release exists
 
-### Extreme-object LAB presets
+Physical iPhone testing exposed two usability problems:
 
-LAB now includes an **EXTREME OBJECT PRESETS** selector with:
+1. A Particle Life field could reach **0 active particles**, yet observation controls could continue chasing an empty experiment and the 60× particle-safety warp cap could remain in effect.
+2. At very high inertial spacecraft speed, simply rotating the nose did not change the existing velocity vector quickly enough for comfortable exploration.
 
-- **Magnetar** — 1.55 M☉, 12 km physical radius, live Newtonian gravity and compact-object guard; high-field loops/sparks are visual proxies.
-- **White dwarf** — 0.82 M☉, 7,400 km preset physical radius, live Newtonian gravity; glow/spectrum are illustrative.
-- **Brown dwarf** — 42 Jupiter masses, ~71,000 km radius, live Newtonian gravity; atmospheric banding is visual-only.
-- **Rogue planet** — 2.2 Earth masses preset in LAB with a cold low-light visual treatment and live Newtonian gravity.
+v0.1.4.1.1 fixes both while keeping scientific and fictional mechanics clearly separated.
 
-The existing configurable neutron-star/pulsar and active-black-hole spawners remain.
+## Three local propulsion modes
 
-### Seeded rogue planets
+- **FLIGHT:** 20 m/s² bounded local acceleration.
+- **CRUISE:** 120 m/s² bounded local acceleration.
+- **BOOST:** 5,000 m/s² bounded local acceleration.
 
-Generated systems now have a deterministic chance to include one distant **physical rogue/interstellar planet**. It has finite mass, radius, position and velocity and participates in the same direct major-body Newtonian gravity and collision system as the rest of the generated bodies.
+BOOST is explicitly **speculative/fictional propulsion**. It still changes the Newtonian velocity state by integrating a declared acceleration; it does not teleport or silently erase momentum. Manual BOOST selection returns simulation warp to 1× for control.
 
-Its thermal/atmospheric history is not simulated. It also appears in COSMOS as a discoverable source when generated.
+## Velocity-vector navigation aids
 
-### Ancient supernova remnants
+### Velocity marker
 
-Every system now receives a large seeded **supernova-remnant** exploration source. It is an ~8,500-point shell/filament rendering proxy placed in deep local space and exposed through the existing COSMOS discovery/observation/rendezvous workflow.
+SHIP VIEW now shows a `V⃗` marker indicating the actual inertial travel direction separately from the center reticle/nose direction. `V⃗ BACK` indicates that the current velocity points behind the camera hemisphere.
 
-The shell is not a hydrodynamic gas simulation and does not add thousands of gravity sources.
+### PROGRADE / RETROGRADE
 
-### Traveling space weather
+These rotate attitude only:
 
-The COSMOS drawer now includes **SPACE WEATHER**.
+- **PROGRADE** points the ship along its current inertial velocity.
+- **RETROGRADE** points opposite its current inertial velocity.
 
-A coronal mass ejection is represented as a directional expanding front with:
+They apply no thrust and do not modify velocity.
 
-- explicit launch time,
-- explicit propagation speed,
-- angular cone width,
-- live position tied to the current physical star,
-- geometric spacecraft-front crossing detection,
-- swept-front detection so a large physics step cannot silently jump over the crossing,
-- automatic deterministic events in simulated time,
-- manual **TRIGGER CME** for testing.
+### TURN & BURN
 
-Typical generated speeds are approximately 450–1,900 km/s; manual/event values are bounded to the model's supported range.
+TURN & BURN captures the ship's current nose direction, then uses the currently selected bounded propulsion mode to reduce lateral velocity until the true velocity vector follows the nose. This is physical local thrust logic, not hidden damping.
 
-The front propagation and arrival geometry are scientific/kinematic. The renderer uses a GPU-friendly point/cone proxy. Universe Lab does **not** yet calculate MHD, magnetic reconnection, solar energetic particle dose, ionization, spacecraft damage or electronics failures.
+### STOP RELATIVE
 
-### Scientific overlays
+The former MATCH VELOCITY control is presented as **STOP RELATIVE**. It uses bounded target-relative thrust to reduce velocity relative to the selected target.
 
-**MORE → OVERLAYS** opens a target-centric diagnostic panel.
+## Speculative TRANSIT drive
 
-Available layers:
+**TRANSIT is deliberately fictional.** It is a separate reference-frame travel layer for practical astronomical exploration and is not presented as Newtonian propulsion, an Alcubierre solution, or established FTL physics.
 
-- **L1–L5** instantaneous/circular restricted-three-body estimates,
-- **Hill sphere** estimate,
-- **fluid Roche limit** using a documented 3,000 kg/m³ reference satellite density,
-- **instantaneous orbital plane** from current target-relative position/velocity,
-- **25-point local gravity-vector field** around the spacecraft calculated from the live Newtonian major-body source set.
+Available coordinate-rate tiers:
 
-The master switch leaves all overlays off by default so normal mobile rendering is unchanged unless requested.
+- 1 c
+- 10 c
+- 100 c
+- 500 c
+- 1,000 c
 
-Lagrange/Hill/Roche layers are intentionally labeled as diagnostic approximations rather than stability guarantees.
+TRANSIT translates the spacecraft position toward the selected celestial target or selected COSMOS source over **real elapsed time** while preserving the ship's local Newtonian velocity. The displayed multiple-of-c transit rate is never added to `ship.velocity`.
 
-### Magnetar visual treatment
+Near the destination, TRANSIT automatically steps down through lower tiers. Its arrival envelope includes:
 
-The neutron-star renderer now recognizes `compactType: magnetar` and adds:
+- a body-safe/propulsion-safe stand-off,
+- extra physical braking distance based on the ship's preserved target-relative Δv,
+- swept massive-body route guards so a large real-time movement step cannot tunnel through an intervening body.
 
-- stronger multi-axis magnetic-loop geometry,
-- a ~1,200-point high-field spark population,
-- compact luminous surface/glow,
-- slow rotating field-lobe motion.
+With **AUTO CAPTURE** enabled, arrival disengages TRANSIT, selects BOOST, and hands control to the existing physical APPROACH → BRAKING → CAPTURE → HOLD flight computer. The preserved local Δv is then removed with bounded real thrust.
 
-These are field/energy visualization proxies. The live compact mass remains Newtonian outside the existing neutron-star model guard.
+TRANSIT is blocked while a live local particle experiment is running or while the ship is in finite-radius body contact. Simulation time warp is locked to 1× while TRANSIT is engaged because transit speed is controlled separately.
 
-### White dwarf / brown dwarf / rogue visuals
+## Particle experiment lifecycle recovery
 
-The celestial visual factory adds separate treatments rather than rendering every new type as a generic planet:
+Particle experiments now have explicit **active → complete** lifecycle state.
 
-- white-dwarf blue-white compact glow and halo,
-- brown-dwarf low-temperature warm bands,
-- rogue-planet cold dark body with faint thermal rim.
+When the last active particle dies/is absorbed:
 
-## Retained v0.1.4 cosmic exploration
+- the field becomes **COMPLETE** (Particle Life is reported as **EXTINCT**),
+- the final valid live centroid/bounds are retained,
+- FRAME shows that final frame rather than snapping to an empty origin,
+- TRACK/ORBIT no longer chase a nonexistent live centroid,
+- physical RENDEZVOUS refuses the completed field,
+- **REPLAY FIELD** rebuilds the deterministic original initial state,
+- the 60× fine-step warp cap is released immediately.
 
-- COSMOS discovery with `UNIDENTIFIED SOURCE` → SCAN SOURCE classification.
-- massless OBSERVE / ORBIT VIEW and instant SHIP VIEW.
-- physical RENDEZVOUS using bounded-thrust APPROACH/BRAKING/CAPTURE/HOLD.
-- 1–2 physical high-eccentricity comets with star-relative visual tails.
-- ~12,000-point circumstellar debris belt proxy.
-- ~4,000–7,000-point planetary ring systems.
-- star corona/prominence rendering and deeper galactic/nebular backdrop.
-- active black-hole renderer with event-horizon core, photon-ring cues, ~5,200 accretion points, layered disk, ~1,500 jet points and pseudo-lensing halo.
-- neutron-star/pulsar live gravity with compact-object safety guards.
+If the player requested 600× or 3,600× before a live experiment forced 60×, that requested warp is remembered and safely restored when the last live particle finishes. Clearing all experiment fields also releases the cap.
 
-## Retained flight, particles and impacts
+Completed fields are retained in a small bounded history for final-frame inspection/replay rather than immediately deleted.
 
-- FLIGHT 20 m/s² and CRUISE 120 m/s² experimental propulsion.
-- physical BRAKE, MATCH VELOCITY, APPROACH, CAPTURE and persistent HOLD.
-- adaptive strong-gravity physics substeps and 0.1c / compact-object validity guards.
-- Gravity Cloud, Particle Life, Species Forces and Particle Gun.
-- typed-array spatial hash and 40,000 global experiment slot budget.
-- swept finite-radius impact detection, crater scaling, impact telemetry, restrained resolved fragments and cascade suppression.
-- runtime frame exception HUD boundary from v0.1.3.2.1.
-- class-method integrity QA from v0.1.3.2.2.
+## Retained v0.1.4.1 universe systems
+
+This build preserves:
+
+- magnetars, white dwarfs, brown dwarfs and physical rogue planets,
+- supernova-remnant exploration sources,
+- kinematic CME/space-weather fronts,
+- L1–L5, Hill, Roche, orbital-plane and gravity-vector overlays,
+- physical high-eccentricity comets,
+- asteroid/debris belts and planetary rings as GPU population proxies,
+- stellar corona/prominence visuals,
+- upgraded black-hole accretion/photon-ring/jet visuals,
+- neutron-star/pulsar compact-object safeguards,
+- COSMOS SCAN / OBSERVE / ORBIT / RENDEZVOUS,
+- impacts, crater/fragment logic and cascade suppression,
+- Gravity Cloud, Particle Life, Species Forces and Particle Gun,
+- runtime-error HUD boundary and isolated SHIP/OBSERVE render paths.
 
 ## Scientific model categories
 
-Universe Lab deliberately separates:
+Universe Lab continues to separate:
 
-1. **Live physical state** — SI-unit bodies/particles actually advanced by a solver.
-2. **Scientific approximation** — simplified but meaningful derived models such as Hill/Roche/Lagrange estimates, osculating elements, crater scaling and kinematic CME fronts.
-3. **Visual/artificial proxy** — nebular haze, supernova-remnant gas filaments, magnetosphere art, accretion/jet rendering, Particle Life and Species Forces.
+1. **Live physical state** — Newtonian bodies/particles and bounded local thrust actually integrated in SI units.
+2. **Scientific approximation** — derived/kinematic models such as osculating elements, crater scaling, CME fronts, Hill/Roche/Lagrange diagnostics.
+3. **Visual/artificial proxy** — nebulae, remnants, magnetosphere art, accretion/jet graphics, Particle Life and Species Forces.
+4. **Explicitly fictional navigation** — BOOST as speculative high-acceleration propulsion and TRANSIT as reference-frame FTL exploration travel.
 
-The UI/docs should never imply that category 3 is a solved first-principles physical simulation.
+Category 4 is deliberately labeled in the UI and does not masquerade as established physics.
 
-## First iPhone validation
+## Recommended iPhone validation
 
-After deployment verify **v0.1.4.1** and **EXTREME-141**, then:
-
-1. Leave normal SHIP VIEW untouched for 15–30 seconds and confirm FPS/physics/render/sim time remain healthy.
-2. MORE → COSMOS → scan/observe the **supernova remnant** and, if generated, the **rogue planet**.
-3. In COSMOS → SPACE WEATHER, press **TRIGGER CME**. Observe the expanding front, then use time warp and verify its AU radius increases.
-4. Toggle **AUTO WEATHER** and confirm the next-event countdown is visible.
-5. Select a planet/moon → MORE → **OVERLAYS** → enable master + Lagrange/Hill/Roche/orbit plane. Then try gravity vectors separately and watch FPS.
-6. LAB → EXTREME OBJECT PRESETS → spawn Magnetar, White Dwarf, Brown Dwarf and Rogue Planet one at a time.
-7. Retest a v0.1.4 ring/belt/comet, active black hole, one particle experiment and one impact preset.
-
-Physical iPhone testing is still the release gate for WebGPU visuals, thermal behavior and mobile ergonomics.
+1. Confirm **v0.1.4.1.1 / NAVLIFE-1411**, no runtime ERR, and normal sim time/FPS remain healthy.
+2. At ordinary speed, test `V⃗`, PROGRADE and RETROGRADE.
+3. Select BOOST and verify THRUST displays 5,000.
+4. Build a sideways velocity, turn the nose, then test TURN & BURN and watch `V⃗` converge toward the reticle.
+5. Select a distant celestial target → MORE → TRANSIT DRIVE → try 100 c with AUTO CAPTURE.
+6. Confirm transit distance drops rapidly but local ship velocity does **not** jump to the transit rate; arrival should hand off to BOOST physical capture.
+7. Spawn Particle Life, request 3,600×, and confirm it is capped to 60× while alive.
+8. Let Particle Life reach 0 active. Confirm it reports COMPLETE/EXTINCT, retains a final FRAME, and 3,600× returns automatically.
+9. REPLAY FIELD and confirm the field restarts and the 60× cap re-engages.
+10. Regress COSMOS, CME/overlays, compact objects, black hole, impacts and SHIP VIEW.
 
 ## Next roadmap
 
-If this build is stable, the next pre-landing pass should focus on **System Map + richer discovery/anomaly events** rather than adding more buttons to TARGET. After that, the first landable-planet foundation can begin with a much richer universe surrounding it.
+If this build is stable on-device, the planned next milestone is **v0.1.4.2 — System Map + Deeper Discovery/Anomalies**, followed by the first landable-planet foundation.

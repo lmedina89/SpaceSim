@@ -85,3 +85,45 @@ test('fine particle modes fully consume a 3-second particle-safe frame interval'
   assert.equal(result.simulatedSeconds,3);
   assert.equal(result.substeps,3);
 });
+
+test('completed particle field releases manager warp cap without deleting final field', () => {
+  const manager=new ParticleExperimentManager();
+  const context={system:{seed:'life-end'},clock:{elapsedSimSeconds:0},ship:{position:v(0,0,0),velocity:v(0,0,0),forward:()=>v(0,0,-1)}};
+  const field=manager.spawnField(context,{mode:'life',count:100,radiusMeters:1e6,neighborRadiusMeters:1e5,initialSpeedMps:0,majorGravity:false});
+  field.active.fill(0); field.activeCountValue=0; field.markComplete();
+  assert.equal(manager.hasActive,false);
+  assert.equal(manager.recommendedWarpCap,Infinity);
+  assert.equal(manager.fields.has(field.id),true,'completed field should remain for final-frame observation/replay');
+});
+
+test('completed experiment observation keeps last live bounds instead of snapping to empty origin', () => {
+  const field=new ParticleExperiment({id:'final',seed:'final',mode:'gravity',count:1,radiusMeters:1e6,initialSpeedMps:0,origin:v(100,200,300),baseVelocity:v(4,5,6),majorGravity:false});
+  field.position.set([900,800,700]); field.velocity.set([8,9,10]); field.active[0]=1; field.activeCountValue=1;
+  const live=field.observationState();
+  field.active[0]=0; field.activeCountValue=0; field.markComplete();
+  const final=field.observationState();
+  assert.deepEqual([...final.center],[...live.center]);
+  assert.deepEqual([...final.velocity],[...live.velocity]);
+  assert.equal(final.activeCount,0);
+});
+
+test('experiment replay reconstructs deterministic active initial state', () => {
+  const manager=new ParticleExperimentManager();
+  const context={system:{seed:'replay'},clock:{elapsedSimSeconds:123},ship:{position:v(0,0,0),velocity:v(10,0,0),forward:()=>v(0,0,-1)}};
+  const field=manager.spawnField(context,{mode:'gravity',count:200,radiusMeters:2e6,neighborRadiusMeters:2e5,initialSpeedMps:100,majorGravity:false});
+  const first=[...field.position.slice(0,12)];
+  field.active.fill(0);field.activeCountValue=0;field.markComplete();
+  const replay=manager.reset(field.id);
+  assert.equal(replay.isComplete,false);
+  assert.ok(replay.activeCount>0);
+  assert.deepEqual([...replay.position.slice(0,12)],first);
+});
+
+test('unobserved extinct field derives a final frame from retained particle death positions', () => {
+  const field=new ParticleExperiment({id:'unseen-final',seed:'unseen-final',mode:'gravity',count:2,radiusMeters:1e6,initialSpeedMps:0,origin:v(0,0,0),baseVelocity:v(0,0,0),majorGravity:false});
+  field.position.set([9e6,2e6,0, 11e6,2e6,0]);
+  field.velocity.fill(0); field.active.fill(0); field.activeCountValue=0; field.markComplete(); field.lastLiveObservation=null;
+  const final=field.observationState();
+  assert.ok(Math.abs(final.center[0]-10e6)<1e-6);
+  assert.ok(Math.abs(final.center[1]-2e6)<1e-6);
+});

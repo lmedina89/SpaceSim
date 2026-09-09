@@ -40,7 +40,10 @@ export class ParticleExperimentManager {
   get values() { return [...this.fields.values()]; }
   get totalParticles() { return this.values.reduce((sum, field) => sum + field.count, 0); }
   get activeParticles() { return this.values.reduce((sum, field) => sum + field.activeCount, 0); }
-  get hasActive() { return this.fields.size > 0; }
+  get activeFieldCount() { return this.values.reduce((sum, field) => sum + (field.activeCount > 0 ? 1 : 0), 0); }
+  get completedCount() { return this.values.reduce((sum, field) => sum + (field.isComplete ? 1 : 0), 0); }
+  get activeSlotCount() { return this.values.reduce((sum, field) => sum + (field.activeCount > 0 ? field.count : 0), 0); }
+  get hasActive() { return this.activeParticles > 0; }
   get newestField() { const values = this.values; return values.length ? values[values.length - 1] : null; }
   get recommendedWarpCap() { return this.hasActive ? SIMULATION.particleExperimentWarpCap : Infinity; }
 
@@ -53,9 +56,15 @@ export class ParticleExperimentManager {
     return this.fields.delete(id);
   }
 
+  _pruneCompleted(maxRetained = 2) {
+    const completed = this.values.filter((field) => field.isComplete).sort((a,b) => a.createdAtSimSeconds - b.createdAtSimSeconds);
+    while (completed.length > maxRetained) { const field = completed.shift(); this.fields.delete(field.id); }
+  }
+
   _ensureBudget(nextCount) {
-    if (this.fields.size >= this.maxActiveFields) throw new Error(`Particle-field budget reached (${this.maxActiveFields}). Clear an experiment before spawning another.`);
-    if (this.totalParticles + nextCount > this.maxTotalParticles) throw new Error(`Particle budget would exceed ${this.maxTotalParticles.toLocaleString()} active slots.`);
+    this._pruneCompleted(2);
+    if (this.activeFieldCount >= this.maxActiveFields) throw new Error(`Particle-field budget reached (${this.maxActiveFields} active fields). Clear or finish an experiment before spawning another.`);
+    if (this.activeSlotCount + nextCount > this.maxTotalParticles) throw new Error(`Particle budget would exceed ${this.maxTotalParticles.toLocaleString()} active slots.`);
   }
 
   spawnField(context, params) {
@@ -136,6 +145,18 @@ export class ParticleExperimentManager {
     return field?.observationState() ?? null;
   }
 
+  reset(id) {
+    const field = this.fields.get(id);
+    if (!field) return null;
+    const replacement = new ParticleExperiment(field.initialConfig);
+    replacement.id = field.id;
+    replacement.label = field.label;
+    replacement.initialConfig.id = field.id;
+    replacement.initialConfig.label = field.label;
+    this.fields.set(id, replacement);
+    return replacement;
+  }
+
   randomizeArtificialParams(seedText) {
     const rng = createRng(seedText);
     return {
@@ -147,13 +168,11 @@ export class ParticleExperimentManager {
 
   step(dt, gravitySources) {
     let dropped = 0;
-    const expired = [];
     for (const field of this.fields.values()) {
+      if (field.isComplete) continue;
       const result = field.step(dt, gravitySources);
       dropped += result.droppedSeconds;
-      if (field.mode === 'gun' && field.activeCount === 0) expired.push(field.id);
     }
-    for (const id of expired) this.fields.delete(id);
     this.lastStepDroppedSeconds = dropped;
   }
 

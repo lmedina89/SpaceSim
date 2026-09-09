@@ -1,103 +1,96 @@
-# Architecture — Universe Lab v0.1.4.1
+# Architecture — Universe Lab v0.1.4.1.1
 
-## Core rule
+## Core invariant
 
-**Rendering never owns authoritative physics.**
+**Rendering and fictional transit never own or silently rewrite authoritative local physics.**
 
-The live simulation remains SI/Float64 and data-driven. Three.js owns visual objects and camera presentation only.
+Normal ship/body state remains SI/Float64. Three.js owns presentation only. TRANSIT owns a clearly separated speculative coordinate-translation mode and never adds its coordinate rate to the Newtonian ship velocity.
 
-## Major-body layer
+## Local physical flight
 
-`EntityRegistry` contains physical generated/spawned bodies. Direct Newtonian gravity sources are bounded by `SIMULATION.directGravityBodyLimit` and integrated with velocity-Verlet.
+`ShipDynamics` retains local Newtonian velocity integration and now exposes three bounded propulsion modes:
 
-New physical body kinds:
+- FLIGHT 20 m/s²,
+- CRUISE 120 m/s²,
+- BOOST 5,000 m/s².
 
-- `white-dwarf`
-- `brown-dwarf`
-- `rogue-planet`
+BOOST is intentionally marked speculative. `flightComputer.js` owns APPROACH/HOLD, STOP RELATIVE, inertial BRAKE and TURN & BURN acceleration commands. Commands remain bounded by the selected engine acceleration.
 
-Magnetars remain `neutron-star` bodies with `compactType: magnetar`, so existing compact-object navigation/model safeguards apply without duplicating physical code.
+TURN & BURN captures an inertial desired direction at engagement, decomposes current velocity into along-direction and lateral components, and applies bounded acceleration to cancel the lateral component. It never applies hidden exponential damping.
 
-## Cosmic phenomenon layer
+## Velocity-vector HUD
 
-`CosmicPhenomenonRegistry` describes large exploration sources separately from the body registry.
+The ship attitude basis and authoritative `ship.velocity` are projected into a lightweight HUD marker. This has no physics role. It exists specifically to make the difference between **where the nose points** and **where momentum is carrying the ship** visible on mobile.
 
-v0.1.4.1 kinds include:
+## Speculative transit layer
 
-- asteroid belt,
-- planetary rings,
-- supernova remnant,
-- rogue-planet discovery wrapper.
+`physics/transitDrive.js` is a pure module with no Three.js dependency.
 
-Phenomena may be:
+It provides:
 
-- anchored to a live body and resolve its current Float64 state, or
-- free-space with their own deterministic position/velocity.
+- normalized 1c/10c/100c/500c/1000c coordinate-rate tiers,
+- target arrival-envelope calculation,
+- distance-dependent automatic tier step-down,
+- bounded real-frame position advancement with no arrival overshoot,
+- per-body transit safety radii,
+- swept segment/sphere route guards.
 
-`render/cosmicPhenomena.js` converts those definitions into GPU-friendly render proxies.
+`UniverseLabApp.updateTransit(realDt)` performs reference-frame translation using real elapsed wall-clock time while the normal simulation clock remains at 1×. The target is resolved live each frame, so a moving target remains current.
 
-## Space weather
+The transit layer modifies only spacecraft **position**. It deliberately preserves `ship.velocity`. On AUTO CAPTURE arrival, the app exits transit and starts normal BOOST-powered APPROACH so target-relative Δv is handled by the physical flight computer.
 
-`cosmic/spaceWeather.js` owns session-local CME event state.
+For COSMOS phenomena anchored to a live body, the target anchor body is excluded from the swept route blocker list because it is the intended destination. Intervening massive bodies remain guarded.
 
-It does not create major gravity bodies. Each event stores compact scalar/vector metadata and derives current front radius from simulation time.
+TRANSIT visual streaks/FOV cues are driven by `ship.transitVisualFactor` and `ship.transitDirection`; these are render-only state.
 
-`render/spaceWeatherVisuals.js` owns one bounded point/cone visual per active event. Renderer state is keyed by event ID and disposed when the physical/kinematic event expires.
+## Experiment lifecycle
 
-CME crossing uses a swept radial interval from the event's previous front radius to its current front radius, preventing high-warp substeps from tunneling through the spacecraft.
+`ParticleExperiment` now stores:
 
-## Scientific overlays
+- `lifecycle`,
+- `completedAtSeconds`,
+- `peakActiveCount`,
+- `lastLiveObservation`,
+- deterministic `initialConfig` for replay.
 
-`cosmic/scientificOverlays.js` is a pure math module with no Three.js dependency. It owns Hill/Roche/Lagrange/gravity/orbital-plane calculations and is unit-tested independently.
+A field becomes complete when active particle count reaches zero. Its final valid observation state is retained so an observer never falls back to an empty `(0,0,0)` centroid.
 
-`render/scientificOverlayVisuals.js` owns only the visual representation.
+`ParticleExperimentManager` separates:
 
-The renderer receives a small settings object from the app. The master is off by default. Geometry refresh is throttled because these diagnostics do not require per-frame topology reconstruction.
+- total retained fields,
+- active field count,
+- active particle count,
+- active slot budget.
 
-The overlay renderer is target-centric to avoid turning the scene into an unreadable global wireframe.
+`recommendedWarpCap` is 60× **only while active particles exist**. Completed fields do not consume the active simulation budget and do not keep the fine-step warp cap alive. A bounded number of completed fields is retained for inspection/replay.
 
-## Renderer flow
+## Warp arbitration
 
-Normal ship rendering remains isolated:
+There are three separate concepts:
 
-1. floating reference frame centers on physical ship,
-2. body visuals sync,
-3. experiment visuals sync,
-4. cosmic phenomena sync,
-5. space-weather proxies sync,
-6. optional scientific overlays update,
-7. trajectories/impact FX update,
-8. ship camera renders.
+1. **simulation time warp** — 1× / 60× / 600× / 3,600×,
+2. **navigation auto-warp** — chosen by APPROACH/STOP RELATIVE/TURN & BURN,
+3. **TRANSIT coordinate rate** — fictional 1c–1000c real-time reference-frame travel.
 
-Observation rendering uses the same scene-object synchronization but centers the floating reference frame on the selected massless observation source before calculating its camera pose.
+Particle safety applies only to live local particle experiments. If a requested high warp is reduced to 60×, the requested value is remembered and can be restored once the last active particle completes, provided navigation/transit does not impose a stricter state.
 
-## Celestial visual factory
+TRANSIT locks simulation time warp to 1× because transit has its own separate coordinate-rate control.
 
-Special body visual graphs remain attached to one authoritative body entity:
+## Existing physical/cosmic architecture
 
-- black hole → core + photon rings + accretion + jets + pseudo-lensing glow,
-- neutron star/pulsar → compact core + magnetosphere + optional sweep beams,
-- magnetar → neutron-star base + stronger field lobes + spark population,
-- white dwarf → compact blue-white core + halo,
-- brown dwarf → warm low-temperature surface/band layers,
-- rogue planet → cold dark surface + faint thermal rim,
-- comet → nucleus + star-relative visual tail.
+The v0.1.4.1 separation remains:
 
-No child visual changes mass, radius, trajectory or collision behavior.
+- `EntityRegistry`: live finite-radius Newtonian major bodies,
+- `CosmicPhenomenonRegistry`: large exploration sources and visual population proxies,
+- `SpaceWeatherManager`: kinematic session-local CME event state,
+- `scientificOverlays.js`: pure derived overlay math,
+- Three.js render modules: visual-only proxies for belts/rings/remnants/CMEs/fields/compact-object spectacle.
 
-## Space-weather persistence
+No landing architecture is introduced in this release.
 
-Space weather is session-local in schema 1. Saving/loading preserves the major-body/ship state but intentionally regenerates future weather scheduling rather than silently extending the save schema.
+## Mobile safety
 
-## Performance boundaries
-
-- direct mutual gravity remains for low-count major bodies only,
-- belt/ring/remnant/CME populations are GPU render proxies,
-- particle experiments retain their independent 40,000-slot budget,
-- scientific overlays are off by default and use only small line/point sets,
-- overlay visual topology is throttled instead of rebuilt every frame,
-- compact-object decorative particle counts are bounded.
-
-## Failure boundaries
-
-The runtime exception HUD boundary and unhandled-promise reporting remain. The static class-method integrity test still enumerates direct `this.method()` calls and requires corresponding `UniverseLabApp` class definitions.
+- TRANSIT movement is swept against massive-body guard spheres.
+- Local strong-gravity adaptive substeps and the 0.1c Newtonian ship-velocity model limit remain active because TRANSIT does not modify local velocity.
+- Mobile drawers remain scrollable and all new controls use the existing safe-area/VisualViewport shell.
+- Direct app `this.method()` calls, unique HTML IDs and literal app `#id` selectors are now statically audited.

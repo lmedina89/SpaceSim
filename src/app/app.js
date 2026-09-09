@@ -9,7 +9,7 @@ import { VelocityVerletIntegrator } from '../physics/integrators/velocityVerlet.
 import { CollisionMonitor } from '../physics/collisionMonitor.js';
 import { TestParticleField } from '../physics/testParticleField.js';
 import { ShipDynamics } from '../physics/shipDynamics.js';
-import { computeApproachAcceleration, computeMatchVelocityAcceleration, computeAbsoluteBrakeAcceleration, recommendedWarpCap, targetRelativeState, navigationPhysicsStepLimitSeconds, newtonianModelLimit } from '../physics/flightComputer.js';
+import { computeApproachAcceleration, computeMatchVelocityAcceleration, computeTurnAndBurnAcceleration, computeAbsoluteBrakeAcceleration, recommendedWarpCap, targetRelativeState, navigationPhysicsStepLimitSeconds, newtonianModelLimit } from '../physics/flightComputer.js';
 import { formatEnergy } from '../physics/impactModel.js';
 import { resolveImpact } from '../physics/impactResolver.js';
 import { osculatingMetrics, angularAlignment } from '../physics/orbitalMetrics.js';
@@ -19,6 +19,7 @@ import { registerLabExperiments, MATERIALS, asteroidDefinitionFromParams, sphere
 import { ParticleExperimentManager, PARTICLE_MODES } from '../experiments/particles/particleExperimentManager.js';
 import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
 import { SpaceWeatherManager } from '../cosmic/spaceWeather.js';
+import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition } from '../physics/transitDrive.js';
 import { UniverseRenderer } from '../render/threeRenderer.js';
 import { Hud } from '../ui/hud.js';
 
@@ -135,6 +136,11 @@ export class UniverseLabApp {
     this.navigationExperimentId = null;
     this._lastWarpSafetyNotice = 0;
     this._lastNavigationPhase = null;
+    this.turnBurnDirection = null;
+    this.transitState = { active: false, targetType: 'body', targetId: null, maxMultipleC: 100, autoCapture: true, previousTimeScale: 1, status: null };
+    this._particleWarpRestoreScale = null;
+    this._particleWarpCapActive = false;
+    this._announcedExperimentCompletions = new Set();
     this._modelLimitLatched = false;
     this.cameraMode = 'ship';
     this.observationStyle = 'frame';
@@ -189,10 +195,14 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.1 online. Extreme objects, traveling space weather, and scientific overlays active. Build EXTREME-141.');
+    this.hud.notify('v0.1.4.1.1 online. Transit navigation, vector assists, and experiment lifecycle recovery active. Build NAVLIFE-1411.');
   }
 
   newSystem(seed) {
+    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
+    this._particleWarpRestoreScale = null;
+    this._particleWarpCapActive = false;
+    this._announcedExperimentCompletions.clear();
     this.cancelNavigation();
     this.particleExperiments.clear();
     this.returnToShipView(false);
@@ -269,6 +279,7 @@ export class UniverseLabApp {
     if (body) this.hud.notify(`Target locked: ${body.name}. Scanner uses two-body osculating telemetry plus N-body path prediction.`);
     this.invalidatePredictions();
     this.updateTargetTelemetry();
+    this.updateTransitPanel();
   }
 
   selectReticleTarget() {
@@ -300,6 +311,212 @@ export class UniverseLabApp {
     this.ship.lookAt(target.position);
     this.invalidatePredictions();
     this.hud.notify(`Ship attitude aligned toward ${target.name}. No autopilot thrust was applied.`);
+  }
+
+
+  updateEngineUi() {
+    const mode = this.ship.engineMode;
+    const label = mode === 'boost' ? 'BOOST' : mode === 'cruise' ? 'CRUISE' : 'FLIGHT';
+    const engineButton = this.root.querySelector('#engineModeButton');
+    if (engineButton) engineButton.textContent = `ENGINE ${label}`;
+    const thrustButton = this.root.querySelector('#thrustButton');
+    if (thrustButton) thrustButton.textContent = `THRUST ${this.ship.currentMainAcceleration().toLocaleString()}`;
+  }
+
+  alignVelocityAttitude(sign = 1) {
+    const speed = Math.hypot(...this.ship.velocity);
+    if (speed < 0.5) { this.hud.notify('Velocity is too small to define a useful prograde/retrograde direction.'); return; }
+    const direction = sign >= 0 ? 1 : -1;
+    this.ship.lookAt(new Float64Array([
+      this.ship.position[0] + this.ship.velocity[0] * direction,
+      this.ship.position[1] + this.ship.velocity[1] * direction,
+      this.ship.position[2] + this.ship.velocity[2] * direction,
+    ]));
+    this.invalidatePredictions();
+    this.hud.notify(`${direction > 0 ? 'PROGRADE' : 'RETROGRADE'} attitude aligned to the current inertial velocity vector. Attitude changed; velocity did not.`);
+  }
+
+  engageTurnAndBurn() {
+    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
+    const f = this.ship.forward(new Float64Array(3));
+    this.turnBurnDirection = new Float64Array(f);
+    this.navigationExperimentId = null;
+    this.navigationPhenomenonId = null;
+    this.setNavigationMode('turn-burn');
+    this.hud.toggleMore(false);
+    this.hud.notify(`TURN & BURN captured the current nose direction. The computer will cancel sideways velocity with bounded ${this.ship.engineMode.toUpperCase()} thrust until the real velocity vector follows the nose.`);
+  }
+
+  selectedTransitTarget() {
+    const source = this.root.querySelector('#transitTargetSource')?.value ?? 'body';
+    if (source === 'cosmic') {
+      const target = this.phenomenonNavigationTarget(this.selectedPhenomenonId);
+      return target ? { type: 'cosmic', id: this.selectedPhenomenonId, target } : null;
+    }
+    const target = this.target;
+    return target ? { type: 'body', id: target.id, target } : null;
+  }
+
+  lockedTransitTarget() {
+    if (!this.transitState.targetId) return null;
+    if (this.transitState.targetType === 'cosmic') {
+      const target = this.phenomenonNavigationTarget(this.transitState.targetId);
+      return target ? { type: 'cosmic', id: this.transitState.targetId, target } : null;
+    }
+    const target = this.registry.get(this.transitState.targetId);
+    return target ? { type: 'body', id: target.id, target } : null;
+  }
+
+  updateTransitPanel() {
+    const panel = this.root.querySelector('#transitPanel');
+    if (!panel) return;
+    const locked = this.transitState.active ? this.lockedTransitTarget() : this.selectedTransitTarget();
+    const target = locked?.target ?? null;
+    const set = (id, text) => { const el = this.root.querySelector(id); if (el) el.textContent = text; };
+    set('#transitTargetName', target?.name ?? '—');
+    if (target) {
+      const dx = target.position[0] - this.ship.position[0], dy = target.position[1] - this.ship.position[1], dz = target.position[2] - this.ship.position[2];
+      const d = Math.hypot(dx, dy, dz);
+      set('#transitDistance', d >= PHYSICS.AU * 0.01 ? `${(d / PHYSICS.AU).toFixed(4)} AU` : `${(d / 1e6).toLocaleString(undefined,{maximumFractionDigits:1})} Mm`);
+      const rel = Math.hypot(this.ship.velocity[0] - target.velocity[0], this.ship.velocity[1] - target.velocity[1], this.ship.velocity[2] - target.velocity[2]);
+      set('#transitLocalVelocity', rel >= 1000 ? `${(rel / 1000).toLocaleString(undefined,{maximumFractionDigits:2})} km/s` : `${rel.toFixed(1)} m/s`);
+    } else {
+      set('#transitDistance', '—'); set('#transitLocalVelocity', '—');
+    }
+    const status = this.transitState.status;
+    set('#transitEffectiveSpeed', this.transitState.active && status ? `${status.multipleC.toLocaleString()} c` : '—');
+    set('#transitEta', this.transitState.active && status?.speedMps > 0 ? `${Math.max(0, status.remainingMeters / status.speedMps).toFixed(1)} s` : '—');
+    const engage = this.root.querySelector('#transitEngage');
+    if (engage) engage.textContent = this.transitState.active ? 'DISENGAGE TRANSIT' : 'ENGAGE TRANSIT';
+  }
+
+  engageTransit() {
+    if (this.transitState.active) { this.disengageTransit({ notify: true, restoreWarp: false, reason: 'TRANSIT disengaged at 1×. Local Newtonian velocity was preserved for safe manual control.' }); return; }
+    const chosen = this.selectedTransitTarget();
+    if (!chosen) { this.hud.notify('TRANSIT requires a current celestial TARGET or selected COSMOS source.'); return; }
+    if (this.particleExperiments.activeParticles > 0) { this.hud.notify('TRANSIT blocked while a live local particle experiment is running. Clear or finish the experiment first so its fine-step physics is not skipped.'); return; }
+    if (this.shipContactId) { this.hud.notify('TRANSIT blocked while the spacecraft is in finite-radius contact with a body.'); return; }
+    const targetBodyId = chosen.type === 'body' ? chosen.id : (chosen.target.anchorBodyId ?? null);
+    const clearance = transitClearanceCheck(this.ship.position, this.massiveBodies, targetBodyId);
+    if (clearance) {
+      this.hud.notify(`TRANSIT blocked: too close to ${clearance.body.name}. Move outside the ${(clearance.guardRadiusMeters / 1000).toLocaleString(undefined,{maximumFractionDigits:0})} km transit-clearance envelope first.`);
+      return;
+    }
+    const arrival = transitArrivalDistanceMeters(this.ship, chosen.target, SIMULATION.shipBoostAcceleration);
+    const dx = chosen.target.position[0] - this.ship.position[0], dy = chosen.target.position[1] - this.ship.position[1], dz = chosen.target.position[2] - this.ship.position[2];
+    if (Math.hypot(dx, dy, dz) <= arrival) { this.hud.notify('Already inside the transit arrival envelope. Use BOOST + APPROACH / STOP RELATIVE for local maneuvering.'); return; }
+    const previousTimeScale = this.clock.timeScale;
+    this.returnToShipView(false);
+    this.cancelNavigation();
+    this.clock.setTimeScale(1);
+    const timeSelect = this.root.querySelector('#timeScale'); if (timeSelect) timeSelect.value = '1';
+    const multipleC = normalizeTransitMultiple(this.root.querySelector('#transitTier')?.value ?? 100);
+    this.transitState = {
+      active: true,
+      targetType: chosen.type,
+      targetId: chosen.id,
+      maxMultipleC: multipleC,
+      autoCapture: this.root.querySelector('#transitAutoCapture')?.checked !== false,
+      previousTimeScale,
+      status: null,
+    };
+    this.ship.transitVisualFactor = Math.min(1, Math.log10(Math.max(1, multipleC)) / 3);
+    this.ship.transitDirection = new Float64Array(3);
+    this.root.querySelector('#warpQuick').textContent = 'TRANSIT';
+    this.hud.toggleTransit(false);
+    this.hud.toggleMore(false);
+    this.hud.notify(`SPECULATIVE TRANSIT engaged toward ${chosen.target.name} at up to ${multipleC.toLocaleString()} c. This translates the ship reference frame and does NOT add transit speed to the Newtonian velocity state.`);
+    this.updateTransitPanel();
+  }
+
+  disengageTransit({ notify = true, restoreWarp = true, reason = null } = {}) {
+    if (!this.transitState.active) return;
+    const previous = this.transitState.previousTimeScale;
+    this.transitState.active = false;
+    this.transitState.status = null;
+    this.ship.transitVisualFactor = 0;
+    this.ship.transitDirection = null;
+    if (restoreWarp && this.navigationMode === 'manual' && !this.particleExperiments.hasActive) {
+      this.clock.setTimeScale(previous || 1);
+      const select = this.root.querySelector('#timeScale');
+      if (select) {
+        if (![...select.options].some((option) => Number(option.value) === this.clock.timeScale)) {
+          const option = document.createElement('option'); option.value = String(this.clock.timeScale); option.textContent = `${this.clock.timeScale.toLocaleString()}×`; select.appendChild(option);
+        }
+        select.value = String(this.clock.timeScale);
+      }
+    }
+    const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`;
+    if (notify) this.hud.notify(reason ?? 'TRANSIT disengaged. Newtonian local velocity was preserved.');
+    this.updateTransitPanel();
+  }
+
+  updateTransit(realDt) {
+    if (!this.transitState.active) return;
+    const locked = this.lockedTransitTarget();
+    if (!locked) { this.disengageTransit({ notify: true, restoreWarp: false, reason: 'TRANSIT target disappeared; returned to normal flight at 1×.' }); return; }
+    const target = locked.target;
+    const arrivalDistance = transitArrivalDistanceMeters(this.ship, target, SIMULATION.shipBoostAcceleration);
+    const start = new Float64Array(this.ship.position);
+    const step = advanceTransitPosition(start, target.position, this.transitState.maxMultipleC, realDt, arrivalDistance);
+    const targetBodyId = locked.type === 'body' ? locked.id : (locked.target.anchorBodyId ?? null);
+    const hit = firstTransitGuardHit(start, step.nextPosition, this.massiveBodies, targetBodyId);
+    if (hit) {
+      const safeFraction = Math.max(0, hit.fraction - 0.002);
+      this.ship.position[0] = start[0] + (step.nextPosition[0] - start[0]) * safeFraction;
+      this.ship.position[1] = start[1] + (step.nextPosition[1] - start[1]) * safeFraction;
+      this.ship.position[2] = start[2] + (step.nextPosition[2] - start[2]) * safeFraction;
+      this.disengageTransit({ notify: true, restoreWarp: false, reason: `TRANSIT safety dropout before ${hit.body.name}. A swept clearance guard prevented the reference-frame path from crossing a massive body.` });
+      return;
+    }
+    this.ship.position.set(step.nextPosition);
+    const dx = target.position[0] - this.ship.position[0], dy = target.position[1] - this.ship.position[1], dz = target.position[2] - this.ship.position[2];
+    const mag = Math.hypot(dx,dy,dz) || 1;
+    this.ship.transitDirection[0] = dx / mag; this.ship.transitDirection[1] = dy / mag; this.ship.transitDirection[2] = dz / mag;
+    this.ship.transitVisualFactor = Math.min(1, Math.log10(Math.max(1, step.multipleC)) / 3);
+    this.transitState.status = { mode: 'transit', phase: 'transit', multipleC: step.multipleC, speedMps: step.speedMps, remainingMeters: step.remainingMeters, arrivalDistanceMeters: arrivalDistance, distanceMeters: step.distanceMeters };
+    this.invalidatePredictions();
+    if (step.arrived) {
+      const autoCapture = this.transitState.autoCapture;
+      const targetType = this.transitState.targetType;
+      const targetId = this.transitState.targetId;
+      const targetName = target.name;
+      this.disengageTransit({ notify: false, restoreWarp: false });
+      if (autoCapture) {
+        this.ship.engineMode = 'boost';
+        this.updateEngineUi();
+        if (targetType === 'cosmic') { this.navigationExperimentId = null; this.navigationPhenomenonId = targetId; }
+        else { this.navigationExperimentId = null; this.navigationPhenomenonId = null; this.selectTarget(targetId); }
+        this.setNavigationMode('approach');
+        this.hud.notify(`TRANSIT arrival envelope reached near ${targetName}. BOOST auto-capture is now removing the preserved local Δv with real bounded thrust; transit speed itself was not added to velocity.`);
+      } else {
+        this.hud.notify(`TRANSIT arrival envelope reached near ${targetName}. Local Newtonian velocity is unchanged; use STOP RELATIVE or BOOST APPROACH to capture.`);
+      }
+    }
+    this.updateTransitPanel();
+  }
+
+  updateVelocityMarker() {
+    const marker = this.root.querySelector('#velocityMarker');
+    if (!marker) return;
+    const speed = Math.hypot(...this.ship.velocity);
+    if (this.cameraMode !== 'ship' || speed < 1) { marker.hidden = true; return; }
+    const basis = this.ship.basis();
+    const vx = this.ship.velocity[0] / speed, vy = this.ship.velocity[1] / speed, vz = this.ship.velocity[2] / speed;
+    const x = vx * basis.right[0] + vy * basis.right[1] + vz * basis.right[2];
+    const y = vx * basis.up[0] + vy * basis.up[1] + vz * basis.up[2];
+    const z = vx * basis.forward[0] + vy * basis.forward[1] + vz * basis.forward[2];
+    const yaw = Math.atan2(x, z);
+    const pitch = Math.asin(Math.max(-1, Math.min(1, y)));
+    const viewport = this.root.querySelector('#viewport')?.getBoundingClientRect();
+    if (!viewport?.width || !viewport?.height) { marker.hidden = true; return; }
+    const nx = Math.max(-1, Math.min(1, yaw / (Math.PI * 0.55)));
+    const ny = Math.max(-1, Math.min(1, pitch / (Math.PI * 0.42)));
+    marker.style.left = `${50 + nx * 43}%`;
+    marker.style.top = `${50 - ny * 38}%`;
+    marker.classList.toggle('behind', z < 0);
+    marker.textContent = z < 0 ? 'V⃗ BACK' : 'V⃗';
+    marker.hidden = false;
   }
 
   experimentNavigationTarget(id = this.selectedExperimentId) {
@@ -338,6 +555,21 @@ export class UniverseLabApp {
     return field;
   }
 
+
+  replaySelectedExperiment() {
+    const field = this.selectedExperiment;
+    if (!field) { this.hud.notify('Select an experiment to replay.'); return null; }
+    const replay = this.particleExperiments.reset(field.id);
+    if (!replay) return null;
+    this._announcedExperimentCompletions.delete(replay.id);
+    this.selectExperiment(replay.id, false);
+    this._particleWarpRestoreScale = this.clock.timeScale > this.particleExperiments.recommendedWarpCap ? this.clock.timeScale : this._particleWarpRestoreScale;
+    this.enforceParticleWarpSafety();
+    this.enterObservation('frame');
+    this.hud.notify(`${replay.label} replayed from its original deterministic initial state. FRAME follows the live particle bounds.`);
+    return replay;
+  }
+
   refreshObservationState(now = performance.now(), force = false) {
     if (this.cameraMode !== 'observe') return null;
     const selectedId = this.observationSource === 'cosmic' ? this.selectedPhenomenonId : this.selectedExperimentId;
@@ -374,7 +606,8 @@ export class UniverseLabApp {
     this.selectExperiment(field.id, false);
     this.observationSource = 'experiment';
     this.cameraMode = 'observe';
-    this.observationStyle = ['frame', 'track', 'orbit'].includes(style) ? style : 'frame';
+    const requestedStyle = ['frame', 'track', 'orbit'].includes(style) ? style : 'frame';
+    this.observationStyle = field.isComplete ? 'frame' : requestedStyle;
     if (style === 'frame') { this.observationYaw = 0.55; this.observationPitch = 0.22; }
     this._nextObservationRefreshAt = 0;
     const state = this.refreshObservationState(performance.now(), true);
@@ -382,7 +615,7 @@ export class UniverseLabApp {
     const quickReturn = this.root.querySelector('#approachButton');
     if (quickReturn) quickReturn.textContent = 'SHIP VIEW';
     this.hud.toggleLab(false);
-    this.hud.notify(`OBSERVE: ${field.label}. Camera reposition only — the spacecraft and experiment physics are untouched. Drag LOOK to orbit; SHIP VIEW returns instantly.`);
+    this.hud.notify(field.isComplete ? `FINAL FRAME: ${field.label} is complete/extinct. Showing its last valid live bounds; TRACK/ORBIT no longer chase an empty centroid. Use REPLAY FIELD to run it again.` : `OBSERVE: ${field.label}. Camera reposition only — the spacecraft and experiment physics are untouched. Drag LOOK to orbit; SHIP VIEW returns instantly.`);
   }
 
   returnToShipView(notify = true) {
@@ -397,6 +630,7 @@ export class UniverseLabApp {
   rendezvousExperiment() {
     const field = this.selectedExperiment ?? this.particleExperiments.newestField;
     if (!field) { this.hud.notify('Spawn or select a particle experiment first.'); return; }
+    if (field.isComplete || field.activeCount <= 0) { this.hud.notify(`${field.label} is complete/extinct. REPLAY it before attempting a physical rendezvous.`); return; }
     this.selectExperiment(field.id, false);
     this.returnToShipView(false);
     this.navigationPhenomenonId = null;
@@ -417,6 +651,7 @@ export class UniverseLabApp {
     return {
       id: `phenomenon:${state.id}`,
       phenomenonId: state.id,
+      anchorBodyId: state.anchorBodyId ?? null,
       name: state.label,
       kind: 'phenomenon',
       mass: anchor?.mass ?? 0,
@@ -597,6 +832,7 @@ export class UniverseLabApp {
   }
 
   refreshPredictions(now = performance.now(), force = false) {
+    if (this.transitState.active) { this.renderer.clearTrajectory('ship'); this.shipPrediction = null; this.predictionMs = 0; return; }
     if (!force && now < this.nextPredictionAt) return;
     if (!this.shipPathEnabled && !this.launchPreviewEnabled && !this.targetId) {
       this.predictionMs = 0;
@@ -646,6 +882,46 @@ export class UniverseLabApp {
     this.hud.setTarget(target, metrics, this.shipPrediction);
   }
 
+  manualPilotTakeover() {
+    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
+    this.returnToShipView(false);
+    this.cancelNavigation();
+  }
+
+  requestTimeScale(requestedValue, notify = true) {
+    const requested = Math.max(1, safeNumber(requestedValue, 1));
+    if (this.transitState.active) {
+      this.clock.setTimeScale(1);
+      const select = this.root.querySelector('#timeScale'); if (select) select.value = '1';
+      const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = 'TRANSIT';
+      if (notify) this.hud.notify('Simulation warp is locked to 1× while the speculative TRANSIT reference-frame drive is active. Transit speed is controlled separately.');
+      return 1;
+    }
+    const cap = this.particleExperiments?.recommendedWarpCap ?? Infinity;
+    let applied = requested;
+    if (Number.isFinite(cap) && requested > cap) {
+      this._particleWarpRestoreScale = requested;
+      this._particleWarpCapActive = true;
+      applied = cap;
+      if (notify) this.hud.notify(`Live particle experiment requires ≤${cap.toLocaleString()}×. Requested ${requested.toLocaleString()}× is remembered and will restore automatically when the last live particle completes.`);
+    } else if (Number.isFinite(cap)) {
+      // A pilot-selected lower warp supersedes any older automatic restore request.
+      this._particleWarpRestoreScale = null;
+      this._particleWarpCapActive = true;
+    }
+    this.clock.setTimeScale(applied);
+    const select = this.root.querySelector('#timeScale');
+    if (select) {
+      if (![...select.options].some((option) => Number(option.value) === applied)) {
+        const option = document.createElement('option'); option.value = String(applied); option.textContent = `${applied.toLocaleString()}×`; select.appendChild(option);
+      }
+      select.value = String(applied);
+    }
+    const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = Number.isFinite(cap) && applied === cap ? `LAB ${cap.toLocaleString()}×` : `WARP ${applied.toLocaleString()}×`;
+    if (notify && applied === requested) this.hud.notify(`Time warp ${applied.toLocaleString()}×. Newtonian gravity/thrust integrate over accelerated simulation time; this is separate from fictional TRANSIT travel.`);
+    return applied;
+  }
+
   engineAcceleration() {
     return this.ship.currentMainAcceleration();
   }
@@ -655,6 +931,7 @@ export class UniverseLabApp {
     this.navigationMode = 'manual';
     this.navigationStatus = null;
     this._lastNavigationPhase = null;
+    this.turnBurnDirection = null;
     this.ship.clearNavigationAcceleration();
     if (wasAutomatic) {
       this.clock.setTimeScale(1);
@@ -664,7 +941,9 @@ export class UniverseLabApp {
     const button = this.root.querySelector('#approachButton');
     if (button) button.textContent = 'APPROACH';
     const matchButton = this.root.querySelector('#matchVelocity');
-    if (matchButton) matchButton.textContent = 'MATCH VELOCITY';
+    if (matchButton) matchButton.textContent = 'STOP RELATIVE';
+    const turnButton = this.root.querySelector('#turnBurnButton');
+    if (turnButton) turnButton.textContent = 'TURN & BURN';
     const warpButton = this.root.querySelector('#warpQuick');
     if (warpButton) warpButton.textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`;
     if (message) this.hud.notify(message);
@@ -682,7 +961,7 @@ export class UniverseLabApp {
 
   setNavigationMode(mode) {
     const navTarget = this.navigationTarget;
-    if (mode !== 'manual' && !navTarget) { this.hud.notify('Select a celestial target, particle experiment, or cosmic phenomenon first.'); return; }
+    if (mode !== 'manual' && mode !== 'turn-burn' && !navTarget) { this.hud.notify('Select a celestial target, particle experiment, or cosmic phenomenon first.'); return; }
     if (mode === 'manual') { this.cancelNavigation(); return; }
     this.ship.throttle = 0;
     this.ship.reverseThrottle = 0;
@@ -690,9 +969,11 @@ export class UniverseLabApp {
     this.ship.clearNavigationAcceleration();
     this.navigationMode = mode;
     this.root.querySelector('#approachButton').textContent = mode === 'approach' ? 'APPROACH ON' : 'APPROACH';
-    this.root.querySelector('#matchVelocity').textContent = mode === 'match' ? 'MATCHING…' : 'MATCH VELOCITY';
+    this.root.querySelector('#matchVelocity').textContent = mode === 'match' ? 'STOPPING…' : 'STOP RELATIVE';
+    const turnButton = this.root.querySelector('#turnBurnButton');
+    if (turnButton) turnButton.textContent = mode === 'turn-burn' ? 'TURNING…' : 'TURN & BURN';
     if (mode === 'approach') this.hud.notify(`Approach computer engaged toward ${navTarget.name}. Uses real thrust and braking; no teleportation.`);
-    if (mode === 'match') this.hud.notify(`Matching velocity with ${navTarget.name} using bounded physical thrust.`);
+    if (mode === 'match') this.hud.notify(`STOP RELATIVE engaged with ${navTarget.name}: bounded physical thrust is matching the target velocity.`);
   }
 
   updateNavigation(dt) {
@@ -702,6 +983,14 @@ export class UniverseLabApp {
       const command = computeAbsoluteBrakeAcceleration(this.ship, maxAccel, dt);
       this.ship.setNavigationAcceleration(command.acceleration);
       this.navigationStatus = { mode: 'brake', phase: command.complete ? 'stopped' : 'braking', relativeSpeedMps: command.speedMps };
+      return;
+    }
+    if (this.navigationMode === 'turn-burn') {
+      if (!this.turnBurnDirection) { this.cancelNavigation('TURN & BURN direction was lost; returned to manual flight.'); return; }
+      const command = computeTurnAndBurnAcceleration(this.ship, this.turnBurnDirection, maxAccel, dt);
+      this.ship.setNavigationAcceleration(command.acceleration);
+      this.navigationStatus = { mode: 'turn-burn', phase: command.complete ? 'aligned' : 'vectoring', ...command };
+      if (command.complete) this.finishNavigation('TURN & BURN complete: the inertial velocity vector now follows the captured nose direction.');
       return;
     }
     const target = this.navigationTarget;
@@ -730,20 +1019,26 @@ export class UniverseLabApp {
   }
 
   enforceNavigationWarpSafety() {
+    if (this.transitState.active || this.navigationMode === 'manual') return;
     const navTarget = this.navigationTarget;
-    if (this.navigationMode === 'manual' || !navTarget) return;
-    const state = targetRelativeState(this.ship, navTarget);
-    const maxAccel = this.engineAcceleration();
-    const desiredWarp = recommendedWarpCap({
-      mode: this.navigationMode,
-      targetState: state,
-      targetRadius: navTarget.radius,
-      standOffDistanceMeters: this.navigationStatus?.standOffDistance ?? null,
-      phase: this.navigationStatus?.phase ?? null,
-      targetGravityMps2: this.navigationStatus?.targetGravityMps2 ?? 0,
-      maxAccelerationMps2: maxAccel,
-    });
-    const particleCap = this.particleExperiments.activeCount ? this.particleExperiments.recommendedWarpCap : Infinity;
+    let desiredWarp;
+    if (this.navigationMode === 'turn-burn') {
+      desiredWarp = recommendedWarpCap({ mode: 'turn-burn', targetState: { lateralSpeedMps: this.navigationStatus?.lateralSpeedMps ?? Math.hypot(...this.ship.velocity), relativeSpeedMps: this.navigationStatus?.lateralSpeedMps ?? 0 } });
+    } else {
+      if (!navTarget) return;
+      const state = targetRelativeState(this.ship, navTarget);
+      const maxAccel = this.engineAcceleration();
+      desiredWarp = recommendedWarpCap({
+        mode: this.navigationMode,
+        targetState: state,
+        targetRadius: navTarget.radius,
+        standOffDistanceMeters: this.navigationStatus?.standOffDistance ?? null,
+        phase: this.navigationStatus?.phase ?? null,
+        targetGravityMps2: this.navigationStatus?.targetGravityMps2 ?? 0,
+        maxAccelerationMps2: maxAccel,
+      });
+    }
+    const particleCap = this.particleExperiments.recommendedWarpCap;
     const finalWarp = Math.min(desiredWarp, particleCap);
     if (!Number.isFinite(finalWarp) || this.clock.timeScale === finalWarp) return;
     this.clock.setTimeScale(finalWarp);
@@ -762,25 +1057,41 @@ export class UniverseLabApp {
 
   enforceParticleWarpSafety() {
     const cap = this.particleExperiments?.recommendedWarpCap ?? Infinity;
-    if (!Number.isFinite(cap) || this.clock.timeScale <= cap) return;
+    if (!Number.isFinite(cap)) {
+      if (this._particleWarpCapActive) {
+        this._particleWarpCapActive = false;
+        const restore = this._particleWarpRestoreScale;
+        this._particleWarpRestoreScale = null;
+        if (Number.isFinite(restore) && restore > 0 && this.navigationMode === 'manual' && !this.transitState.active) {
+          this.clock.setTimeScale(restore);
+          const select = this.root.querySelector('#timeScale');
+          if (select) {
+            if (![...select.options].some((option) => Number(option.value) === restore)) { const option = document.createElement('option'); option.value = String(restore); option.textContent = `${restore.toLocaleString()}×`; select.appendChild(option); }
+            select.value = String(restore);
+          }
+          const button = this.root.querySelector('#warpQuick'); if (button) button.textContent = `WARP ${restore.toLocaleString()}×`;
+          this.hud.notify(`Particle experiment completed: fine-step warp cap released and your previous ${restore.toLocaleString()}× warp restored.`);
+        } else {
+          const button = this.root.querySelector('#warpQuick'); if (button && !this.transitState.active) button.textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`;
+        }
+      }
+      return;
+    }
 
+    this._particleWarpCapActive = true;
+    if (this.clock.timeScale <= cap) return;
+    if (!Number.isFinite(this._particleWarpRestoreScale)) this._particleWarpRestoreScale = this.clock.timeScale;
     this.clock.setTimeScale(cap);
     const select = this.root.querySelector('#timeScale');
     if (select) {
-      if (![...select.options].some((option) => Number(option.value) === cap)) {
-        const option = document.createElement('option');
-        option.value = String(cap);
-        option.textContent = `${cap.toLocaleString()}×`;
-        select.appendChild(option);
-      }
+      if (![...select.options].some((option) => Number(option.value) === cap)) { const option = document.createElement('option'); option.value = String(cap); option.textContent = `${cap.toLocaleString()}×`; select.appendChild(option); }
       select.value = String(cap);
     }
     const button = this.root.querySelector('#warpQuick');
     if (button) button.textContent = `LAB ${cap.toLocaleString()}×`;
-
     const now = performance.now();
     if (now - this._particleWarpNoticeAt > 1800) {
-      this.hud.notify(`Particle experiment active: global warp capped at ${cap.toLocaleString()}× so local neighbor/particle integration remains resolved.`);
+      this.hud.notify(`Live particle experiment: warp capped at ${cap.toLocaleString()}×. The cap now releases automatically when the last active particle dies or the field is cleared.`);
       this._particleWarpNoticeAt = now;
     }
   }
@@ -827,17 +1138,18 @@ export class UniverseLabApp {
     const select = this.root.querySelector('#experimentSelect');
     if (!element) return;
     const fields = this.particleExperiments.values;
-    if (this.navigationExperimentId && !this.particleExperiments.fields.has(this.navigationExperimentId)) {
-      this.cancelNavigation('Experiment rendezvous target expired or was cleared. Navigation returned to MANUAL at 1×.');
+    if (this.navigationExperimentId) {
+      const navField = this.particleExperiments.fields.get(this.navigationExperimentId);
+      if (!navField || navField.isComplete || navField.activeCount <= 0) this.cancelNavigation('Experiment rendezvous target completed or was cleared. Navigation returned to MANUAL at 1×.');
     }
     if (select) {
       const previous = this.selectedExperimentId;
       select.replaceChildren();
       if (!fields.length) {
-        const option = document.createElement('option'); option.value = ''; option.textContent = 'No active experiment'; select.appendChild(option);
+        const option = document.createElement('option'); option.value = ''; option.textContent = 'No experiment'; select.appendChild(option);
       } else {
         for (const field of fields) {
-          const option = document.createElement('option'); option.value = field.id; option.textContent = field.label; select.appendChild(option);
+          const option = document.createElement('option'); option.value = field.id; option.textContent = `${field.label}${field.isComplete ? ' · COMPLETE' : ''}`; select.appendChild(option);
         }
         if (!previous || !this.particleExperiments.fields.has(previous)) this.selectedExperimentId = fields[fields.length - 1].id;
         select.value = this.selectedExperimentId;
@@ -845,18 +1157,29 @@ export class UniverseLabApp {
     }
     const summaries = this.particleExperiments.summaries();
     if (!summaries.length) {
-      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.4.1 and are intentionally not written into schema-1 saves.';
+      element.textContent = 'No particle experiments. Fields are session-local in v0.1.4.1.1 and are intentionally not written into schema-1 saves.';
       if (this.cameraMode === 'observe' && this.observationSource === 'experiment') this.returnToShipView(false);
       return;
     }
+    const selectedField = this.selectedExperiment;
     const selectedState = this.particleExperiments.observationState(this.selectedExperimentId);
     let selectedText = '';
     if (selectedState) {
       const dx = selectedState.center[0] - this.ship.position[0], dy = selectedState.center[1] - this.ship.position[1], dz = selectedState.center[2] - this.ship.position[2];
       const dKm = Math.hypot(dx, dy, dz) / 1000;
-      selectedText = `Selected ${selectedState.label}: ${(dKm).toLocaleString(undefined,{maximumFractionDigits:0})} km from ship · field radius ~${(selectedState.radiusMeters/1000).toLocaleString(undefined,{maximumFractionDigits:0})} km. `;
+      selectedText = `Selected ${selectedState.label}: ${dKm.toLocaleString(undefined,{maximumFractionDigits:0})} km from ship · ${selectedField?.isComplete ? 'FINAL frame' : `live radius ~${(selectedState.radiusMeters/1000).toLocaleString(undefined,{maximumFractionDigits:0})} km`}. `;
     }
-    element.textContent = selectedText + summaries.map((s) => `${s.label}: ${s.activeCount.toLocaleString()}/${s.count.toLocaleString()} active${s.absorbedCount ? ` · ${s.absorbedCount.toLocaleString()} absorbed` : ''}${s.mode === 'life' ? ` · births ${s.births.toLocaleString()} · deaths ${s.deaths.toLocaleString()}` : ''}`).join(' | ');
+    for (const field of fields) {
+      if (field.isComplete && !this._announcedExperimentCompletions.has(field.id)) {
+        this._announcedExperimentCompletions.add(field.id);
+        if (this.cameraMode === 'observe' && this.observationSource === 'experiment' && this.selectedExperimentId === field.id) {
+          this.observationStyle = 'frame';
+          this._nextObservationRefreshAt = 0;
+        }
+        this.hud.notify(`${field.label} ${field.mode === 'life' ? 'EXTINCT' : 'COMPLETE'} after ${field.elapsedSeconds.toFixed(1)} simulated seconds. Warp safety is released because it has 0 active particles; the final live frame remains inspectable and REPLAY FIELD can restart it.`);
+      }
+    }
+    element.textContent = selectedText + summaries.map((s) => `${s.label}: ${s.lifecycle === 'complete' ? 'COMPLETE' : `${s.activeCount.toLocaleString()}/${s.count.toLocaleString()} active`}${s.mode === 'life' ? ` · peak ${s.peakActiveCount.toLocaleString()} · births ${s.births.toLocaleString()} · deaths ${s.deaths.toLocaleString()}` : ''}${s.absorbedCount ? ` · ${s.absorbedCount.toLocaleString()} absorbed` : ''}`).join(' | ');
   }
 
   applyImpactResolution(event) {
@@ -944,6 +1267,7 @@ export class UniverseLabApp {
     this.lastFrame = now;
     const physicsStart = performance.now();
     this.experimentMs = 0;
+    if (this.running) this.updateTransit(realDt);
     this.enforceNavigationWarpSafety();
     this.enforceParticleWarpSafety();
     if (this.running) this.clock.advance(realDt, (dt) => this.physicsStep(dt), this.currentPhysicsSubstepLimit());
@@ -956,7 +1280,11 @@ export class UniverseLabApp {
     this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, spaceWeather: this.spaceWeather.states(this.bodies.find((body) => body.kind === BODY_KIND.STAR), this.clock.elapsedSimSeconds), scientificOverlays: this.scientificOverlays, target: this.target, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView });
     this.renderMs = performance.now() - renderStart;
     this.updateTargetTelemetry();
-    this.hud.setNavigation(this.navigationStatus, this.navigationTarget, this.ship.engineMode, this.ship.currentMainAcceleration());
+    this.updateVelocityMarker();
+    this.updateTransitPanel();
+    const displayedNavigationStatus = this.transitState.active ? this.transitState.status : this.navigationStatus;
+    const displayedNavigationTarget = this.transitState.active ? this.lockedTransitTarget()?.target : this.navigationTarget;
+    this.hud.setNavigation(displayedNavigationStatus, displayedNavigationTarget, this.ship.engineMode, this.ship.currentMainAcceleration());
     if (this.cameraMode === 'observe') this.hud.setCamera('observe', this.observationSource === 'cosmic' ? (this.selectedPhenomenon?.label ?? 'Cosmic phenomenon') : (this.selectedExperiment?.label ?? 'Experiment'), this.observationStyle, this._observationState);
     if (now >= this._nextParticleStatusAt) { this.updateParticleLabStatus(); this._nextParticleStatusAt = now + 500; }
     if (now >= this._nextSpaceWeatherPanelAt) { this.updateSpaceWeatherPanel(); if (this.scientificOverlays.enabled) this.updateOverlayPanel(); this._nextSpaceWeatherPanelAt = now + 700; }
@@ -1000,6 +1328,10 @@ export class UniverseLabApp {
   }
 
   loadSave() {
+    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
+    this._particleWarpRestoreScale = null;
+    this._particleWarpCapActive = false;
+    this._announcedExperimentCompletions.clear();
     const payload = this.saveSystem.load();
     if (!payload?.seed || !Array.isArray(payload.bodies)) {
       this.hud.notify('No valid local save found.');
@@ -1022,10 +1354,7 @@ export class UniverseLabApp {
     this.minorField = new TestParticleField(payload.seed, star, payload.minorCount ?? SIMULATION.defaultMinorBodyCount);
     this.renderer.setMinorField(this.minorField);
     this.ship.restore(payload.ship);
-    const engineModeButton = this.root.querySelector('#engineModeButton');
-    if (engineModeButton) engineModeButton.textContent = this.ship.engineMode === 'cruise' ? 'ENGINE CRUISE' : 'ENGINE FLIGHT';
-    const thrustButton = this.root.querySelector('#thrustButton');
-    if (thrustButton) thrustButton.textContent = this.ship.engineMode === 'cruise' ? 'THRUST 120' : 'THRUST 20';
+    this.updateEngineUi();
     this.clock.elapsedSimSeconds = safeNumber(payload.elapsedSimSeconds, 0);
     this.spaceWeather.reset(this.system.seed, this.clock.elapsedSimSeconds);
     this.clock.setTimeScale(payload.timeScale ?? 60);
@@ -1063,9 +1392,25 @@ export class UniverseLabApp {
   bindUi() {
     const $ = (selector) => this.root.querySelector(selector);
     const updateWarpButton = () => { $('#warpQuick').textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`; };
+    const transitTierSelect = $('#transitTier');
+    if (transitTierSelect) {
+      transitTierSelect.replaceChildren();
+      for (const tier of TRANSIT_TIERS) {
+        const option = document.createElement('option');
+        option.value = String(tier.multipleC);
+        option.textContent = tier.label;
+        transitTierSelect.appendChild(option);
+      }
+      transitTierSelect.value = '100';
+    }
     $('#labToggle').addEventListener('click', () => this.hud.toggleLab());
     $('#moreToggle').addEventListener('click', () => this.hud.toggleMore());
     $('#moreClose').addEventListener('click', () => this.hud.toggleMore(false));
+    $('#transitToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateTransitPanel(); this.hud.toggleTransit(); });
+    $('#transitClose').addEventListener('click', () => this.hud.toggleTransit(false));
+    $('#transitTargetSource').addEventListener('change', () => this.updateTransitPanel());
+    $('#transitTier').addEventListener('change', () => this.updateTransitPanel());
+    $('#transitEngage').addEventListener('click', () => this.engageTransit());
     $('#labClose').addEventListener('click', () => this.hud.toggleLab(false));
     $('#scienceToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleScience(); });
     $('#scienceClose').addEventListener('click', () => this.hud.toggleScience(false));
@@ -1096,31 +1441,29 @@ export class UniverseLabApp {
     });
     $('#targetButton').addEventListener('click', () => this.selectReticleTarget());
     $('#approachButton').addEventListener('click', () => { if (this.cameraMode === 'observe') { this.returnToShipView(); return; } if (this.navigationMode !== 'approach') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; } this.setNavigationMode(this.navigationMode === 'approach' ? 'manual' : 'approach'); });
-    $('#matchVelocity').addEventListener('click', () => { if (this.navigationMode !== 'match') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; } this.setNavigationMode(this.navigationMode === 'match' ? 'manual' : 'match'); });
-    $('#engineModeButton').addEventListener('click', (event) => {
-      this.ship.engineMode = this.ship.engineMode === 'cruise' ? 'flight' : 'cruise';
-      event.currentTarget.textContent = this.ship.engineMode === 'cruise' ? 'ENGINE CRUISE' : 'ENGINE FLIGHT';
-      this.root.querySelector('#thrustButton').textContent = this.ship.engineMode === 'cruise' ? 'THRUST 120' : 'THRUST 20';
-      this.hud.notify(`${this.ship.engineMode === 'cruise' ? 'CRUISE' : 'FLIGHT'} propulsion selected: ${this.ship.currentMainAcceleration().toFixed(0)} m/s² maximum main acceleration.`);
+    $('#matchVelocity').addEventListener('click', () => { if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false }); if (this.navigationMode !== 'match') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; } this.setNavigationMode(this.navigationMode === 'match' ? 'manual' : 'match'); });
+    $('#progradeButton').addEventListener('click', () => { this.hud.toggleMore(false); this.alignVelocityAttitude(1); });
+    $('#retrogradeButton').addEventListener('click', () => { this.hud.toggleMore(false); this.alignVelocityAttitude(-1); });
+    $('#turnBurnButton').addEventListener('click', () => this.engageTurnAndBurn());
+    $('#engineModeButton').addEventListener('click', () => {
+      const next = this.ship.engineMode === 'flight' ? 'cruise' : this.ship.engineMode === 'cruise' ? 'boost' : 'flight';
+      this.ship.engineMode = next;
+      this.updateEngineUi();
+      const status = next === 'boost' ? 'SPECULATIVE BOOST' : next.toUpperCase();
+      if (next === 'boost' && this.navigationMode === 'manual' && !this.transitState.active && this.clock.timeScale > 1) this.requestTimeScale(1, false);
+      this.hud.notify(`${status} propulsion selected: ${this.ship.currentMainAcceleration().toLocaleString()} m/s² maximum bounded main acceleration.${next === 'boost' ? ' BOOST is fictional and intended for rapid local vector changes; manual selection drops simulation warp to 1× for control.' : ''}`);
     });
     $('#nextTarget').addEventListener('click', () => this.cycleTarget());
     $('#aimTarget').addEventListener('click', () => this.aimAtTarget());
     $('#regenerate').addEventListener('click', () => this.newSystem($('#seedInput').value));
     $('#randomSeed').addEventListener('click', () => this.newSystem(`SYS-${crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase()}`));
-    $('#timeScale').addEventListener('change', (e) => { this.clock.setTimeScale(e.target.value); updateWarpButton(); });
+    $('#timeScale').addEventListener('change', (e) => this.requestTimeScale(e.target.value));
     $('#warpQuick').addEventListener('click', () => {
+      if (this.transitState.active) { this.hud.notify('TRANSIT drive is active. Simulation warp remains locked to 1×; change the transit tier in the TRANSIT drawer instead.'); return; }
       const levels = [1, 60, 600, 3600];
-      const current = this.clock.timeScale;
-      const next = levels.find((value) => value > current) ?? levels[0];
-      this.clock.setTimeScale(next);
-      const select = $('#timeScale');
-      if (![...select.options].some((option) => Number(option.value) === next)) {
-        const option = document.createElement('option');
-        option.value = String(next); option.textContent = `${next.toLocaleString()}×`; select.appendChild(option);
-      }
-      select.value = String(next);
-      updateWarpButton();
-      this.hud.notify(`Time warp ${next.toLocaleString()}×. Gravity and thrust are integrated over accelerated simulation time; this is not a visual speed cheat.`);
+      const currentRequested = Number.isFinite(this._particleWarpRestoreScale) ? this._particleWarpRestoreScale : this.clock.timeScale;
+      const next = levels.find((value) => value > currentRequested) ?? levels[0];
+      this.requestTimeScale(next);
     });
     $('#trajectoryHorizon').addEventListener('change', () => this.invalidatePredictions());
     $('#minorCount').addEventListener('change', (e) => {
@@ -1154,8 +1497,7 @@ export class UniverseLabApp {
     $('#spawnParticleField').addEventListener('click', () => {
       try {
         const field = this.particleExperiments.spawnField(this, this.particleFieldParams());
-        this.clock.setTimeScale(Math.min(this.clock.timeScale, this.particleExperiments.recommendedWarpCap));
-        $('#timeScale').value = String(this.clock.timeScale); updateWarpButton();
+        this.enforceParticleWarpSafety();
         this.selectExperiment(field.id, false);
         this.updateParticleLabStatus();
         this.enterObservation('frame');
@@ -1165,8 +1507,7 @@ export class UniverseLabApp {
     $('#fireParticleGun').addEventListener('click', () => {
       try {
         const field = this.particleExperiments.fireGun(this, { count: $('#particleGunCount').value, speedMps: $('#particleGunSpeed').value, spreadDegrees: $('#particleGunSpread').value });
-        this.clock.setTimeScale(Math.min(this.clock.timeScale, this.particleExperiments.recommendedWarpCap));
-        $('#timeScale').value = String(this.clock.timeScale); updateWarpButton();
+        this.enforceParticleWarpSafety();
         this.selectExperiment(field.id, false);
         this.updateParticleLabStatus();
         this.hud.notify(`${field.label} fired: ${field.count.toLocaleString()} ballistic test particles at ${Number($('#particleGunSpeed').value).toLocaleString()} m/s. Use OBSERVE to follow the shot without moving the ship.`);
@@ -1178,7 +1519,8 @@ export class UniverseLabApp {
       if (this.navigationExperimentId) this.cancelNavigation();
       this.returnToShipView(false);
       this.updateParticleLabStatus();
-      this.hud.notify('All session-local particle experiments cleared. Camera returned to SHIP VIEW.');
+      this.enforceParticleWarpSafety();
+      this.hud.notify('All session-local particle experiments cleared. Camera returned to SHIP VIEW; any active-particle warp cap was released.');
     });
     $('#experimentSelect').addEventListener('change', (event) => this.selectExperiment(event.target.value, false));
     $('#observeExperiment').addEventListener('click', () => this.enterObservation('frame'));
@@ -1186,6 +1528,7 @@ export class UniverseLabApp {
     $('#trackExperiment').addEventListener('click', () => this.enterObservation('track'));
     $('#orbitExperiment').addEventListener('click', () => this.enterObservation('orbit'));
     $('#nextExperiment').addEventListener('click', () => this.cycleExperiment());
+    $('#replayExperiment').addEventListener('click', () => this.replaySelectedExperiment());
     $('#shipViewButton').addEventListener('click', () => { this.hud.toggleLab(false); this.returnToShipView(); });
     $('#rendezvousExperiment').addEventListener('click', () => this.rendezvousExperiment());
 
@@ -1197,7 +1540,7 @@ export class UniverseLabApp {
     });
     $('#saveButton').addEventListener('click', () => { this.hud.toggleMore(false); this.saveSystem.save(this.serialize()); this.hud.notify('Saved locally on this device.'); });
     $('#loadButton').addEventListener('click', () => { this.hud.toggleMore(false); this.loadSave(); });
-    $('#homeButton').addEventListener('click', () => { this.hud.toggleMore(false); this.cancelNavigation(); this.placeShipNearHome(); this.selectTarget(this.system.homeId); this.hud.notify('Ship returned to the seeded orbital demonstration position with a prograde-biased pilot view.'); });
+    $('#homeButton').addEventListener('click', () => { this.hud.toggleMore(false); if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false }); this.cancelNavigation(); this.placeShipNearHome(); this.selectTarget(this.system.homeId); this.hud.notify('Ship returned to the seeded orbital demonstration position with a prograde-biased pilot view.'); });
     $('#pathToggle').addEventListener('click', (event) => {
       this.shipPathEnabled = !this.shipPathEnabled;
       event.currentTarget.textContent = this.shipPathEnabled ? 'PATH ON' : 'PATH';
@@ -1361,13 +1704,13 @@ export class UniverseLabApp {
       window.addEventListener('blur', () => release(null, true));
       document.addEventListener('visibilitychange', () => { if (document.hidden) release(null, true); });
     };
-    bindHold($('#thrustButton'), () => { this.returnToShipView(false); this.cancelNavigation(); this.ship.throttle = 1; }, () => { this.ship.throttle = 0; });
-    bindHold($('#reverseButton'), () => { this.returnToShipView(false); this.cancelNavigation(); this.ship.reverseThrottle = 1; }, () => { this.ship.reverseThrottle = 0; });
-    bindHold($('#brakeButton'), () => { this.returnToShipView(false); this.cancelNavigation(); this.ship.braking = true; }, () => { this.ship.braking = false; this.ship.clearNavigationAcceleration(); });
-    bindHold($('#rcsLeft'), () => { this.cancelNavigation(); this.ship.strafe = -1; }, () => { if (this.ship.strafe < 0) this.ship.strafe = 0; });
-    bindHold($('#rcsRight'), () => { this.cancelNavigation(); this.ship.strafe = 1; }, () => { if (this.ship.strafe > 0) this.ship.strafe = 0; });
-    bindHold($('#rcsUp'), () => { this.cancelNavigation(); this.ship.lift = 1; }, () => { if (this.ship.lift > 0) this.ship.lift = 0; });
-    bindHold($('#rcsDown'), () => { this.cancelNavigation(); this.ship.lift = -1; }, () => { if (this.ship.lift < 0) this.ship.lift = 0; });
+    bindHold($('#thrustButton'), () => { this.manualPilotTakeover(); this.ship.throttle = 1; }, () => { this.ship.throttle = 0; });
+    bindHold($('#reverseButton'), () => { this.manualPilotTakeover(); this.ship.reverseThrottle = 1; }, () => { this.ship.reverseThrottle = 0; });
+    bindHold($('#brakeButton'), () => { this.manualPilotTakeover(); this.ship.braking = true; }, () => { this.ship.braking = false; this.ship.clearNavigationAcceleration(); });
+    bindHold($('#rcsLeft'), () => { this.manualPilotTakeover(); this.ship.strafe = -1; }, () => { if (this.ship.strafe < 0) this.ship.strafe = 0; });
+    bindHold($('#rcsRight'), () => { this.manualPilotTakeover(); this.ship.strafe = 1; }, () => { if (this.ship.strafe > 0) this.ship.strafe = 0; });
+    bindHold($('#rcsUp'), () => { this.manualPilotTakeover(); this.ship.lift = 1; }, () => { if (this.ship.lift > 0) this.ship.lift = 0; });
+    bindHold($('#rcsDown'), () => { this.manualPilotTakeover(); this.ship.lift = -1; }, () => { if (this.ship.lift < 0) this.ship.lift = 0; });
     bindHold($('#rollLeft'), () => { this._rollDirection = -1; }, () => { if (this._rollDirection < 0) this._rollDirection = 0; });
     bindHold($('#rollRight'), () => { this._rollDirection = 1; }, () => { if (this._rollDirection > 0) this._rollDirection = 0; });
     $('#rcsToggle').addEventListener('click', () => { this.hud.toggleMore(false); $('#rcsPanel').hidden = !$('#rcsPanel').hidden; });
@@ -1385,9 +1728,9 @@ export class UniverseLabApp {
 
     window.addEventListener('keydown', (event) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
-      if (event.code === 'KeyW') { this.cancelNavigation(); this.ship.throttle = 1; }
-      if (event.code === 'KeyX') { this.cancelNavigation(); this.ship.reverseThrottle = 1; }
-      if (event.code === 'KeyS') { this.cancelNavigation(); this.ship.braking = true; }
+      if (event.code === 'KeyW') { this.manualPilotTakeover(); this.ship.throttle = 1; }
+      if (event.code === 'KeyX') { this.manualPilotTakeover(); this.ship.reverseThrottle = 1; }
+      if (event.code === 'KeyS') { this.manualPilotTakeover(); this.ship.braking = true; }
       if (event.code === 'KeyA') this.ship.strafe = -1;
       if (event.code === 'KeyD') this.ship.strafe = 1;
       if (event.code === 'KeyR') this.ship.lift = 1;

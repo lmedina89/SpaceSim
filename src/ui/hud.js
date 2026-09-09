@@ -54,6 +54,7 @@ export class Hud {
     this.more = root.querySelector('#morePanel');
     this.cosmos = root.querySelector('#cosmosPanel');
     this.overlays = root.querySelector('#overlayPanel');
+    this.transit = root.querySelector('#transitPanel');
     this._messageTimer = null;
     this.targetChip = root.querySelector('#targetChip');
     this.navChip = root.querySelector('#navChip');
@@ -93,6 +94,7 @@ export class Hud {
   toggleMore(force) { this.more.hidden = typeof force === 'boolean' ? !force : !this.more.hidden; }
   toggleCosmos(force) { this.cosmos.hidden = typeof force === 'boolean' ? !force : !this.cosmos.hidden; }
   toggleOverlays(force) { this.overlays.hidden = typeof force === 'boolean' ? !force : !this.overlays.hidden; }
+  toggleTransit(force) { if (this.transit) this.transit.hidden = typeof force === 'boolean' ? !force : !this.transit.hidden; }
   notify(text, holdMs = 4400) {
     this.message.hidden = false;
     this.message.textContent = text;
@@ -145,9 +147,9 @@ export class Hud {
     this.cameraChip.hidden = false;
     if (state?.activeCount != null) {
       const active = Number(state.activeCount).toLocaleString();
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD EXTREME-141`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD NAVLIFE-1411`;
     } else {
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD EXTREME-141`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD NAVLIFE-1411`;
     }
     this.cameraChip.classList.add('observing');
   }
@@ -158,14 +160,23 @@ export class Hud {
       return;
     }
     this.navChip.hidden = false;
-    const engine = engineMode === 'cruise' ? 'CRUISE' : 'FLIGHT';
+    const engine = engineMode === 'boost' ? 'BOOST' : engineMode === 'cruise' ? 'CRUISE' : 'FLIGHT';
+    if (status.mode === 'transit') {
+      const remaining = distance(status.remainingMeters);
+      this.navChip.textContent = `TRANSIT ${target?.name ?? ''} · ${fmt(status.multipleC,0)} c · remaining ${remaining} · local velocity preserved`;
+      return;
+    }
+    if (status.mode === 'turn-burn') {
+      this.navChip.textContent = `TURN & BURN · lateral ${speed(status.lateralSpeedMps)} · angle ${fmt(status.angleDegrees,1)}° · ${engine} ${fmt(accelerationMps2,0)} m/s²`;
+      return;
+    }
     if (status.mode === 'brake') {
       this.navChip.textContent = `BRAKE · ${engine} ${fmt(accelerationMps2, 0)} m/s² · speed ${speed(status.relativeSpeedMps)}`;
       return;
     }
     if (!target) { this.navChip.hidden = true; return; }
     if (status.mode === 'match') {
-      this.navChip.textContent = `MATCH ${target.name} · Δv ${speed(status.relativeSpeedMps)} · ${engine} ${fmt(accelerationMps2, 0)} m/s²`;
+      this.navChip.textContent = `STOP RELATIVE ${target.name} · Δv ${speed(status.relativeSpeedMps)} · ${engine} ${fmt(accelerationMps2, 0)} m/s²`;
       return;
     }
     const remaining = Number.isFinite(status.remainingMeters) ? distance(Math.abs(status.remainingMeters)) : '—';

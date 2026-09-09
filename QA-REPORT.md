@@ -1,140 +1,99 @@
-# Universe Lab v0.1.4.1 — QA Report
+# Universe Lab v0.1.4.1.1 — QA Report
 
 ## Release identity
 
-- Version: **0.1.4.1**
-- Milestone: **Extreme Objects, Space Weather & Scientific Overlays**
-- Build marker: **EXTREME-141**
+- Version: **0.1.4.1.1**
+- Release: **Navigation & Experiment Lifecycle Polish**
+- Build marker: **NAVLIFE-1411**
 - Save schema: **1**
 - Three.js: **0.185.0**
-- Deployment: GitHub Pages branch-root (`main` → `/(root)`)
-- Workflow files: intentionally absent from the distributable archive
+- Deployment: GitHub Pages `main` → `/(root)`
+- `.github/workflows/*`: intentionally absent from the mobile distributable
 
-## Automated QA
+## Automated QA result
 
-Final command:
+Final `npm run qa` result: **85/85 tests PASS**, plus static structure checks and `node --check` on all JS/MJS source/test files.
 
-```text
-npm run qa
-```
+New navigation/lifecycle coverage includes:
 
-Result: **72/72 automated tests PASS**, plus static structure checks and `node --check` over all JS/MJS source/test files.
+- speculative BOOST produces exactly the declared bounded 5,000 m/s² acceleration,
+- TURN & BURN stays acceleration-bounded and removes lateral velocity rather than rotating velocity by fiat,
+- TURN & BURN recognizes an already-aligned inertial vector,
+- TRANSIT tier normalization / coordinate-rate calculation,
+- TRANSIT arrival envelope reserves enough real BOOST braking room for preserved local Δv,
+- automatic transit tier step-down near destination,
+- transit position integration cannot overshoot its arrival envelope,
+- swept transit clearance catches a massive body crossed between real frames,
+- transit engagement clearance blocks unsafe local starts,
+- completed particle fields release the 60× manager warp cap without being deleted,
+- completed fields retain the last live observation bounds,
+- fields that go extinct before first observation derive a final frame from retained final particle positions rather than snapping to their spawn origin,
+- deterministic REPLAY reconstructs the original active field state.
 
-New v0.1.4.1 coverage includes:
+All prior gravity/orbit/impact/compact-object/cosmic/space-weather/overlay/particle/observation/runtime-fault regressions remain enabled.
 
-- Magnetar, white-dwarf, brown-dwarf, and rogue-planet LAB presets creating distinct live Newtonian body kinds.
-- Deterministic optional physical rogue planets in generated systems.
-- Supernova-remnant and rogue-planet cosmic phenomenon registration.
-- CME front propagation at configured kinematic speed.
-- Directional CME/spacecraft crossing checks.
-- Deterministic automatic space-weather scheduling.
-- Swept-front CME crossing so a large simulation step cannot silently skip a ship/front intersection.
-- Hill-radius and Roche-limit diagnostic scales.
-- Instantaneous L4/L5 equilateral geometry checks.
-- Live Newtonian gravity-vector samples.
-- Orbital-plane basis orthogonality.
-
-Retained suites cover:
-
-- direct Newtonian gravity,
-- velocity-Verlet orbital stability,
-- generator determinism and barycentric correction,
-- physical comets,
-- trajectory prediction and swept impact,
-- impact/crater/fragment behavior and cascade suppression,
-- physical BRAKE and experimental FLIGHT/CRUISE acceleration,
-- APPROACH/BRAKING/CAPTURE/HOLD,
-- black-hole and neutron-star propulsion-safe stand-off/model guards,
-- adaptive strong-gravity physics substeps,
-- observation-camera isolation,
-- runtime-error HUD boundary,
-- typed-array particle framework / spatial hash / budgets,
-- app class-method integrity.
-
-## App method integrity
+## App method / DOM integrity
 
 Static audit of `UniverseLabApp`:
 
-- class method definitions: **53**
-- unique direct `this.method()` call names: **50**
-- unresolved direct method calls: **0**
+- **66** class method definitions,
+- **63** unique direct `this.method()` call names,
+- **0 unresolved direct method calls**.
 
-This continues the regression protection added after the earlier missing-method runtime failure.
+HTML / app selector audit:
 
-## HTML / UI integrity
+- **165** HTML IDs,
+- **165 unique**,
+- **0 duplicates**,
+- **116** direct app selector IDs,
+- **0 missing selectors**.
 
-- HTML IDs: **148**
-- unique IDs: **148**
-- duplicate IDs: **0**
-- direct JS selector IDs audited: **104**
-- missing selector IDs: **0**
+The static suite explicitly requires the new velocity marker, PROGRADE, RETROGRADE, TURN & BURN, TRANSIT controls/drawer, REPLAY FIELD, `transitDrive.js`, v0.1.4.1.1 shell version and `NAVLIFE-1411` marker.
 
-The static suite requires the v0.1.4.1 extreme-object, space-weather, overlay controls, and `EXTREME-141` build marker.
+## Long-run seeded-system stress
 
-## Local static-host smoke
+Eight independently generated systems (`NAVLIFE-A` … `NAVLIFE-H`) were integrated for **30 simulated days each** with 900 s major-body steps using the live direct Newtonian gravity solver + velocity-Verlet integrator + swept finite-radius collision monitor.
 
-An in-process local HTTP server returned **200** for:
+Result:
 
-- `/`
-- `/styles.css`
-- `/src/main.js`
-- `/src/app/app.js`
-- `/src/cosmic/spaceWeather.js`
-- `/src/cosmic/scientificOverlays.js`
-- `/src/render/spaceWeatherVisuals.js`
-- `/src/render/scientificOverlayVisuals.js`
-- `/src/render/celestialFactory.js`
-- `/src/render/threeRenderer.js`
+- spontaneous finite-radius collisions: **0**,
+- non-finite position/velocity states: **0**,
+- largest sampled physical body count: **25**,
+- rogue planets across sample: **5**.
 
-This confirms the shell and new module paths are statically reachable. It does not substitute for real Safari/WebGPU execution.
+This is a numerical regression/stability check, not a claim of long-term astrophysical formation stability.
 
-## Long-run generated-system stress
+## Static HTTP smoke
 
-Eight deterministic systems were integrated for **30 simulated days each** at **900-second** major-body steps using the direct Newtonian solver and velocity-Verlet integrator. Swept finite-radius collision checks and finite-state checks were performed during the run.
+An in-process local static HTTP server returned **200** for:
 
-| Seed | Major bodies | Rogue planets | Phenomena | Spontaneous collisions | Non-finite state |
-|---|---:|---:|---:|---:|---:|
-| EXTREME-A | 20 | 1 | 6 | 0 | 0 |
-| EXTREME-B | 22 | 1 | 6 | 0 | 0 |
-| EXTREME-C | 20 | 1 | 5 | 0 | 0 |
-| EXTREME-D | 16 | 1 | 6 | 0 | 0 |
-| EXTREME-E | 24 | 1 | 6 | 0 | 0 |
-| EXTREME-F | 19 | 0 | 4 | 0 | 0 |
-| EXTREME-G | 26 | 1 | 6 | 0 | 0 |
-| EXTREME-H | 16 | 1 | 5 | 0 | 0 |
+- `index.html`
+- `styles.css`
+- `src/main.js`
+- `src/app/app.js`
+- `src/physics/transitDrive.js`
+- `src/experiments/particles/particleExperimentManager.js`
+- `src/render/threeRenderer.js`
+- `src/ui/hud.js`
 
-Summary:
+## Scientific separation checked
 
-- total spontaneous finite-radius collisions: **0**
-- maximum generated major-body count: **26**
-- generated rogue planets across sample: **7**
-- non-finite position/velocity states: **0**
-
-This is a deterministic stability regression, not proof that every possible seed is collision-free over arbitrary timescales.
-
-## Scientific-model boundaries
-
-The following distinctions are intentional and are exposed in the UI/docs:
-
-- **Live physical Newtonian bodies:** planets, moons, comet nuclei, rogue planets, LAB magnetars/neutron stars, white dwarfs, brown dwarfs, black holes, and launched resolved bodies.
-- **Measured/kinematic approximations:** CME front propagation/arrival geometry; Lagrange-point estimates; Hill spheres; Roche limits.
-- **Visual proxies:** CME plasma appearance, magnetar field loops/sparks, supernova-remnant shell/filaments, stellar-surface/corona appearance, brown/white-dwarf cosmetics, black-hole accretion/jet/lensing-style graphics.
-- Gravity-vector overlays use the live Newtonian major-body source set, but the arrows are a visualization and not extra forces.
-
-No full general-relativistic ray tracing, relativistic magnetohydrodynamics, plasma transport, radiation-damage model, or stellar-evolution solver is claimed.
+- FLIGHT / CRUISE / BOOST are bounded local accelerations applied to the real spacecraft state. BOOST is explicitly labeled speculative.
+- PROGRADE / RETROGRADE change attitude only.
+- TURN & BURN uses bounded acceleration to change the actual velocity vector.
+- TRANSIT is explicitly fictional reference-frame translation; its displayed 1–1,000 c coordinate rate is **not** added to Newtonian spacecraft velocity and is not represented as GR/Alcubierre physics.
+- AUTO CAPTURE hands transit arrival off to BOOST + the existing physical APPROACH/BRAKING/CAPTURE/HOLD controller.
+- Particle warp safety is now tied to live particle work, not retained completed-field objects.
 
 ## Physical iPhone release gate
 
-Automated/container QA cannot establish real iPhone WebGPU performance or visual correctness. Physical Safari remains the release gate.
+Container QA cannot prove iPhone WebGPU rendering, Safari pointer behavior, thermals or perceived navigation feel. Recommended device sequence:
 
-Recommended device validation order:
-
-1. Confirm **v0.1.4.1 / EXTREME-141**, no runtime ERR, and simulation time advances for 15–30 seconds.
-2. Open COSMOS and scan/observe the seeded **supernova remnant** and any generated **rogue planet**; test ORBIT VIEW and SHIP VIEW.
-3. Trigger a **CME**, watch its front radius/status advance, then test AUTO WEATHER scheduling.
-4. Enable scientific overlays in stages: master → orbital plane → Lagrange → Hill → Roche. Enable gravity vectors separately because they add more visual work.
-5. LAB-spawn the new extreme presets, especially a **magnetar**, and verify safe APPROACH/model-limit behavior near compact objects.
-6. Recheck v0.1.4 black-hole visuals, comet tails, debris/ring populations, then particle experiments and impact effects.
-7. Capture any `RUNTIME ERROR:` text verbatim if Safari reports one.
-
-Do not treat this report as a claim of interactive iPhone FPS for the new visual layers.
+1. Confirm **v0.1.4.1.1 / NAVLIFE-1411**, no runtime ERR, and normal HUD/sim time advances.
+2. Cycle FLIGHT → CRUISE → BOOST. Manual BOOST should set warp to 1× and show THRUST 5,000.
+3. Point away from the cyan velocity marker, press TURN & BURN, and confirm the marker moves toward the reticle while velocity changes over time rather than snapping.
+4. Test PROGRADE and RETROGRADE.
+5. Select a distant body, open TRANSIT, start at 100 c, and confirm local SHIP speed does not become 100 c.
+6. Verify transit steps down near destination and AUTO CAPTURE hands off to BOOST + APPROACH without overshooting.
+7. Request 3,600×, spawn Particle Life, confirm live field caps at 60×; after extinction confirm the final frame remains useful and 3,600× restores automatically. Test REPLAY FIELD.
+8. Regress COSMOS, CME/overlays, black hole/compact objects, one impact and one physical comet.
