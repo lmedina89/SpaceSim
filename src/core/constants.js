@@ -6,6 +6,7 @@ export const PHYSICS = Object.freeze({
   YEAR: 31_557_600,
   SOLAR_MASS: 1.98847e30,
   SOLAR_RADIUS: 6.957e8,
+  SOLAR_LUMINOSITY: 3.828e26,
   EARTH_MASS: 5.9722e24,
   EARTH_RADIUS: 6.371e6,
   JUPITER_MASS: 1.89813e27,
@@ -23,7 +24,13 @@ export const SIMULATION = Object.freeze({
   minorFieldUpdateHz: 30,
   shipDryMassKg: 12_000,
   shipThrustAcceleration: 20,
+  shipReverseAcceleration: 12,
+  shipRcsAcceleration: 6,
   collisionSafetyFactor: 1.0,
+  trajectoryMaxSamples: 420,
+  trajectoryMinStepSeconds: 1,
+  trajectoryMaxStepSeconds: 7_200,
+  trajectoryRefreshRealSeconds: 0.45,
 });
 
 export const BODY_KIND = Object.freeze({

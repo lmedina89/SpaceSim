@@ -37,9 +37,9 @@ export class TestParticleField {
       this.position[f] = center[0] + x;
       this.position[f + 1] = center[1] + y;
       this.position[f + 2] = center[2] + z;
-      this.velocity[f] = -Math.sin(a) * v;
-      this.velocity[f + 1] = Math.cos(a) * v * Math.sin(inclination);
-      this.velocity[f + 2] = Math.cos(a) * v * Math.cos(inclination);
+      this.velocity[f] = this.centralBody.velocity[0] - Math.sin(a) * v;
+      this.velocity[f + 1] = this.centralBody.velocity[1] + Math.cos(a) * v * Math.sin(inclination);
+      this.velocity[f + 2] = this.centralBody.velocity[2] + Math.cos(a) * v * Math.cos(inclination);
     }
   }
 

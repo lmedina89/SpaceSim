@@ -1,11 +1,13 @@
 {
-  "version": "0.1.0.1",
-  "name": "Mobile GitHub Upload Hotfix",
+  "version": "0.1.1",
+  "name": "Scientific Flight & Experiment Control",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
   "physicsPrecision": "Float64",
   "gravityBackend": "direct-newtonian",
   "majorIntegrator": "velocity-verlet",
+  "trajectoryModel": "forward N-body velocity-verlet",
+  "scannerModel": "target-relative osculating two-body elements",
   "deploymentMode": "github-pages-branch-root"
 }

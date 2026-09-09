@@ -1,48 +1,77 @@
-# Universe Lab v0.1.0 — QA Report
+# Universe Lab v0.1.1 — QA Report
 
-## Automated validation
+## Release scope
 
-`npm run qa` passed on the packaged source tree.
+Scientific flight instrumentation, target scanning, N-body path prediction, configurable physical launcher, seeded moon/eccentric-orbit upgrade, and impact telemetry.
 
-### Static / syntax
+## Automated release checks
 
-- Repository-root structure check: PASS
-- Required runtime modules present: PASS
-- Three.js dependency pin in import map: PASS (`0.185.0`)
-- JavaScript / MJS `node --check`: PASS
+**PASS — repository/static structure**
 
-### Numerical tests
+- required shell/modules/docs present,
+- Three.js import-map version pinned,
+- shell and package versions agree,
+- no JavaScript/MJS syntax errors.
 
-- Deterministic seed/RNG repeatability: PASS
-- Same seed reproduces identical generated physical initial conditions: PASS
-- Generated-system total linear momentum balancing: PASS
-- Solar gravitational acceleration at 1 AU against `GM/r²`: PASS
-- Velocity-Verlet Sun/Earth one-year bounded-orbit regression: PASS
-- Reduced-mass impact-energy calculation: PASS
+**PASS — 13/13 numerical/unit tests**
 
-Total Node tests: **6 passed / 0 failed**.
+1. solar gravity at 1 AU matches `GM/r²`,
+2. reduced-mass impact energy,
+3. impact momentum and Q_R telemetry,
+4. one-year velocity-Verlet Sun/Earth orbit bounded,
+5. launcher spherical radius from mass+density,
+6. circular osculating orbit telemetry,
+7. deterministic PRNG,
+8. orthonormal spacecraft local basis with roll,
+9. deterministic seeded physical initial state,
+10. barycentric center-of-mass/rest-frame initialization,
+11. generated planet/moon metadata consistency,
+12. forward trajectory keeps a low-Earth circular trajectory bounded for one orbit,
+13. swept predictor detects a finite-radius impact.
 
-### Static HTTP resource smoke
+## Additional numerical stress checks
 
-A local HTTP server returned HTTP 200 for the shell, stylesheet, main module, application module, constants, system generator, gravity solver, and renderer module.
+A private release stress pass integrated 8 different generated systems for 30 simulated days with 900-second major-body timesteps.
 
-## Interactive rendering status
+- maximum generated major-body count observed: 21,
+- spontaneous finite-radius major-body collisions: 0,
+- expected orbital radius naturally varied because v0.1.1 intentionally generates eccentric orbits; no non-finite state was observed.
 
-An automated headless Chromium 3D smoke was attempted, but the available container could not initialize an EGL/GPU display backend, including its software ANGLE path. Therefore this report does **not** claim an automated interactive WebGPU/WebGL playthrough.
+A Node-side algorithm timing sample on seed `BENCH` measured approximately:
 
-Physical iPhone Safari / deployed GitHub Pages testing remains the rendering release gate, consistent with the project's mobile-first workflow.
+- 4,000 minor bodies, one 60 s step: ~8 ms,
+- 10,000 minor bodies, one 60 s step: ~6 ms,
+- 20,000 minor bodies, one 60 s step: ~13 ms,
+- one-day 420-point N-body trajectory forecast with 9 major sources: ~5 ms.
 
-## Scientific limitations intentionally retained in v0.1.0
+These numbers are **not iPhone performance claims**. They only confirm the algorithms are in a reasonable cost regime in the release environment. Physical iPhone Safari remains the performance gate.
 
-- Black-hole trajectories are Newtonian; no GR geodesics/lensing yet.
-- Minor test particles do not mutually gravitate and do not perturb major bodies.
-- Collision detection and energy accounting exist, but no collision response, fragmentation, cratering, fluid displacement, shock propagation, or explosions yet.
-- Generated systems prioritize stable sandbox starting states rather than attempting planet-formation simulation.
-- `DAMP` is intentionally fictional navigation assistance and is labeled as such in the UI.
+## Packaging/static-host checks
 
-These are explicit module boundaries for future releases rather than hidden approximations.
+**PASS**
 
+- repository-root layout verified,
+- no wrapper directory,
+- no `.github/workflows/*`,
+- local static HTTP smoke returned HTTP 200 for the shell, CSS, main module, app module, trajectory predictor, and version manifest,
+- HTML ID/query-selector audit found no duplicate IDs and no missing queried elements,
+- final ZIP integrity is checked after packaging and the SHA-256 is reported with the release artifact.
 
-## v0.1.0.1 mobile packaging validation
+## Interactive rendering limitation
 
-The GitHub Actions workflow was intentionally removed from the distributable archive to support mobile OAuth Git clients without `workflow` scope. The application remains a static site and can be deployed with GitHub Pages using `main` → `/(root)`. Simulation code is unchanged from v0.1.0.
+The previous foundation build could not be reliably interactively smoke-tested in the container because its headless Chromium environment lacked a working EGL/GPU backend. This environment limitation remains relevant.
+
+Therefore this report does **not** claim a real iPhone/WebGPU/WebGL interactive playthrough. Deploy to GitHub Pages and physically test Safari before treating the graphics/control experience as release-gated.
+
+## Recommended iPhone test order
+
+1. Load default 4,000 particles and confirm renderer initializes.
+2. Drag LOOK and hold THRUST/REV.
+3. Open RCS; verify lateral/up/down translation and roll.
+4. Tap a planet/moon and open SCAN.
+5. Toggle PATH and verify the cyan trajectory moves as ship state changes.
+6. Aim at the selected target.
+7. Configure a basalt asteroid, enable PREVIEW, and verify the orange path appears.
+8. Launch it and confirm the spawned body becomes targetable/scannable.
+9. Increase minor field to 10,000 then 20,000 while watching FPS/physics cost.
+10. Test portrait once for layout recovery, but landscape remains the primary mobile mode.

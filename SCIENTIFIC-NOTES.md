@@ -1,96 +1,150 @@
-# Scientific Model Boundaries — v0.1.0
+# Scientific Model Boundaries — Universe Lab v0.1.1
 
-The project should be visually mysterious without being scientifically dishonest. Every simulation module must identify whether it is **physical**, **approximate**, **demonstrative**, or **fictional**.
+The project is allowed to be strange and mysterious. It is **not** allowed to blur the line between a physical model and a visual/fictional effect.
 
-## Physical constants and units
+Every future experiment should identify itself as **physical**, **approximate**, **demonstrative**, or **experimental/non-physical**.
 
-Authoritative quantities use SI units.
+## Units and constants
 
-- Length: meter
-- Time: second
-- Mass: kilogram
-- Velocity: meter/second
-- Acceleration: meter/second²
-- Energy: joule
-- Gravitational constant: `6.67430 × 10⁻¹¹ m³ kg⁻¹ s⁻²`
-- Speed of light constant is stored for future relativistic modules, but v0.1.0 does not integrate relativistic motion.
+Authoritative state uses SI units:
+
+- meters,
+- seconds,
+- kilograms,
+- meters/second,
+- meters/second²,
+- joules.
+
+Newtonian gravity uses `G = 6.67430 × 10⁻¹¹ m³ kg⁻¹ s⁻²`.
+
+The speed of light constant is stored for future relativity work but is not used to claim relativistic integration in v0.1.1.
 
 ## Gravity
 
-For two bodies, v0.1.0 implements:
+Major bodies obey mutual Newtonian point-mass gravity:
 
-`a = G M / r²`
+`a = GM / r²`
 
-Major gravity sources mutually interact using a direct pair solver. Positions and velocities are advanced with velocity Verlet.
+with finite radii used for contact detection/visual metadata.
 
-### Not yet modeled
+Major states are integrated with velocity Verlet.
 
-- General relativity
-- Frame dragging
-- gravitational radiation
-- relativistic time dilation
-- true black-hole geodesics
-- tidal deformation
-- extended-mass gravitational fields
+Not modeled yet:
 
-A spawned black hole therefore behaves as a Newtonian point mass for trajectories. Its Schwarzschild radius is calculated for metadata/visual scale, but the renderer is not claiming to show a GR-correct event horizon.
+- general relativity,
+- frame dragging,
+- gravitational radiation,
+- relativistic time dilation,
+- extended-body gravity harmonics,
+- tidal deformation.
 
-## Procedural systems
+A black hole is therefore a Newtonian mass with Schwarzschild-radius metadata and a stylized visual representation. Near-horizon motion is not physically trustworthy.
 
-Seeds generate plausible sandbox initial conditions, not catalog-quality astrophysical system formation. Circular/near-circular orbits are deliberately favored to give stable, understandable starting systems.
+## Seeded systems
 
-The generated planet taxonomy and appearance are gameplay/sandbox metadata. Their orbital dynamics use physical mass, distance, and velocity values.
+Generated systems are deterministic low-eccentricity near-Keplerian initial conditions intended for a stable scientific sandbox.
 
-## Minor-body field
+The generator uses simplified relationships/proxies for stellar luminosity, spectral class, snow line, planetary composition, density, and satellite availability. It does **not** simulate protoplanetary-disk formation or claim observational realism for every generated combination.
 
-Minor bodies are test particles. They:
+The finished initial state is placed in its center-of-mass rest frame.
 
-- have 64-bit positions/velocities,
-- are accelerated by major gravity sources,
-- are numerically integrated,
-- are rendered in one high-count point field.
+## Scanner telemetry
 
-They do **not** currently:
+Displayed eccentricity, periapsis, apoapsis, circular speed, escape speed, and specific orbital energy are **osculating two-body values relative to the selected target**.
 
-- attract one another,
-- perturb planets,
-- collide with one another,
-- fragment.
+That means they describe the instantaneous conic orbit implied by the current position/velocity if all other gravitational bodies vanished at that instant.
 
-This is a deliberate performance/scalability boundary, not an accidental omission.
+They are useful diagnostics, not an exact forecast in the multi-body system.
+
+## N-body trajectory prediction
+
+The visible path clones every current major gravity source plus the ship/projectile and integrates that cloned system forward under the same Newtonian direct solver and velocity-Verlet integrator.
+
+It is therefore a real numerical forecast under the current model, subject to these boundaries:
+
+- no future pilot thrust unless encoded in the initial state,
+- no minor-particle gravity,
+- no relativistic corrections,
+- no collision response after first predicted contact,
+- timestep resolution varies with selected horizon,
+- chaotic systems can diverge rapidly with time.
+
+Finite-radius collision prediction uses a swept geometric test between integration endpoints to reduce timestep tunneling.
 
 ## Spacecraft
 
-Gravity and inertial velocity are physical under the Newtonian model. The default experimental thruster applies 20 m/s² while held.
+Gravity and inertial translation are Newtonian within the current model.
 
-The `DAMP` control is explicitly fictional. It exponentially reduces velocity and exists to make early mobile navigation usable before a more complete propulsion/autopilot layer is built.
+Configured experimental drive accelerations:
 
-## Collision energy
+- forward: 20 m/s²,
+- reverse: 12 m/s²,
+- RCS translation: 6 m/s².
 
-When two finite-radius major bodies overlap, the simulator records relative velocity and estimates center-of-mass kinetic energy using reduced mass:
+These are idealized accelerations. There is no propellant equation, power budget, thermal model, human acceleration tolerance, or engine mass flow yet.
 
-`E = 1/2 μ v²`
+Yaw/pitch/roll attitude is pilot-controlled directly. Rotational inertia/torque is not yet modeled.
 
-where `μ = m1 m2 / (m1 + m2)`.
+**DAMP is fictional.** It exponentially removes inertial velocity and is retained only as an explicit navigation aid.
 
-No crater size, shock propagation, deformation, melting, vaporization, atmosphere response, ocean response, or fragmentation is claimed yet.
+## Mass launcher
 
-## Future impact modeling
+Projectile radius is derived from spherical volume:
 
-A scientifically grounded impact pipeline should combine:
+`r = (3m / 4πρ)^(1/3)`
 
-1. real pre-impact trajectory,
-2. relative impact velocity and angle,
-3. projectile/target material model,
-4. accepted impact-scaling relations,
-5. localized numerical simulation where worthwhile,
-6. physically seeded debris/ejecta particles,
-7. rendering that visualizes rather than invents the underlying energy budget.
+where `m` is configured mass and `ρ` is configured bulk density.
 
-## Quantum demonstrations
+Material presets currently supply representative sandbox bulk densities, not detailed porosity/composition/equation-of-state models.
 
-Future double-slit and related experiments must distinguish classical particle trajectories from quantum probability-amplitude demonstrations. A visually pleasing particle animation is not, by itself, a quantum simulation.
+Once launched, the projectile is a finite-radius major gravity source and can perturb the rest of the system.
 
-## Artificial rules
+## Collision telemetry
 
-Conway-inspired particle life, negative mass, repulsive gravity, altered force laws, time fields, and similar sandbox rules will be labeled **EXPERIMENTAL / NON-PHYSICAL** unless they are implementing a recognized physical model.
+For two bodies with relative speed `v` and reduced mass
+
+`μ = m1 m2 / (m1 + m2)`
+
+the center-of-mass kinetic energy is reported as
+
+`E_cm = 1/2 μv²`.
+
+The simulator also reports:
+
+`p_rel = μv`
+
+and the specific impact energy
+
+`Q_R = E_cm / (m1 + m2)`.
+
+These values describe the pre-response collision state. v0.1.1 does not use them to invent crater size, fragmentation, shock propagation, melt, vapor, fire, or ejecta.
+
+## Minor-body field
+
+Minor particles are numerical test masses. They use Float64 state and feel major gravity but do not attract one another, perturb major bodies, collide, or fragment.
+
+This is an explicit scalability tier.
+
+## Future impact science
+
+v0.1.2 should preserve the energy/momentum budget and add response through clearly separated models:
+
+1. collision geometry and relative impact angle,
+2. material parameters,
+3. fragmentation/merger decision model,
+4. physically budgeted fragment velocities,
+5. persistent large debris as simulation bodies,
+6. high-count visual ejecta as GPU particles,
+7. optional crater/ejecta scaling only where the underlying assumptions apply.
+
+## Future fluids
+
+Different scales require different models. A planet-wide ocean should not be represented as billions of SPH particles. Planned candidates include spectral/shader oceans, shallow-water regional solvers, and local PBF/SPH or FLIP/APIC/MPM experiments.
+
+## Future quantum demonstrations
+
+A double-slit experiment must separate classical ballistic particles from a quantum probability-amplitude model. Individual detector events can be sampled from a computed probability distribution; a decorative wave animation alone will never be labeled a quantum simulation.
+
+## Experimental rule systems
+
+Particle life, Conway-inspired moving automata, negative mass, modified force laws, repulsive gravity, and similar tools will be explicitly labeled **EXPERIMENTAL / NON-PHYSICAL** unless they correspond to a recognized physical model.

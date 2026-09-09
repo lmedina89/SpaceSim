@@ -7,19 +7,64 @@ export class ShipDynamics {
     this.velocity = vec3();
     this.yaw = 0;
     this.pitch = 0;
+    this.roll = 0;
     this.throttle = 0;
+    this.reverseThrottle = 0;
+    this.strafe = 0;
+    this.lift = 0;
     this.braking = false;
     this.mass = SIMULATION.shipDryMassKg;
     this._forward = new Float64Array(3);
+    this._right = new Float64Array(3);
+    this._up = new Float64Array(3);
     this._a0 = new Float64Array(3);
     this._a1 = new Float64Array(3);
   }
 
-  forward(target = this._forward) {
+  basis() {
     const cp = Math.cos(this.pitch);
-    target[0] = Math.sin(this.yaw) * cp;
-    target[1] = Math.sin(this.pitch);
-    target[2] = Math.cos(this.yaw) * cp;
+    const sp = Math.sin(this.pitch);
+    const sy = Math.sin(this.yaw);
+    const cy = Math.cos(this.yaw);
+    const f = this._forward;
+    f[0] = sy * cp;
+    f[1] = sp;
+    f[2] = cy * cp;
+
+    const baseRightX = cy;
+    const baseRightY = 0;
+    const baseRightZ = -sy;
+    const baseUpX = f[1] * baseRightZ - f[2] * baseRightY;
+    const baseUpY = f[2] * baseRightX - f[0] * baseRightZ;
+    const baseUpZ = f[0] * baseRightY - f[1] * baseRightX;
+    const cr = Math.cos(this.roll);
+    const sr = Math.sin(this.roll);
+    const right = this._right;
+    const up = this._up;
+    right[0] = baseRightX * cr + baseUpX * sr;
+    right[1] = baseRightY * cr + baseUpY * sr;
+    right[2] = baseRightZ * cr + baseUpZ * sr;
+    up[0] = baseUpX * cr - baseRightX * sr;
+    up[1] = baseUpY * cr - baseRightY * sr;
+    up[2] = baseUpZ * cr - baseRightZ * sr;
+    return { forward: f, right, up };
+  }
+
+  forward(target = this._forward) {
+    const { forward } = this.basis();
+    if (target !== forward) target.set(forward);
+    return target;
+  }
+
+  right(target = this._right) {
+    const { right } = this.basis();
+    if (target !== right) target.set(right);
+    return target;
+  }
+
+  up(target = this._up) {
+    const { up } = this.basis();
+    if (target !== up) target.set(up);
     return target;
   }
 
@@ -30,6 +75,17 @@ export class ShipDynamics {
     const r = Math.hypot(dx, dy, dz) || 1;
     this.pitch = Math.asin(dy / r);
     this.yaw = Math.atan2(dx, dz);
+  }
+
+  rotateLook(deltaYaw, deltaPitch) {
+    this.yaw += deltaYaw;
+    this.pitch = Math.max(-1.54, Math.min(1.54, this.pitch + deltaPitch));
+  }
+
+  rotateRoll(deltaRoll) {
+    this.roll += deltaRoll;
+    if (this.roll > Math.PI) this.roll -= Math.PI * 2;
+    if (this.roll < -Math.PI) this.roll += Math.PI * 2;
   }
 
   accelerationAt(position, gravitySources, out) {
@@ -44,17 +100,23 @@ export class ShipDynamics {
       const scale = PHYSICS.G * source.mass * invR * invR * invR;
       ax += dx * scale; ay += dy * scale; az += dz * scale;
     }
-    if (this.throttle > 0) {
-      const f = this.forward();
-      const thrust = SIMULATION.shipThrustAcceleration * Math.min(1, this.throttle);
-      ax += f[0] * thrust; ay += f[1] * thrust; az += f[2] * thrust;
-    }
+
+    const { forward, right, up } = this.basis();
+    const forwardAccel = SIMULATION.shipThrustAcceleration * Math.min(1, Math.max(0, this.throttle));
+    const reverseAccel = SIMULATION.shipReverseAcceleration * Math.min(1, Math.max(0, this.reverseThrottle));
+    const strafeAccel = SIMULATION.shipRcsAcceleration * Math.max(-1, Math.min(1, this.strafe));
+    const liftAccel = SIMULATION.shipRcsAcceleration * Math.max(-1, Math.min(1, this.lift));
+    const longitudinal = forwardAccel - reverseAccel;
+    ax += forward[0] * longitudinal + right[0] * strafeAccel + up[0] * liftAccel;
+    ay += forward[1] * longitudinal + right[1] * strafeAccel + up[1] * liftAccel;
+    az += forward[2] * longitudinal + right[2] * strafeAccel + up[2] * liftAccel;
+
     out[0] = ax; out[1] = ay; out[2] = az;
     return out;
   }
 
   step(dt, gravitySources) {
-    // Velocity-Verlet spacecraft integration. Thrust is treated as constant during each substep.
+    // Velocity-Verlet spacecraft integration. Pilot accelerations are held constant over a substep.
     this.accelerationAt(this.position, gravitySources, this._a0);
     const halfDt2 = 0.5 * dt * dt;
     this.position[0] += this.velocity[0] * dt + this._a0[0] * halfDt2;
@@ -67,7 +129,7 @@ export class ShipDynamics {
     this.velocity[2] += (this._a0[2] + this._a1[2]) * halfDt;
 
     if (this.braking) {
-      // Experimental inertial damping system. Explicitly non-physical; useful for navigation.
+      // Experimental inertial damping. Deliberately non-physical and labeled as a navigation aid.
       const damping = Math.exp(-0.65 * dt);
       this.velocity[0] *= damping;
       this.velocity[1] *= damping;
@@ -76,7 +138,13 @@ export class ShipDynamics {
   }
 
   serialize() {
-    return { position: [...this.position], velocity: [...this.velocity], yaw: this.yaw, pitch: this.pitch };
+    return {
+      position: [...this.position],
+      velocity: [...this.velocity],
+      yaw: this.yaw,
+      pitch: this.pitch,
+      roll: this.roll,
+    };
   }
 
   restore(data) {
@@ -85,6 +153,7 @@ export class ShipDynamics {
     this.velocity.set(data.velocity.slice(0, 3));
     this.yaw = Number(data.yaw) || 0;
     this.pitch = Number(data.pitch) || 0;
+    this.roll = Number(data.roll) || 0;
     return true;
   }
 }

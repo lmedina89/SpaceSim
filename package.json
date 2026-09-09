@@ -1,9 +1,9 @@
 {
   "name": "universe-lab",
-  "version": "0.1.0.1",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
-  "description": "Scientific, mobile-first seeded solar-system laboratory with high-performance 3D rendering.",
+  "description": "Scientific mobile-first seeded solar-system laboratory with targeting, N-body trajectory prediction, and experiment launching.",
   "scripts": {
     "check": "node ./tests/static-check.mjs && find src tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "test": "node --test tests/*.test.mjs",

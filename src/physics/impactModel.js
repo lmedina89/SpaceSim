@@ -1,6 +1,23 @@
+export function reducedMassKg(a, b) {
+  return (a.mass * b.mass) / (a.mass + b.mass);
+}
+
 export function impactEnergyJoules(a, b, relativeSpeed) {
-  const reducedMass = (a.mass * b.mass) / (a.mass + b.mass);
-  return 0.5 * reducedMass * relativeSpeed * relativeSpeed;
+  const mu = reducedMassKg(a, b);
+  return 0.5 * mu * relativeSpeed * relativeSpeed;
+}
+
+export function impactReport(a, b, relativeSpeed) {
+  const mu = reducedMassKg(a, b);
+  const energyJ = 0.5 * mu * relativeSpeed * relativeSpeed;
+  return {
+    reducedMassKg: mu,
+    relativeSpeedMps: relativeSpeed,
+    centerOfMassEnergyJ: energyJ,
+    relativeMomentumKgMps: mu * relativeSpeed,
+    specificImpactEnergyJkg: energyJ / (a.mass + b.mass),
+    tntMegatons: energyJ / 4.184e15,
+  };
 }
 
 export function formatEnergy(joules) {

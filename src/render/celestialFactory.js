@@ -6,6 +6,7 @@ function renderRadius(body) {
   if (body.kind === BODY_KIND.STAR) return Math.max(physical, 18);
   if (body.kind === BODY_KIND.BLACK_HOLE) return Math.max(physical, 8);
   if (body.kind === BODY_KIND.PLANET) return Math.max(physical, 0.85);
+  if (body.kind === BODY_KIND.MOON) return Math.max(physical, 0.34);
   return Math.max(physical, 0.16);
 }
 

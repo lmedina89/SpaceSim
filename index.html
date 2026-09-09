@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.0.1</title>
+  <title>Universe Lab v0.1.1</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -18,31 +18,50 @@
 </head>
 <body>
   <main id="app" class="app-shell">
-    <section id="viewport" class="viewport" aria-label="3D universe viewport"></section>
+    <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.0.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.1</span></div>
       <div class="stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat"><b id="physicsMsValue">—</b><small>physics</small></div>
+      <div class="stat"><b id="renderMsValue">—</b><small>render</small></div>
       <div class="stat"><b id="speedValue">—</b><small>ship</small></div>
       <div class="stat"><b id="simTimeValue">0 d</b><small>sim time</small></div>
     </div>
 
-    <div class="seed-chip">SEED <b id="seedValue">ORIGIN-001</b> · BODIES <b id="bodyCountValue">—</b> · TEST <b id="minorCountValue">—</b></div>
+    <div class="seed-chip">SEED <b id="seedValue">ORIGIN-001</b> · MAJOR <b id="bodyCountValue">—</b> · TEST <b id="minorCountValue">—</b> · DRAW <b id="drawCallsValue">—</b> · PRED <b id="predictionMsValue">—</b></div>
+    <div id="targetChip" class="target-chip" hidden>NO TARGET</div>
     <div class="reticle" aria-hidden="true"><span></span><i></i></div>
 
-    <div id="lookPad" class="look-pad" aria-label="Drag to look around">
+    <div id="lookPad" class="look-pad" aria-label="Drag to change spacecraft attitude">
       <div class="look-ring"><span>LOOK</span></div>
     </div>
 
-    <div class="flight-controls">
+    <div class="flight-controls" aria-label="Main thrusters">
       <button id="thrustButton" class="hold-button thrust" type="button">THRUST</button>
+      <button id="reverseButton" class="hold-button reverse" type="button">REV</button>
       <button id="brakeButton" class="hold-button brake" type="button">DAMP</button>
+    </div>
+
+    <div id="rcsPanel" class="rcs-panel" hidden aria-label="Reaction-control system">
+      <div class="rcs-grid">
+        <button id="rcsUp" type="button" aria-label="Translate up">▲</button>
+        <button id="rollLeft" type="button">ROLL ◀</button>
+        <button id="rollRight" type="button">ROLL ▶</button>
+        <button id="rcsLeft" type="button" aria-label="Translate left">◀</button>
+        <button id="rcsDown" type="button" aria-label="Translate down">▼</button>
+        <button id="rcsRight" type="button" aria-label="Translate right">▶</button>
+      </div>
+      <small>RCS 6 m/s² · attitude roll is pilot-controlled</small>
     </div>
 
     <nav class="bottom-bar" aria-label="Simulation controls">
       <button id="labToggle" type="button">LAB</button>
+      <button id="targetButton" type="button">TARGET</button>
+      <button id="scannerToggle" type="button">SCAN</button>
+      <button id="pathToggle" type="button">PATH ON</button>
+      <button id="rcsToggle" type="button">RCS</button>
       <button id="scienceToggle" type="button">SCIENCE</button>
       <button id="homeButton" type="button">HOME</button>
       <button id="pauseToggle" type="button">PAUSE</button>
@@ -53,35 +72,70 @@
     <div id="message" class="message">Initializing…</div>
 
     <aside id="labPanel" class="drawer lab-panel" hidden>
-      <header><div><b>UNIVERSE LAB</b><small>Scientific sandbox controls</small></div><button id="labClose" type="button" aria-label="Close lab">×</button></header>
+      <header><div><b>UNIVERSE LAB</b><small>Seeded system + experiment launcher</small></div><button id="labClose" type="button" aria-label="Close lab">×</button></header>
       <div class="drawer-grid">
         <label>System seed<input id="seedInput" value="ORIGIN-001" maxlength="64"></label>
         <div class="button-row"><button id="regenerate" type="button">GENERATE</button><button id="randomSeed" type="button">RANDOM</button></div>
         <label>Time warp<select id="timeScale"><option value="1">1× real seconds</option><option value="60" selected>60×</option><option value="3600">3,600×</option><option value="86400">86,400×</option></select></label>
+        <label>Trajectory horizon<select id="trajectoryHorizon"><option value="3600">1 hour</option><option value="21600">6 hours</option><option value="86400" selected>1 day</option><option value="604800">7 days</option><option value="2592000">30 days</option></select></label>
         <label>Minor test bodies<select id="minorCount"><option value="1000">1,000</option><option value="4000" selected>4,000</option><option value="10000">10,000</option><option value="20000">20,000</option></select></label>
         <hr>
-        <h3>Mass launcher</h3>
-        <label>Asteroid mass (kg)<input id="asteroidMass" type="number" inputmode="decimal" value="1000000000000000"></label>
-        <label>Launch speed (m/s)<input id="asteroidSpeed" type="number" inputmode="decimal" value="25000"></label>
-        <button id="spawnAsteroid" class="danger" type="button">LAUNCH ASTEROID</button>
+        <h3>MASS LAUNCHER</h3>
+        <p class="help">Projectile radius is derived from mass and bulk density. The preview integrates the projectile and all major gravity sources mutually under the same Newtonian model used live.</p>
+        <label>Material<select id="asteroidMaterial"><option value="porousRock">Porous rock</option><option value="ice">Water ice</option><option value="basalt" selected>Basalt</option><option value="iron">Iron-rich</option></select></label>
+        <label>Bulk density (kg/m³)<input id="asteroidDensity" type="number" inputmode="decimal" value="3000" min="100" max="30000"></label>
+        <label>Mass (kg)<input id="asteroidMass" type="number" inputmode="decimal" value="1000000000000000" min="100000000" max="1e24"></label>
+        <div class="derived">Derived spherical radius <b id="asteroidRadius">—</b></div>
+        <label>Launch speed relative to ship (m/s)<input id="asteroidSpeed" type="number" inputmode="decimal" value="25000" min="0" max="1000000"></label>
+        <div class="button-row"><button id="aimTarget" type="button">AIM TARGET</button><button id="previewAsteroid" type="button">PREVIEW TRAJECTORY</button></div>
+        <p id="launchPrediction" class="prediction">Launch preview off.</p>
+        <button id="spawnAsteroid" class="danger" type="button">LAUNCH PHYSICAL BODY</button>
         <hr>
-        <h3>Gravity anomaly</h3>
+        <h3>GRAVITY ANOMALY</h3>
         <label>Black-hole mass (solar masses)<input id="blackHoleMass" type="number" inputmode="decimal" value="3" min="0.1" max="100" step="0.1"></label>
         <button id="spawnBlackHole" class="void" type="button">SPAWN NEWTONIAN BLACK HOLE</button>
-        <p class="warning">Near a black hole, v0.1.0.1 uses Newtonian gravity only. Relativistic trajectories and gravitational lensing are future modules.</p>
+        <p class="warning">Schwarzschild radius is calculated, but trajectories remain Newtonian. Do not interpret near-horizon motion or the visual disk as general relativity.</p>
+      </div>
+    </aside>
+
+    <aside id="scannerPanel" class="drawer scanner-panel" hidden>
+      <header><div><b>FLIGHT SCANNER</b><small>Target-relative scientific telemetry</small></div><button id="scannerClose" type="button" aria-label="Close scanner">×</button></header>
+      <div class="scanner-copy">
+        <div class="scanner-title"><b id="targetName">No target</b><small id="targetKind">—</small></div>
+        <div class="scan-grid">
+          <span>Center distance</span><b id="targetDistance">—</b>
+          <span>Surface altitude</span><b id="targetAltitude">—</b>
+          <span>Relative speed</span><b id="targetRelativeSpeed">—</b>
+          <span>Radial speed</span><b id="targetRadialSpeed">—</b>
+          <span>Target gravity here</span><b id="targetGravity">—</b>
+          <span>Escape speed here</span><b id="targetEscape">—</b>
+          <span>Circular speed here</span><b id="targetCircular">—</b>
+          <span>Osculating eccentricity</span><b id="targetEccentricity">—</b>
+          <span>Periapsis altitude</span><b id="targetPeriapsis">—</b>
+          <span>Apoapsis altitude</span><b id="targetApoapsis">—</b>
+          <span>Two-body state</span><b id="targetOrbitState">—</b>
+        </div>
+        <p class="help">Osculating values answer: “If this target were the only gravitating body from this instant onward, what conic orbit matches the current relative state?” The visible path prediction is different: it integrates all current major gravity sources.</p>
+        <div class="prediction-box"><b>N-BODY PREDICTION</b><span id="predictedApproach">Prediction not active.</span></div>
+        <div class="button-row"><button id="nextTarget" type="button">NEXT TARGET</button><button type="button" disabled>Tap body to select</button></div>
+        <hr>
+        <h3>LAST MAJOR-BODY CONTACT</h3>
+        <p id="impactReadout" class="impact-readout">No collision recorded this session.</p>
       </div>
     </aside>
 
     <aside id="sciencePanel" class="drawer science-panel" hidden>
-      <header><div><b>SCIENTIFIC MODEL</b><small>What is real, approximate, or experimental</small></div><button id="scienceClose" type="button" aria-label="Close science notes">×</button></header>
+      <header><div><b>SCIENTIFIC MODEL</b><small>Physical, approximate, and explicitly fictional layers</small></div><button id="scienceClose" type="button" aria-label="Close science notes">×</button></header>
       <div class="science-copy">
         <p><strong>Authoritative units:</strong> SI meters, kilograms, seconds in Float64 arrays.</p>
-        <p><strong>Gravity:</strong> Newton's law using G = 6.67430×10⁻¹¹ m³·kg⁻¹·s⁻².</p>
-        <p><strong>Major-body integration:</strong> velocity Verlet. Massive bodies mutually attract each other.</p>
-        <p><strong>Minor field:</strong> 1k–20k test particles feel major-body gravity but intentionally contribute no gravity in this foundation build.</p>
-        <p><strong>Floating origin:</strong> the renderer stays near the spacecraft while physics coordinates remain astronomical-scale Float64 values.</p>
-        <p><strong>Ship DAMP:</strong> intentionally fictional inertial damping for navigation. THRUST is a 20 m/s² experimental drive.</p>
-        <p><strong>Collisions:</strong> geometric contact and physical impact energy are detected. Deformation, cratering, debris and fluid response are not yet implemented.</p>
+        <p><strong>Major gravity:</strong> mutual Newtonian gravity with G = 6.67430×10⁻¹¹ m³·kg⁻¹·s⁻² and velocity-Verlet integration.</p>
+        <p><strong>Seeded systems:</strong> deterministic near-Keplerian eccentric planet and moon initial conditions, shifted into a barycentric rest frame. They are plausible sandbox systems, not claims of astrophysical formation history.</p>
+        <p><strong>Trajectory path:</strong> an N-body forward integration of the current massive system plus the ship/projectile. Future thrust and minor-particle gravity are excluded.</p>
+        <p><strong>Scanner orbit:</strong> osculating two-body elements around the selected target. Other-body perturbations are intentionally ignored in those displayed elements.</p>
+        <p><strong>Minor field:</strong> 1k–20k typed-array test particles feel major gravity but intentionally contribute no gravity.</p>
+        <p><strong>Ship:</strong> forward/reverse and RCS accelerations are explicit experimental propulsion. DAMP is a fictional inertial-damping navigation aid.</p>
+        <p><strong>Collisions:</strong> finite-radius contact, center-of-mass impact energy, reduced-mass momentum, and specific impact energy Qᴿ are reported. Deformation, cratering, debris and explosions are not faked yet.</p>
+        <p><strong>Black holes:</strong> Schwarzschild radius metadata + visualization, but Newtonian trajectories only. GR/lensing is future work.</p>
       </div>
     </aside>
   </main>
