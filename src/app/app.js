@@ -167,6 +167,8 @@ export class UniverseLabApp {
     this._nextMapUpdateAt = 0;
     this.surfaceRegion = null;
     this.surfaceSession = null;
+    this.surfaceTransition = createLandingTransition();
+    this._surfaceRecoveryGuard = false;
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
     this._surfacePreviousRunning = true;
     this._surfacePreviousTimeScale = 1;
@@ -214,7 +216,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.5 online. Landing reliability state machine, guarded boarding/ascent, transition recovery and upgraded spacecraft presence are active. Build SHIPLAND-145.');
+    this.hud.notify('v0.1.4.5.1 online. Startup landing-state initialization hotfix active; landing reliability, guarded boarding/ascent, transition recovery and upgraded spacecraft presence remain unchanged. Build SHIPLAND-1451.');
   }
 
   newSystem(seed) {

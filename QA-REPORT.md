@@ -1,9 +1,9 @@
-# Universe Lab v0.1.4.5 — Landing Reliability & Spacecraft Presence QA Report
+# Universe Lab v0.1.4.5.1 — Landing Startup Reliability Hotfix QA Report
 
 ## Build identity
 
 - Source checkpoint: v0.1.4.4.1 Surface HUD & Mobile Exploration Polish
-- Build marker: **SHIPLAND-145**
+- Build marker: **SHIPLAND-1451**
 - Save schema: **1** (unchanged)
 - Three.js: **0.185.0** (unchanged)
 - GitHub Pages: branch-root compatible
@@ -12,9 +12,9 @@
 
 - `npm run check`: passed
 - Node syntax checks: passed for all JS/MJS source/tests
-- `npm test`: **111/111 passing**
+- `npm test`: **113/113 passing**
 
-New coverage verifies the explicit landing transition lifecycle, duplicate-entry blocking, ascent locking/orbital reset, upgraded spacecraft/VTOL render tokens, boarding-distance gating, recovery integration, plus all inherited surface/weather/cockpit/physics/navigation tests.
+New hotfix coverage verifies constructor-time landing-state initialization before startup/reset, explicit recovery-guard initialization, and a complete descent → landed → ascent → orbit → second-descent lifecycle. All inherited landing, ship, surface, weather, cockpit, physics and navigation tests remain passing.
 
 ## Protected behavior
 

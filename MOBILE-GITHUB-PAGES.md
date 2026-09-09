@@ -1,4 +1,4 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.5
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.5.1
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -17,7 +17,7 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 After upload/reload verify:
 
 - title/HUD says **v0.1.4.5**,
-- MORE help shows **SHIPLAND-145**,
+- MORE help shows **SHIPLAND-1451**,
 - FPS/physics/render telemetry populate in orbit,
 - no `RUNTIME ERROR` banner appears.
 

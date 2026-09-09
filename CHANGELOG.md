@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.4.5.1 — Landing Startup Reliability Hotfix
+
+- Fixed startup regression where `newSystem()` used `surfaceTransition` before the app constructor initialized it, producing `Startup failed: Landing transition state is required.`
+- Explicitly initializes the landing transition controller and surface recovery guard before any startup/reset lifecycle call.
+- Added startup-source regression coverage that would have failed v0.1.4.5 before release.
+- Added a complete unit lifecycle regression covering DESCEND → LANDED → ASCEND → ORBIT → immediate second DESCEND.
+- No new gameplay features or renderer/physics/weather/anomaly changes.
+- Save schema remains 1.
+- Automated QA: **113/113 tests passing** plus static/syntax checks.
+
 ## v0.1.4.5 — Landing Reliability & Spacecraft Presence
 
 - Replaced the ambiguous surface/orbit lifecycle with explicit **ORBIT → DESCENDING → LANDED → ASCENDING → ORBIT** state control.

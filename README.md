@@ -1,13 +1,17 @@
-# Universe Lab v0.1.4.5 — Landing Reliability & Spacecraft Presence
+# Universe Lab v0.1.4.5.1 — Landing Startup Reliability Hotfix
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `SHIPLAND-145`  
+**Build marker:** `SHIPLAND-1451`  
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
 
+
+## v0.1.4.5.1 startup hotfix
+
+v0.1.4.5.1 is a minimal corrective release built from v0.1.4.5. It initializes the landing transition controller and recovery guard in the app constructor before `newSystem()` can use them. This fixes the startup error `Landing transition state is required.` without changing the planned landing/ship feature scope.
 
 ## v0.1.4.5 landing reliability + spacecraft presence
 
