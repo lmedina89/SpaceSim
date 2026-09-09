@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.4.3 — Planetary Landing Foundation
+
+- Added the first detailed landable generated home world with deterministic **Shatterfall Basin** surface region.
+- Added seeded 2.4 km local terrain with crater/ridge/basin relief plus rock, frost/crystal, ember/fissure, glass and mineral environmental dressing.
+- Added seven nearby surface anomaly families: Fracture Gate, Gravity Knot, Frozen Lightning Field, Reverse Shadow Monolith, Vacuum Bloom, Ghost Ruin and Chronal Shear.
+- Added two conventional geology scan POIs so the region contrasts normal terrain with anomalous sites.
+- Added local first-person LOOK + touch movement/sprint controls and proximity-based surface scanning.
+- Added LAND / DESCEND entry from target/System Map and clearly scripted TAKEOFF / ORBIT return to a safe 5-radius orbit.
+- Added optional schema-1 surface-session persistence for local position/look and scanned/selected POIs; older schema-1 saves remain compatible.
+- Orbital N-body time is intentionally held during the local surface instance; surface anomalies remain visual/discovery content only and do not add hidden gravity/teleport/time physics.
+- Added surface renderer using one terrain mesh, instanced scatter and lightweight deterministic anomaly geometry for mobile-first performance.
+- Automated QA: **98/98 tests passing** plus static/syntax checks.
+
 ## v0.1.4.2 — System Map + Discovery & Anomalies
 
 - Added interactive mobile-first logarithmic SYSTEM MAP with live body/ship/COSMOS markers and target/scan/transit handoff.

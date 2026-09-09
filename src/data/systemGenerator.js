@@ -292,6 +292,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       generated: true,
       landable: false,
       surfaceProfile: 'orbital-only',
+      surfaceRegionId: null,
     };
 
     const moonResult = moonDefinitions(rng, starMass, planet, state.position, state.velocity, i);
@@ -306,7 +307,8 @@ export function generateSystem(seedText = 'ORIGIN-001') {
   const home = bodies.find((body) => body.id === homeId) ?? bodies.find((body) => body.kind === BODY_KIND.PLANET);
   home.landable = true;
   home.homeCandidate = true;
-  home.surfaceProfile = 'selected-future-surface';
+  home.surfaceProfile = 'anomalous-showcase-v1';
+  home.surfaceRegionId = 'shatterfall-basin';
 
   // A second non-gas world may be marked as a future detailed-surface candidate, but no terrain is generated yet.
   const candidates = bodies
@@ -342,6 +344,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       roguePlanetCount: bodies.filter((body) => body.kind === BODY_KIND.ROGUE_PLANET).length,
       phenomenonCount: phenomena.length,
       anomalyCount: phenomena.filter((entry) => entry.anomaly).length,
+      landablePlanetCount: bodies.filter((body) => body.kind === BODY_KIND.PLANET && body.landable).length,
       scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, high-eccentricity physical comet nuclei, optional physical rogue planets, and separately labeled visual population phenomena plus an explicitly labeled speculative/fictional anomaly layer',
     },
   };

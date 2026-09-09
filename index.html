@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.2</title>
+  <title>Universe Lab v0.1.4.3</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.2</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.3</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -70,6 +70,31 @@
 
     <div id="message" class="message">Initializing…</div>
 
+    <section id="surfaceHud" class="surface-hud" hidden aria-label="Planetary surface status">
+      <div class="surface-heading"><b id="surfaceWorldName">SURFACE</b><small id="surfaceBiome">—</small></div>
+      <div class="surface-stat-grid">
+        <span>Gravity</span><b id="surfaceGravity">—</b><span>Temperature</span><b id="surfaceTemperature">—</b>
+        <span>Atmosphere</span><b id="surfaceAtmosphere">—</b><span>Local X/Z</span><b id="surfaceCoords">—</b>
+        <span>Discoveries</span><b id="surfaceDiscoveries">0/0</b><span>Nearest signal</span><b id="surfaceNearest">—</b>
+      </div>
+      <p id="surfaceScanStatus" class="surface-scan-status">Surface scanner ready.</p>
+      <div class="surface-action-grid">
+        <button id="surfaceScanButton" class="surface-accent" type="button">SCAN NEAREST</button>
+        <button id="surfaceSprintButton" type="button">SPRINT</button>
+        <button id="surfaceSaveButton" type="button">SAVE</button>
+        <button id="surfaceTakeoffButton" class="void" type="button">TAKEOFF / ORBIT</button>
+      </div>
+      <small class="surface-model-note">LOCAL SURFACE INSTANCE · orbital N-body time held · anomalies are visual/discovery content, not hidden physics</small>
+    </section>
+
+    <div id="surfaceMovePad" class="surface-move-pad" hidden aria-label="Surface movement controls">
+      <button id="surfaceForward" type="button" aria-label="Walk forward">▲</button>
+      <button id="surfaceLeft" type="button" aria-label="Strafe left">◀</button>
+      <button id="surfaceBack" type="button" aria-label="Walk backward">▼</button>
+      <button id="surfaceRight" type="button" aria-label="Strafe right">▶</button>
+      <small>WALK</small>
+    </div>
+
     <aside id="morePanel" class="drawer quick-panel" hidden>
       <header><div><b>FLIGHT / SYSTEM</b><small>Secondary controls</small></div><button id="moreClose" type="button" aria-label="Close flight menu">×</button></header>
       <div class="quick-grid">
@@ -84,13 +109,14 @@
         <button id="scienceToggle" type="button">SCIENCE</button>
         <button id="cosmosToggle" type="button">COSMOS</button>
         <button id="mapToggle" class="void" type="button">SYSTEM MAP</button>
+        <button id="surfaceLandButton" class="surface-accent" type="button" disabled>LAND TARGET</button>
         <button id="overlayToggle" type="button">OVERLAYS</button>
         <button id="homeButton" type="button">HOME / ORBIT</button>
         <button id="pauseToggle" type="button">PAUSE</button>
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>DISCOVERY-142</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>SURFACE-143</b>.</p>
     </aside>
 
     <aside id="mapPanel" class="drawer system-map-panel" hidden>
@@ -110,6 +136,7 @@
           <button id="mapScanAction" type="button">SCAN SIGNAL</button>
           <button id="mapTransitAction" class="void" type="button">OPEN TRANSIT</button>
           <button id="mapCosmosAction" type="button">OPEN COSMOS</button>
+          <button id="mapLandAction" class="surface-accent" type="button" disabled>LAND / DESCEND</button>
         </div>
         <p class="warning">The map is an interface projection, not a second physics simulation. It reads the live spacecraft/body state and the seeded cosmic registry. Fictional anomalies remain explicitly labeled after discovery and do not secretly alter Newtonian gravity or causality.</p>
       </div>
@@ -146,7 +173,7 @@
         <label>Artificial local strength (m/s²)<input id="particleStrength" type="number" inputmode="decimal" value="20" min="0" max="250" step="1"></label>
         <label class="inline-check"><input id="particleMajorGravity" type="checkbox" checked><span>Also feel all major-body Newtonian gravity</span></label>
         <div class="button-row"><button id="randomizeParticleRules" type="button">RANDOMIZE RULE PARAMS</button><button id="spawnParticleField" class="void" type="button">SPAWN + OBSERVE</button></div>
-        <p id="particleStatus" class="prediction">No particle experiments. Fields are session-local in v0.1.4.1.2.</p>
+        <p id="particleStatus" class="prediction">No particle experiments. Fields are session-local.</p>
         <h3>OBSERVATION / RENDEZVOUS</h3>
         <p class="help">OBSERVE/FRAME/TRACK/ORBIT move only a massless scientific camera. RENDEZVOUS returns to SHIP VIEW and moves the physical spacecraft with bounded thrust and braking.</p>
         <label>Selected experiment<select id="experimentSelect"><option value="">No active experiment</option></select></label>
@@ -273,7 +300,7 @@
         </div>
         <p class="help">Osculating values answer: “If this target were the only gravitating body from this instant onward, what conic orbit matches the current relative state?” The visible path prediction is different: it integrates all current major gravity sources.</p>
         <div class="prediction-box"><b>N-BODY PREDICTION</b><span id="predictedApproach">Prediction not active.</span></div>
-        <div class="button-row"><button id="nextTarget" type="button">NEXT TARGET</button><button type="button" disabled>Tap body to select</button></div>
+        <div class="button-row"><button id="nextTarget" type="button">NEXT TARGET</button><button id="landTarget" class="surface-accent" type="button" disabled>LAND TARGET</button></div>
         <hr>
         <h3>LAST RESOLVED IMPACT</h3>
         <p id="impactReadout" class="impact-readout">No collision recorded this session.</p>
@@ -289,12 +316,13 @@
         <p><strong>Trajectory path:</strong> an N-body forward integration of the current massive system plus the ship/projectile. Future thrust and minor-particle gravity are excluded.</p>
         <p><strong>Scanner orbit:</strong> osculating two-body elements around the selected target. Other-body perturbations are intentionally ignored in those displayed elements.</p>
         <p><strong>Minor field:</strong> 1k–20k typed-array background test particles feel major gravity but intentionally contribute no gravity.</p>
-        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields are session-local in v0.1.4.1.2 and cap warp at 60× only while live particles remain; completed fields preserve a final frame and release the cap automatically. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
+        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields remain session-local and cap warp at 60× only while live particles remain; completed fields preserve a final frame and release the cap automatically. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
         <p><strong>Ship:</strong> FLIGHT thrust is 20 m/s²; CRUISE thrust is 120 m/s²; BOOST is an explicitly speculative 5,000 m/s² propulsion mode for rapid local velocity-vector changes. BRAKE applies bounded thrust opposite inertial velocity. APPROACH uses a propulsion-safe stand-off and persistent HOLD; STOP RELATIVE matches target velocity; TURN &amp; BURN cancels lateral velocity toward the captured nose direction. PROGRADE/RETROGRADE change attitude only.</p>
         <p><strong>Transit drive:</strong> explicitly fictional reference-frame travel for convenient exploration. Transit position translation is kept separate from Newtonian velocity, steps down near the destination, and can hand off to BOOST + the physical APPROACH controller. It is blocked around unsafe local conditions and live fine-step particle experiments. It is not an Alcubierre/GR simulation.</p>
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Cosmic phenomena:</strong> physical comet nuclei are live Newtonian gravity sources on high-eccentricity orbits. Asteroid/debris belts and planetary rings use seeded GPU-friendly point-population proxies tied to physical anchor bodies; their individual visible points do not source gravity or collide. Distant colored nebular haze is explicitly visual background.</p>
         <p><strong>Space weather:</strong> CME fronts use seeded directional cones with explicit propagation speeds and geometric arrival/crossing detection. They are kinematic fronts, not magnetohydrodynamic or radiation-transport simulations.</p>
+        <p><strong>Planetary surface foundation:</strong> the seeded home world exposes one deterministic landable showcase region, Shatterfall Basin. Terrain height/color, local environmental zones, rocks and surface anomaly structures are procedural presentation at a fixed local region scale. Entering surface mode intentionally holds orbital N-body time; TAKEOFF returns the ship to a safe scripted orbit. Atmospheric entry/aerodynamics, global spherical terrain, ecosystems, fluid weather and anomaly physics are not yet simulated.</p>
         <p><strong>Scientific overlays:</strong> gravity vectors are computed from the current Newtonian source set. Lagrange points, Hill spheres and Roche limits are labeled diagnostic approximations; orbital planes are derived from instantaneous target-relative position/velocity.</p>
         <p><strong>Compact objects:</strong> black holes use Schwarzschild-radius metadata plus live Newtonian gravity, with a dense real-time accretion-disk/photon-ring/jet visual proxy. Neutron stars/pulsars use live Newtonian mass/radius plus visual magnetosphere and sweep-beam proxies. APPROACH computes propulsion-safe stand-off, strong gravity reduces integration steps, and model guards pause before near-horizon/near-surface or &gt;10% c states are presented as adequate Newtonian science. Full GR ray tracing, radiation transport and plasma MHD remain future work.</p>
       </div>

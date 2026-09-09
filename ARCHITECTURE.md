@@ -1,126 +1,85 @@
-# Architecture — Universe Lab v0.1.4.2
+# Architecture — Universe Lab v0.1.4.3
 
 ## Core invariant
 
-**Rendering and fictional transit never own or silently rewrite authoritative local physics.**
+**Rendering, local surface presentation and fictional TRANSIT never silently own or rewrite authoritative orbital physics.**
 
-Normal ship/body state remains SI/Float64. Three.js owns presentation only. TRANSIT owns a clearly separated speculative coordinate-translation mode and never adds its coordinate rate to the Newtonian ship velocity.
+Normal spacecraft/major-body state remains SI/Float64. Major gravity remains direct Newtonian and the major integrator remains velocity-Verlet. Three.js owns presentation only. TRANSIT remains an explicitly fictional coordinate-translation layer and never adds its coordinate rate to local Newtonian spacecraft velocity.
 
-## Local physical flight
+## Surface-instance boundary
 
-`ShipDynamics` retains local Newtonian velocity integration and now exposes three bounded propulsion modes:
+v0.1.4.3 introduces a deliberately separated local surface layer:
+
+- `src/surface/surfaceGenerator.js` — deterministic seeded terrain/environment/POI definitions.
+- `src/surface/surfaceSession.js` — local player position/look state, bounded translation, scan state and serialization.
+- `src/render/surfaceWorld.js` — Three.js surface scene, terrain mesh, instanced dressing, sky, lighting and anomaly visuals.
+- `UniverseLabApp` — owns landing eligibility, surface lifecycle, local input, save/load handoff and scripted return to orbit.
+
+The surface instance does **not** integrate the orbital system in the background. `running` is held while landed and the simulation clock does not advance. That policy is explicit in the HUD because silently advancing a high-warp orbital simulation while a player explores a local scene would create hidden state changes and unnecessary mobile cost.
+
+TAKEOFF is currently a scripted transition to a deterministic safe orbit. It is not claimed to model atmospheric ascent, heating, aerodynamics or powered landing.
+
+## Deterministic Shatterfall region
+
+The first landable generated home world has:
+
+- `landable: true`
+- `surfaceProfile: anomalous-showcase-v1`
+- `surfaceRegionId: shatterfall-basin`
+
+The region seed is derived from `system.seed + body.id`, giving repeatable terrain, environmental subzones and POIs.
+
+Terrain uses deterministic value-noise/fBM plus authored seeded crater/ridge/basin features. The renderer builds one local colorized terrain mesh, then uses instanced rocks/crystals/frost formations and lightweight lines/points for environmental dressing.
+
+Seven anomaly POIs span speculative, anomalous and impossible/fictional reality classes. Their visuals are renderer-only. They are not inserted into `EntityRegistry`, do not source Newtonian gravity and do not modify local movement or simulation time.
+
+## Surface save compatibility
+
+Save schema remains `1`.
+
+`surfaceSession` is an optional payload field. It stores only local-instance state: body/region ID, X/Z, yaw/pitch and scan discoveries. Existing physical major-body and spacecraft state remain in the existing save fields.
+
+When a pre-v0.1.4.3 schema-1 save loads, deterministic surface-capability metadata may be refreshed from the current generated definition for matching bodies. The saved physical mass/radius/position/velocity are not replaced.
+
+## Existing local flight
+
+`ShipDynamics` retains:
 
 - FLIGHT 20 m/s²,
 - CRUISE 120 m/s²,
-- BOOST 5,000 m/s².
+- speculative BOOST 5,000 m/s².
 
-BOOST is intentionally marked speculative. `flightComputer.js` owns APPROACH/HOLD, STOP RELATIVE, inertial BRAKE and TURN & BURN acceleration commands. Commands remain bounded by the selected engine acceleration.
+`flightComputer.js` continues to own bounded APPROACH/HOLD, STOP RELATIVE, inertial BRAKE and TURN & BURN. The velocity-vector HUD remains a presentation of authoritative `ship.velocity`, separate from attitude.
 
-TURN & BURN captures an inertial desired direction at engagement, decomposes current velocity into along-direction and lateral components, and applies bounded acceleration to cancel the lateral component. It never applies hidden exponential damping.
+## Fictional TRANSIT
 
-## Velocity-vector HUD
+`physics/transitDrive.js` remains separate from Three.js and from local propulsion. It supplies 1c/10c/100c/500c/1000c coordinate-rate travel, live-target arrival envelopes, step-down, no-overshoot movement and swept route guards. AUTO CAPTURE hands back to physical local propulsion.
 
-The ship attitude basis and authoritative `ship.velocity` are projected into a lightweight HUD marker. This has no physics role. It exists specifically to make the difference between **where the nose points** and **where momentum is carrying the ship** visible on mobile.
+## Discovery and weather
 
-## Speculative transit layer
+The v0.1.4.2 separation remains:
 
-`physics/transitDrive.js` is a pure module with no Three.js dependency.
+- `EntityRegistry` — physical finite-radius major bodies.
+- `CosmicPhenomenonRegistry` — exploration sources and free-space anomaly proxies.
+- `SpaceWeatherManager` — seeded kinematic CME event chronology with save/load continuity.
+- `SystemMapController` — logarithmic interface projection of live state, not a second physics solver.
+- persistent free-space discovery scan depth 0–3.
 
-It provides:
+## Stellar presentation
 
-- normalized 1c/10c/100c/500c/1000c coordinate-rate tiers,
-- target arrival-envelope calculation,
-- distance-dependent automatic tier step-down,
-- bounded real-frame position advancement with no arrival overshoot,
-- per-body transit safety radii,
-- swept segment/sphere route guards.
+The v0.1.4.1.2 stellar pipeline remains renderer-only: seeded photosphere/granulation, additive corona, prominence filaments, active regions, rare flare proxies and perceptual LOD. Macro stellar phenomena remain visible at useful distances while sub-pixel detail is simplified.
 
-`UniverseLabApp.updateTransit(realDt)` performs reference-frame translation using real elapsed wall-clock time while the normal simulation clock remains at 1×. The target is resolved live each frame, so a moving target remains current.
+## Mobile/performance policy
 
-The transit layer modifies only spacecraft **position**. It deliberately preserves `ship.velocity`. On AUTO CAPTURE arrival, the app exits transit and starts normal BOOST-powered APPROACH so target-relative Δv is handled by the physical flight computer.
+The first surface is intentionally bounded to a 2.4 km local region rather than pretending to stream an entire planet.
 
-For COSMOS phenomena anchored to a live body, the target anchor body is excluded from the swept route blocker list because it is the intended destination. Intervening massive bodies remain guarded.
+Mobile-conscious choices include:
 
-TRANSIT visual streaks/FOV cues are driven by `ship.transitVisualFactor` and `ship.transitDirection`; these are render-only state.
+- one terrain mesh,
+- instanced repeated rocks/crystals/frost formations,
+- deterministic lightweight anomaly geometry,
+- no background orbital stepping while landed,
+- no rigid-body debris/fluids/ecosystems on the surface yet,
+- existing VisualViewport/safe-area shell and hardened pointer-release handling reused for surface controls.
 
-## Experiment lifecycle
-
-`ParticleExperiment` now stores:
-
-- `lifecycle`,
-- `completedAtSeconds`,
-- `peakActiveCount`,
-- `lastLiveObservation`,
-- deterministic `initialConfig` for replay.
-
-A field becomes complete when active particle count reaches zero. Its final valid observation state is retained so an observer never falls back to an empty `(0,0,0)` centroid.
-
-`ParticleExperimentManager` separates:
-
-- total retained fields,
-- active field count,
-- active particle count,
-- active slot budget.
-
-`recommendedWarpCap` is 60× **only while active particles exist**. Completed fields do not consume the active simulation budget and do not keep the fine-step warp cap alive. A bounded number of completed fields is retained for inspection/replay.
-
-## Warp arbitration
-
-There are three separate concepts:
-
-1. **simulation time warp** — 1× / 60× / 600× / 3,600×,
-2. **navigation auto-warp** — chosen by APPROACH/STOP RELATIVE/TURN & BURN,
-3. **TRANSIT coordinate rate** — fictional 1c–1000c real-time reference-frame travel.
-
-Particle safety applies only to live local particle experiments. If a requested high warp is reduced to 60×, the requested value is remembered and can be restored once the last active particle completes, provided navigation/transit does not impose a stricter state.
-
-TRANSIT locks simulation time warp to 1× because transit has its own separate coordinate-rate control.
-
-## Existing physical/cosmic architecture
-
-The v0.1.4.1 separation remains:
-
-- `EntityRegistry`: live finite-radius Newtonian major bodies,
-- `CosmicPhenomenonRegistry`: large exploration sources and visual population proxies,
-- `SpaceWeatherManager`: kinematic session-local CME event state,
-- `scientificOverlays.js`: pure derived overlay math,
-- Three.js render modules: visual-only proxies for belts/rings/remnants/CMEs/fields/compact-object spectacle.
-
-No landing architecture is introduced in this release.
-
-## Mobile safety
-
-- TRANSIT movement is swept against massive-body guard spheres.
-- Local strong-gravity adaptive substeps and the 0.1c Newtonian ship-velocity model limit remain active because TRANSIT does not modify local velocity.
-- Mobile drawers remain scrollable and all new controls use the existing safe-area/VisualViewport shell.
-- Direct app `this.method()` calls, unique HTML IDs and literal app `#id` selectors are now statically audited.
-
-## Stellar presentation pipeline — v0.1.4.1.2
-
-Stellar rendering remains isolated from authoritative physics.
-
-- `render/celestialFactory.js` owns the layered star visual: photosphere, seeded procedural surface texture, limb-darkening overlay, additive corona, prominence filaments, active regions and rare visual flare sites.
-- `render/stellarPerception.js` is a pure presentation-policy module. It converts apparent angular radius into surface-detail, micro-corona, macro-visibility, background and exposure factors. It contains no Three.js objects and changes no body/ship state.
-- `render/threeRenderer.js` measures apparent star size from the live camera, applies the perceptual profile, adapts ACES exposure/background intensity and adjusts the camera near plane for close finite-radius surfaces.
-- `render/starfield.js` exposes role/base-opacity metadata so deep-space stars, the galactic band and nebula proxies can be attenuated near a bright stellar disk without destroying their baseline authored values.
-- `render/spaceWeatherVisuals.js` keeps active CME macro fronts renderable at long range rather than using the former hard distance cutoff.
-
-The key policy is **perceptual LOD, not disappearance LOD**: expensive micro-detail may simplify as it becomes sub-pixel, while visually important macro phenomena are preserved. This keeps distant stellar events legible without running unnecessary tiny particles.
-
-Generated per-star surface textures are explicitly marked for disposal when their owning visual is destroyed. Shared textures remain shared. This avoids accumulating generated canvas textures when systems are regenerated.
-
-## Close-approach and transit presentation isolation
-
-Dynamic camera near-plane adjustment and stellar exposure are renderer-only operations. They do not change collision radii, safety envelopes, gravitational sources, integration step sizes or navigation decisions.
-
-Similarly, `transitVisualFactor` now decays for a short period after TRANSIT exits. That decay is render-only and intentionally preserves the authoritative Newtonian position/velocity handoff. The normal transit drive still owns coordinate translation and AUTO CAPTURE still returns control to bounded local propulsion.
-
-
-## System map + discovery architecture — v0.1.4.2
-
-- `src/ui/systemMap.js` is an interface projection over live state, not a physics subsystem. It logarithmically compresses star-relative X/Z positions and exposes body/COSMOS selection handoff.
-- `src/cosmic/anomalyGenerator.js` deterministically creates 9–15 free-space anomaly definitions per seed. Definitions carry explicit `realityClass`, scan summary and scientific/model-boundary text.
-- Anomalies remain entries in `CosmicPhenomenonRegistry`; they are not inserted into the massive-body registry and therefore do not silently source Newtonian gravity.
-- `discoveredPhenomena` plus `discoveryScanDepth` (0–3) are persisted as optional save-payload fields.
-- Space weather now serializes its future schedule, active fronts and RNG progress so loading a save continues the same weather chronology instead of rerolling it.
-- Save schema remains 1 because all new payload fields are optional and old schema-1 saves remain loadable.
+This gives the project a scalable scene boundary before world streaming, weather, caves, oceans, vehicles or biology are attempted.

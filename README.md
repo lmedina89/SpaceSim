@@ -1,132 +1,80 @@
-# Universe Lab v0.1.4.2 — System Map + Discovery & Anomalies
+# Universe Lab v0.1.4.3 — Planetary Landing Foundation
 
-Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative local simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
+Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `DISCOVERY-142`  
-**Save schema:** 1 (unchanged; new fields are backward-compatible optional payload fields)  
+**Build marker:** `SURFACE-143`  
+**Save schema:** 1 (unchanged; surface state is an optional backward-compatible payload)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
 
-v0.1.4.2 is built directly from the physically tested/development-approved v0.1.4.1.2 stellar-rendering baseline. It preserves the working Newtonian flight, BOOST, TRANSIT, impact, experiment, compact-object, stellar-rendering and scientific-overlay systems while adding a genuine exploration/discovery layer.
+v0.1.4.3 is built directly from v0.1.4.2 System Map + Discovery & Anomalies. It preserves System Map/discovery, persistent space weather, stellar rendering, Newtonian flight, BOOST, TRANSIT, impacts, experiments, compact objects and scientific overlays while introducing the first deliberately bounded planetary surface architecture.
 
-## Major additions
+## First landable world
 
-### Interactive System Map
+The generated solid home-candidate planet is now the first detailed landing target. For the default `ORIGIN-001` system this is **Caelum-4361 d**.
 
-`MORE → SYSTEM MAP` opens a mobile-first logarithmic X/Z projection of the live generated system.
+The first local region is **Shatterfall Basin**, a deterministic 2.4 km × 2.4 km showcase region. It is designed to read as believable terrain first and anomalous terrain second rather than as an abstract effects room.
 
-The map shows:
+The base surface includes:
 
-- the primary star and generated physical bodies,
-- moons/comets/rogue planets and spawned major objects,
-- the live spacecraft position,
-- normal COSMOS phenomena,
-- unidentified seeded signals,
-- discovered anomaly classifications.
+- seeded rolling/broken terrain with crater, ridge and basin-scale relief,
+- rock fields and exposed mineral formations,
+- an ash/basalt/desert base appropriate to the default home world,
+- frost/crystal, ember/fissure, glass-darkened and mineral-rich subzones,
+- atmosphere/sky/fog/star-light presentation derived from the generated planet profile,
+- two conventional geology scan sites.
 
-The map is logarithmically compressed so an inner planet and a 20–30 AU signal can coexist in a usable iPhone view. It reads the live simulation state; it is not a second physics simulation.
+The surface is generated from the system seed + body ID, so the same save/system returns to the same landscape and POI layout.
 
-Tap a marker to:
+## Surface anomaly showcase
 
-- select/target a physical body,
-- select a COSMOS source,
-- scan an unidentified signal,
-- hand the selection to TRANSIT,
-- open the relevant COSMOS/scanner panel.
+Shatterfall deliberately contains **seven anomaly families** near the landing site so the first landing demonstrates the range of Universe Lab's anomaly direction:
 
-### Deeper discovery instead of one-click identification
+1. **Fracture Gate** — impossible/fictional nonlocal-looking frame.
+2. **Gravity Knot** — anomalous levitating orbital-stone geometry.
+3. **Frozen Lightning Field** — impossible arrested discharge structure.
+4. **Reverse Shadow Monolith** — impossible shadow projected toward the star.
+5. **Vacuum Bloom** — speculative luminous petal structure.
+6. **Ghost Ruin** — anomalous phase-offset architectural echoes.
+7. **Chronal Shear** — impossible local visual time-echo planes.
 
-COSMOS discovery now has persistent **0–3 scan depth** per source:
+They are intentionally spectacular but remain honest about the model boundary. In v0.1.4.3 they are **visual/discovery content only**. They do not secretly add gravity, teleport the player, change simulation time or override the orbital solver.
 
-- **0/3 — UNIDENTIFIED:** location/signal exists, classification hidden.
-- **1/3 — CLASSIFIED:** label, broad type/reality class and first description are revealed.
-- **2/3 — DEEP SCAN:** detection signature/stability details are added when available.
-- **3/3 — ARCHIVED:** the complete generated scientific/model-status note is exposed.
+## Landing / surface loop
 
-Discovery records and scan depth now survive save/load.
+- Select the landable home world.
+- Enter the near-orbital descent envelope. `HOME / ORBIT` returns the spacecraft to the seeded demonstration orbit if needed.
+- Use **LAND / DESCEND** from the normal target controls or System Map.
+- Orbital N-body time is intentionally held while the local surface instance is active.
+- Use the existing LOOK pad plus the surface directional controls to explore.
+- Hold **SPRINT** for faster local traversal.
+- Approach a geology/anomaly site and press **SCAN LOCAL**.
+- Surface scan discoveries persist through SAVE/LOAD.
+- **TAKEOFF / ORBIT** performs a clearly scripted ascent and returns the spacecraft to a safe 5-radius orbit, then restores normal Newtonian flight at 1×.
 
-### Much larger anomaly layer
+This is not yet a full atmospheric flight model. Atmospheric entry, heating, aerodynamics, terrain collision rigid-body dynamics and physically modeled ascent are future layers.
 
-Each seeded system now receives roughly **9–15 deterministic anomaly signals** in addition to the normal astronomical COSMOS population. The pool currently includes families such as:
+## Surface persistence
 
-- Gravitational Scar / Curvature Wake
-- Phase Rift / Vacuum Seam
-- Quantum Echo Lattice / Interference Cathedral
-- Impossible Orbital Knot / Kepler Violation
-- Dark Mirror / Negative Reflection
-- Frozen Lightning / Arrested Discharge
-- Chronal Shear / Temporal Wake
-- Ghost Star Echo / Orphan Photosphere
-- Vacuum Bloom / Probability Flower
-- Reverse Shadow / Anti-Umbra
-- Resonant Shell / Harmonic Bubble
-- Fracture Gate / Nonlocal Window
+The existing schema remains `1`. The save payload now optionally stores an active `surfaceSession` containing:
 
-Not all anomalies are meant to make literal scientific sense. That is intentional.
+- body + region identity,
+- local X/Z position,
+- local look yaw/pitch,
+- scanned surface POI IDs,
+- selected surface POI.
 
-Universe Lab explicitly labels anomaly reality classes after discovery:
+Older schema-1 saves remain valid. When loading an older save, deterministic landing-capability metadata for the generated home world is refreshed without replacing the saved body's physical position/velocity/mass/radius state.
 
-1. **KNOWN PHYSICS / modeled** — ordinary physical/cosmic sources.
-2. **SPECULATIVE** — inspired by theoretical or exotic ideas but not actually solved.
-3. **ANOMALOUS** — deliberately unexplained/uncanny.
-4. **IMPOSSIBLE / FICTIONAL** — intentionally violates the current physical model.
+## Retained v0.1.4.2 discovery systems
 
-Anomaly visuals never silently become gravity sources, teleporters, causal effects, or hidden physics modifiers.
-
-### New anomaly visuals
-
-The anomaly layer has deterministic render proxies including:
-
-- nested curvature rings,
-- luminous vacuum seams,
-- wireframe interference lattices,
-- crossed orbital-knot loops,
-- dark-mirror spheres/rims,
-- frozen filament/lightning structures,
-- temporal echo shells,
-- ghost-star shells,
-- vacuum-bloom petals,
-- reverse-shadow cones,
-- resonant nested shells,
-- fracture-gate frames.
-
-They animate slowly and remain large enough to make long-range exploration visually worthwhile.
-
-## Space-weather continuity fix
-
-Automatic space weather still uses the same seeded scheduling ranges:
-
-- first automatic event: **0.7–2.4 simulated days** after a fresh system starts,
-- later automatic events: **1.2–4.5 simulated days** apart.
-
-The important fix is save/load continuity. The save payload now preserves:
-
-- AUTO WEATHER on/off,
-- next scheduled event time,
-- active CME fronts,
-- launch times/speeds/directions/cone angles,
-- front progression state,
-- ship-crossed state,
-- deterministic weather RNG progress.
-
-Loading a save therefore no longer silently rerolls the weather countdown. Old schema-1 saves without a weather snapshot remain valid; they receive a new timeline on load.
-
-## Retained stellar presentation from v0.1.4.1.2
-
-The previous stellar-polish work remains intact:
-
-- seeded photosphere/granulation,
-- limb treatment and active regions,
-- additive corona,
-- thin filament prominences,
-- rare visual flare proxies,
-- perceptual stellar LOD that preserves macro spectacle at distance,
-- close-star exposure/background adaptation,
-- stellar-proximity HUD cues,
-- smooth visual release from TRANSIT arrival.
-
-Large stellar phenomena are intentionally not optimized away just because they are distant.
+- interactive logarithmic SYSTEM MAP,
+- persistent 0–3 COSMOS scan depth,
+- ~9–15 deterministic free-space anomaly signals per system,
+- KNOWN / SPECULATIVE / ANOMALOUS / IMPOSSIBLE-FICTIONAL reality classes,
+- persistent automatic space-weather timeline and active CME fronts,
+- anomaly visuals kept out of the massive-body gravity registry.
 
 ## Retained navigation/physics foundation
 
@@ -136,32 +84,35 @@ Large stellar phenomena are intentionally not optimized away just because they a
 - inertial velocity marker, PROGRADE / RETROGRADE, TURN & BURN
 - STOP RELATIVE
 - propulsion-safe APPROACH → BRAKING → CAPTURE → HOLD
-- fictional 1c / 10c / 100c / 500c / 1000c TRANSIT with local Newtonian velocity preservation
-- transit swept-body safety guards and optional physical BOOST capture
-- direct Newtonian major-body gravity + velocity-Verlet integration
+- explicitly fictional 1c / 10c / 100c / 500c / 1000c TRANSIT while preserving local Newtonian spacecraft velocity
+- transit swept-body guards and optional physical BOOST capture
+- direct Newtonian major-body gravity + velocity-Verlet
 - adaptive strong-gravity substeps + 10% c Newtonian model guard
 - compact-object spawners, impacts, crater/fragment response
 - particle experiments and deterministic replay
 - scientific Lagrange/Hill/Roche/orbital-plane/gravity-vector overlays
+- stellar perceptual LOD that preserves major spectacle at range
 
-## Recommended physical iPhone acceptance
+## Recommended first iPhone test
 
-1. Confirm **v0.1.4.2 / DISCOVERY-142** and no runtime `ERR`.
-2. Open `MORE → SYSTEM MAP`; verify the canvas fits landscape without clipping and marker taps are reliable.
-3. Confirm the star, physical worlds, spacecraft and numerous `?` signals are visible in the logarithmic map.
-4. Tap a body, use `SELECT / TARGET`, then confirm the normal target/scanner pipeline receives it.
-5. Tap an unknown diamond, press `SCAN SIGNAL`, and verify the first discovery layer appears.
-6. Scan the same anomaly two more times and verify 1/3 → 2/3 → 3/3 progression.
-7. Verify some anomaly classifications explicitly say SPECULATIVE, ANOMALOUS or IMPOSSIBLE / FICTIONAL.
-8. Use `OPEN TRANSIT` from a map-selected anomaly and verify the existing fictional transit system targets that source without adding transit speed to local Newtonian velocity.
-9. Save with an active or upcoming weather event, note `Next seeded event`, reload, and confirm the timeline is not rerolled.
-10. Save after scanning several anomalies, reload, and confirm names/scan depth remain discovered.
-11. Regress stellar approach visuals, BOOST, APPROACH/HOLD, TRANSIT, COSMOS observation, compact objects, overlays, impacts and particle experiments.
+1. Confirm **v0.1.4.3 / SURFACE-143** and no runtime `ERR`.
+2. On a fresh `ORIGIN-001` run, the home world should already be selected and the ship should begin in the landing envelope.
+3. Press **LAND / DESCEND**.
+4. Confirm Shatterfall Basin renders as actual ground/sky/terrain rather than a flat orbital sphere.
+5. Drag LOOK and hold the on-screen surface directional controls; verify no stuck-input behavior after releasing a finger.
+6. Find the closest signal (the first anomaly is roughly a few hundred meters or less from the landing site), move into scan range and press **SCAN LOCAL**.
+7. Confirm the HUD reveals the POI's reality class and model-boundary text after scanning.
+8. Visit several differently colored/structured anomaly sites and conventional geology.
+9. SAVE while on the surface, refresh/load, and verify local position + scanned POIs return.
+10. Press **TAKEOFF / ORBIT** and verify the normal ship HUD/flight controls return in safe orbit at 1×.
+11. Regress SYSTEM MAP, free-space anomalies, weather continuity, stellar approaches, BOOST, APPROACH/HOLD, TRANSIT, compact objects, overlays, impacts and particle experiments.
 
 ## Automated QA
 
-`npm run qa` currently passes **93/93 tests** plus the static structure/syntax check. New coverage includes deterministic anomaly generation and space-weather snapshot continuity. Physical iPhone Safari remains the release gate for touch/layout/render acceptance.
+`npm run qa` passes **98/98 tests** plus the static structure and syntax checks. New tests cover deterministic surface generation, landable-profile identity, terrain variation, local movement bounds, proximity scanning and surface-session persistence.
+
+Automated QA does **not** prove real iPhone WebGPU performance, touch feel, thermal behavior or subjective terrain/anomaly visual quality. Physical iPhone Safari remains the release gate.
 
 ## Next likely milestone
 
-After physical acceptance of v0.1.4.2, the next major direction is the **first landable-planet / surface foundation**, while continuing to deepen discovery content and anomaly behavior without turning unexplained visuals into undocumented physics.
+After physical acceptance of v0.1.4.3, the sensible next step is **planetary environment + weather depth**: local sky/weather states, dust/fog/storms/precipitation where planet chemistry allows, stronger terrain variety and additional seeded landing regions—without turning every planet into the same anomaly showcase.

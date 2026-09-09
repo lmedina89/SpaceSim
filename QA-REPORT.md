@@ -1,65 +1,56 @@
-# Universe Lab v0.1.4.2 — System Map + Discovery & Anomalies QA Report
+# Universe Lab v0.1.4.3 — Planetary Landing Foundation QA Report
 
 ## Build identity
 
-- Version: **0.1.4.2**
-- Build marker: **DISCOVERY-142**
-- Source baseline: **v0.1.4.1.2 — Stellar Rendering & Approach Polish**
+- Version: **0.1.4.3**
+- Build marker: **SURFACE-143**
+- Source baseline: **v0.1.4.2 — System Map + Discovery & Anomalies**
 - Save schema: **1 (unchanged)**
 - Three.js: **0.185.0 (pinned)**
 - Target deployment: GitHub Pages `main` → `/(root)`
 
 ## Automated status
 
-`npm run qa` passes **93/93 tests** plus the static file/shell/syntax validation.
+`npm run qa` passes **98/98 tests** plus static file/shell/syntax validation.
 
-New v0.1.4.2 coverage verifies:
+New v0.1.4.3 coverage verifies:
 
-- deterministic seeded anomaly generation,
-- 9–15 anomaly signals per tested seed,
-- explicit impossible/fictional anomaly entries,
-- deterministic repeat generation for the same seed,
-- space-weather snapshot restoration preserving scheduled event time and active-front progression,
-- required SYSTEM MAP/COSMOS discovery UI wiring,
-- required anomaly/system-map source modules and build identity.
+- first generated home world exposes the intended landable surface profile,
+- exactly one current detailed landable planet is advertised per generated system,
+- deterministic Shatterfall generation for the same system/body,
+- anomaly layout changes with another seed,
+- seven anomaly POIs + two conventional geology POIs,
+- speculative/anomalous/impossible surface reality classes are present,
+- terrain height is finite and meaningfully non-flat,
+- local movement obeys heading/sprint and hard region bounds,
+- surface scan requires proximity,
+- scanned POI state survives surface-session serialization/restore,
+- required LAND / surface HUD / movement controls and source modules exist.
 
-All inherited physics/navigation/stellar/experiment/impact/compact-object tests remain passing.
+All inherited 93 physics/navigation/discovery/weather/stellar/experiment/impact tests remain passing.
 
-## Compatibility guards
+## Compatibility/model guards
 
-v0.1.4.2 does **not** change:
+v0.1.4.3 does **not** change:
 
-- `SIMULATION.schemaVersion` (still 1),
+- save schema number,
 - direct Newtonian major-body gravity,
 - velocity-Verlet major integrator,
-- FLIGHT / CRUISE / BOOST acceleration values,
-- the fictional TRANSIT coordinate-rate tiers,
+- FLIGHT / CRUISE / BOOST acceleration constants,
+- TRANSIT coordinate-rate tiers,
 - propulsion-safe APPROACH/HOLD logic,
-- particle experiment global budget/warp cap,
-- stellar perceptual-LOD policy from v0.1.4.1.2.
+- particle experiment budgets/warp cap,
+- free-space anomaly gravity isolation,
+- stellar perceptual-LOD policy,
+- space-weather seeded scheduling/continuity.
 
-New save fields are optional. Loading an older schema-1 save without discovery/weather snapshots remains valid; its weather manager receives a fresh timeline because no prior timeline exists to restore.
+Surface-specific model boundary:
 
-## Model-boundary checks
+- orbital N-body time is intentionally held during local surface exploration,
+- surface anomaly visuals are not gravity sources and do not alter time/causality,
+- landing/takeoff are scripted scene transitions, not atmospheric/aerodynamic simulations,
+- local terrain is a bounded deterministic region, not a whole-planet streamed terrain claim.
 
-- Anomalies live in `CosmicPhenomenonRegistry`, not the massive-body registry.
-- They do not silently contribute Newtonian gravity.
-- Impossible/fictional anomalies are explicitly labeled after discovery.
-- SYSTEM MAP is an interface projection of live data, not a second physics solver.
-- CME continuity persistence does not upgrade the kinematic CME approximation into MHD/radiation simulation.
+## Device/browser caveat
 
-## Browser/device QA caveat
-
-Automated tests are source/math/state tests. They do not establish physical iPhone Safari touch quality, WebGPU frame rate, drawer safe-area fit, or subjective anomaly visual quality. Physical iPhone Safari remains the release gate.
-
-## Recommended physical iPhone path
-
-1. Confirm **v0.1.4.2 / DISCOVERY-142** and no runtime ERR.
-2. Open SYSTEM MAP and verify landscape fit/touch markers.
-3. Select a normal planet from the map and verify TARGET/scanner handoff.
-4. Select an unidentified anomaly diamond and scan to 1/3, then 2/3, then 3/3.
-5. Confirm reality labels include SPECULATIVE / ANOMALOUS / IMPOSSIBLE-FICTIONAL where applicable.
-6. Open TRANSIT from a map-selected signal and verify normal transit/capture behavior.
-7. Save/reload discovery progress.
-8. Save/reload with a known SPACE WEATHER countdown or active CME and verify continuity.
-9. Regress stellar close approach, distant stellar spectacle, BOOST, APPROACH/HOLD, TRANSIT arrival, COSMOS observation, overlays, compact objects, impacts and particle experiments.
+No claim is made that automated Node tests establish physical iPhone Safari WebGPU performance, safe-area fit, touch quality, thermal behavior or subjective surface/anomaly appearance. Physical iPhone Safari remains the release gate.

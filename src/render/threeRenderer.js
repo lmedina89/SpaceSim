@@ -7,6 +7,7 @@ import { updateScientificOverlayVisual } from './scientificOverlayVisuals.js';
 import { BODY_KIND, SIMULATION } from '../core/constants.js';
 import { computeObservationCameraPose } from './observationCamera.js';
 import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPerception.js';
+import { SurfaceWorldVisual } from './surfaceWorld.js';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
@@ -73,6 +74,7 @@ export class UniverseRenderer {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this._stellarExposure = 1.0;
+    this.surfaceWorld = null;
     this.container.appendChild(this.renderer.domElement);
     this.bodyVisuals = new Map();
     this.experimentVisuals = new Map();
@@ -146,9 +148,11 @@ export class UniverseRenderer {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
+    this.surfaceWorld?.resize(width, height);
   }
 
   resetSystem(seed) {
+    this.exitSurface();
     for (const visual of this.bodyVisuals.values()) { this.scene.remove(visual); disposeObject(visual); }
     this.bodyVisuals.clear();
     if (this.minorPoints) {
@@ -521,6 +525,29 @@ export class UniverseRenderer {
     return null;
   }
 
+
+  enterSurface(region, body, star) {
+    this.exitSurface();
+    this.surfaceWorld = new SurfaceWorldVisual(region, body, star);
+    const rect = this.container.getBoundingClientRect();
+    this.surfaceWorld.resize(Math.max(2, Math.floor(rect.width)), Math.max(2, Math.floor(rect.height)));
+  }
+
+  exitSurface() {
+    if (!this.surfaceWorld) return;
+    this.surfaceWorld.dispose();
+    this.surfaceWorld = null;
+    this.renderer.toneMappingExposure = this._stellarExposure || 1;
+  }
+
+  renderSurface({ session, realTimeSeconds = 0 }) {
+    if (!this.surfaceWorld || !session?.active) return false;
+    this._motionLines.visible = false;
+    this.targetMarker.visible = false;
+    this.surfaceWorld.render(this.renderer, session, realTimeSeconds);
+    return true;
+  }
+
   getStats() {
     const info = this.renderer.info;
     const render = info?.render ?? info;
@@ -689,6 +716,7 @@ export class UniverseRenderer {
 
   dispose() {
     this._resizeObserver.disconnect();
+    this.exitSurface();
     for (const id of [...this.trajectories.keys()]) this.clearTrajectory(id);
     for (const visual of this.experimentVisuals.values()) { this.scene.remove(visual.points); visual.geometry.dispose(); visual.material.dispose(); }
     this.experimentVisuals.clear();

@@ -189,7 +189,9 @@ export class SystemMapController {
     const kind = this.root.querySelector('#mapSelectionKind');
     const distance = this.root.querySelector('#mapSelectionDistance');
     const status = this.root.querySelector('#mapSelectionStatus');
+    const landButton = this.root.querySelector('#mapLandAction');
     const selection = marker ?? this.currentMarker();
+    if (landButton) { landButton.disabled = true; landButton.title = 'Select the first landable solid world and move into its near-orbital descent envelope.'; }
     if (!selection) {
       if (title) title.textContent = 'Tap a map marker';
       if (kind) kind.textContent = '—';
@@ -201,7 +203,11 @@ export class SystemMapController {
       if (title) title.textContent = selection.body.name;
       if (kind) kind.textContent = selection.body.kind.toUpperCase();
       if (distance) distance.textContent = distanceLabel(selection.distanceMeters);
-      if (status) status.textContent = selection.body.scientificWarning || 'Physical major-body target. TARGET selects it for scanner/navigation; TRANSIT opens the speculative travel layer.';
+      const landing = this.app.landingEligibility(selection.body);
+      if (landButton) { landButton.disabled = !landing.ok; landButton.title = landing.ok ? 'Enter the seeded Shatterfall Basin surface region.' : landing.reason; }
+      if (status) status.textContent = selection.body.scientificWarning || (selection.body.landable
+        ? `Physical major-body target. This is the current detailed landing world. ${landing.ok ? 'LAND / DESCEND is available now.' : landing.reason}`
+        : 'Physical major-body target. TARGET selects it for scanner/navigation; TRANSIT opens the speculative travel layer.');
       return;
     }
     if (selection.type === 'ship') {
@@ -265,5 +271,14 @@ export class SystemMapController {
     this.app.hud.toggleMap(false);
     this.app.hud.toggleTransit(true);
     return true;
+  }
+
+  landCurrent() {
+    const marker = this.currentMarker();
+    if (!marker || marker.type !== 'body') return false;
+    this.app.selectTarget(marker.id);
+    const ok = this.app.enterSurface(marker.id);
+    if (ok) this.app.hud.toggleMap(false);
+    return ok;
   }
 }
