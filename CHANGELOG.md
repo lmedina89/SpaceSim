@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.4.6.1.3 — Frame Drive & Cockpit Flight-Control Polish
+
+- Built directly from v0.1.4.6.1.2 after physical iPhone feedback approved the ship-mounted SYSTEM DIAGNOSTICS MFD but showed the large THRUST overlay covering its lower-right area.
+- Kept the diagnostics MFD at its exact v0.1.4.6.1.2 3D position and compacted/lowered the THRUST / REV / BRAKE DOM cluster on short landscape viewports instead.
+- Added a direct bottom-bar **FRAME** tap-toggle control; no hold gesture is required.
+- Re-presented the existing isolated fictional transit layer as **FRAME DRIVE** and removed the old AUTO CAPTURE behavior from the current UI.
+- FRAME translates only spacecraft position toward the locked target. Major-body Newtonian gravity/velocity-Verlet, particles, weather and collision simulation continue on their existing paths while the simulation is running.
+- Suspended only local spacecraft `ShipDynamics` acceleration/integration while FRAME is active so the fictional coordinate rate never accumulates into Newtonian ship velocity.
+- Normal FRAME exit and automatic arrival match only the spacecraft to the target inertial velocity, yielding near-zero target-relative velocity before ordinary gravity/ShipDynamics resume. Forced route/target safety dropouts preserve the pre-FRAME spacecraft velocity.
+- FRAME locks simulation warp to 1×, but can translate the spacecraft while a model-limit pause is active without advancing paused world simulation time.
+- FLIGHT MFD now becomes a FRAME status display while active; SYSTEM DIAGNOSTICS remains in place and live.
+- APPROACH, BRAKE, FLIGHT/CRUISE/BOOST, celestial gravity, save schema 1, Three.js 0.185.0 and the forced iPhone/iPad WebGL2 backend policy are otherwise unchanged.
+
 
 ## v0.1.4.6.1.2 — Integrated Cockpit Diagnostics MFD
 

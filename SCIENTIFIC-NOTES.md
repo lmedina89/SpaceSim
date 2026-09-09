@@ -1,4 +1,6 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.6.1.2
+# Scientific / Model Notes — Universe Lab v0.1.4.6.1.3
+
+**v0.1.4.6.1.3 note:** FRAME DRIVE is intentionally nonphysical convenience travel and is kept outside the celestial mechanics model. While active it translates only the spacecraft position and temporarily suspends local spacecraft Newtonian acceleration/integration; direct Newtonian major-body gravity and velocity-Verlet body integration are not altered. A normal FRAME exit instantaneously matches only the spacecraft to the locked target inertial velocity. That velocity match is itself fictional and must not be interpreted as modeled propulsion, momentum exchange, anti-gravity or general relativity. Forced safety dropouts preserve the existing spacecraft velocity. The real-physics APPROACH/BRAKE path remains available and unchanged.
 
 **v0.1.4.6.1.2 note:** the new ship-mounted SYSTEM DIAGNOSTICS MFD and cockpit-mode top-HUD cleanup are presentation/input-only. Renderer/FPS/timing/count values are mirrored from existing runtime state; no diagnostic value feeds gravity, integration, navigation, observation, landing, weather or save authority. The v0.1.4.6 scientific model below is unchanged.
 
@@ -61,7 +63,7 @@ The Gravity Knot is also visual-only in this build: floating stones do not add a
 
 ## Existing free-space notes
 
-The v0.1.4.2 free-space anomaly layer remains in `CosmicPhenomenonRegistry`, separate from major gravity bodies. CME weather remains a seeded kinematic cone/front model, not MHD or radiation transport. Scientific overlays remain approximate diagnostic visualizations. TRANSIT remains explicitly fictional coordinate translation while local spacecraft velocity remains Newtonian.
+The v0.1.4.2 free-space anomaly layer remains in `CosmicPhenomenonRegistry`, separate from major gravity bodies. CME weather remains a seeded kinematic cone/front model, not MHD or radiation transport. Scientific overlays remain approximate diagnostic visualizations. FRAME DRIVE remains explicitly fictional spacecraft-only coordinate translation. Its coordinate rate is not Newtonian velocity; normal exit performs an explicitly fictional target-frame velocity match before ordinary spacecraft gravity/integration resumes.
 
 ## Surface weather / environment model
 

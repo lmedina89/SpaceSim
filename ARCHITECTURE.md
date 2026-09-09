@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.6.1.2
+# Architecture — Universe Lab v0.1.4.6.1.3
 
 ## Canonical astronomical observer
 
@@ -16,9 +16,9 @@ The time boundary is unchanged: orbital N-body time is fixed while landed and th
 
 ## Core invariant
 
-**Rendering, local surface presentation and fictional TRANSIT never silently own or rewrite authoritative orbital physics.**
+**Rendering, local surface presentation and fictional FRAME DRIVE never silently own or rewrite authoritative celestial orbital physics.**
 
-Normal spacecraft/major-body state remains SI/Float64. Major gravity remains direct Newtonian and the major integrator remains velocity-Verlet. Three.js owns presentation only. TRANSIT remains an explicitly fictional coordinate-translation layer and never adds its coordinate rate to local Newtonian spacecraft velocity.
+Normal spacecraft/major-body state remains SI/Float64. Major gravity remains direct Newtonian and the major integrator remains velocity-Verlet. Three.js owns presentation only. FRAME DRIVE is an explicitly fictional spacecraft-only coordinate-translation layer; its coordinate rate never becomes local Newtonian spacecraft velocity and it never rewrites major-body position, velocity, mass or gravity state.
 
 ## Ship-view cockpit presentation
 
@@ -31,6 +31,8 @@ Every visible cockpit screen/button has a real function. The three MFDs are live
 v0.1.4.6.1.1 keeps that input boundary intact but moves the MFD planes/bezels forward of the glare shield and adds emissive-only panel accents plus five telemetry-driven status indicators (POWER/TARGET/NAV/PROPULSION/CAUTION). The indicators own no simulation state and add no dynamic scene lights. The bottom MORE launcher is removed; the FLIGHT MFD remains the canonical Flight/System drawer entry. A cockpit-restore failsafe is DOM-side only and exists solely for recovery when `cockpitEnabled=false`.
 
 v0.1.4.6.1.2 extends that same presentation boundary with a fourth `SYSTEM DIAGNOSTICS` CanvasTexture MFD mounted on the right cockpit side. `UniverseLabApp.cockpitTelemetry()` mirrors existing renderer/performance/debug readings into `CockpitView`; `CockpitView` only draws those values and routes a touch on the panel back to the existing Flight/System drawer. The top DOM performance/seed HUD is hidden only while the 3D cockpit is active and remains intact as the fallback when the cockpit is disabled. No diagnostics value becomes authoritative state and no new simulation ownership is introduced.
+
+v0.1.4.6.1.3 deliberately leaves that diagnostics MFD at the same 3D position. Only the DOM flight-control cluster is compacted/lowered on short landscape viewports. A new bottom-bar FRAME control routes into the existing app transit/FRAME state; it creates no second navigation state machine. While FRAME is active, the FLIGHT MFD changes presentation to FRAME telemetry but still owns no simulation state.
 
 
 The cockpit remains excluded from OBSERVE and local surface views. `cockpitEnabled` remains an optional schema-1 preference. The cockpit is never inserted into `EntityRegistry`, never participates in gravity/collision/trajectory calculations, and never alters the canonical astronomical observer.
@@ -106,9 +108,21 @@ When a pre-v0.1.4.3 schema-1 save loads, deterministic surface-capability metada
 
 `flightComputer.js` continues to own bounded APPROACH/HOLD, STOP RELATIVE, inertial BRAKE and TURN & BURN. The velocity-vector HUD remains a presentation of authoritative `ship.velocity`, separate from attitude.
 
-## Fictional TRANSIT
+## Fictional FRAME DRIVE
 
-`physics/transitDrive.js` remains separate from Three.js and from local propulsion. It supplies 1c/10c/100c/500c/1000c coordinate-rate travel, live-target arrival envelopes, step-down, no-overshoot movement and swept route guards. AUTO CAPTURE hands back to physical local propulsion.
+`physics/transitDrive.js` retains its legacy module/function names for compatibility, but v0.1.4.6.1.3 presents the feature as **FRAME DRIVE**. It remains separate from Three.js, major-body integration and local propulsion. It supplies 1c/10c/100c/500c/1000c **coordinate-rate** travel, live-target stand-off envelopes, arrival step-down, no-overshoot movement and swept massive-body route guards.
+
+The isolation boundary is explicit:
+
+- `VelocityVerletIntegrator.step(massiveBodies, dt)` continues normally while the simulation is running.
+- Minor particles, particle experiments, space weather and major-body collision checks continue through their existing paths.
+- Only `ShipDynamics.step(dt, massiveBodies)` and local navigation acceleration are suspended while FRAME is active.
+- `advanceTransitPosition(...)` changes only `ship.position`; the FRAME coordinate rate is never added to `ship.velocity`.
+- A normal pilot exit or automatic arrival calls `matchFrameExitVelocity(ship, target)`, changing only the spacecraft velocity to the locked target inertial velocity. The target/world state is untouched.
+- A forced route-guard/target-loss/reset dropout does **not** perform target matching and preserves local spacecraft velocity.
+- FRAME forces simulation time scale to 1×. If the simulation is already paused, FRAME may translate the spacecraft in real time while `SimulationClock.advance(...)` remains stopped, allowing recovery from the 0.1c Newtonian model guard without evolving the paused world.
+
+`APPROACH`, STOP RELATIVE, BRAKE and TURN & BURN remain the physical bounded-thrust navigation path and are unchanged by FRAME.
 
 ## Discovery and weather
 

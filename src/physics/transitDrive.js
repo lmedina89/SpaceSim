@@ -1,14 +1,15 @@
 import { BODY_KIND, PHYSICS, SIMULATION } from '../core/constants.js';
-import { propulsionSafeStandOffDistanceMeters, stoppingDistanceMeters, targetRelativeState } from './flightComputer.js';
+import { propulsionSafeStandOffDistanceMeters } from './flightComputer.js';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-// TRANSIT is explicitly speculative reference-frame translation. These are coordinate-speed
-// multipliers of c, not Newtonian spacecraft velocity and not a claim that FTL travel is physical.
-// The high tiers are intentional: 1 c still takes ~8.3 minutes per AU, which is not useful for a
-// phone exploration tool. 1,000 c crosses 30 AU in roughly 15 real seconds before arrival ramp-down.
+// FRAME DRIVE is explicitly speculative spacecraft-only reference-frame translation. These are
+// coordinate-speed multipliers of c, not Newtonian spacecraft velocity and not a claim that FTL
+// travel is physical. The legacy module name is retained to avoid destabilizing existing imports.
+// The high tiers are intentional: 1 c still takes ~8.3 minutes per AU, while 1,000 c crosses
+// 30 AU in roughly 15 real seconds before arrival ramp-down.
 export const TRANSIT_TIERS = Object.freeze([
   { multipleC: 1, label: '1 c' },
   { multipleC: 10, label: '10 c' },
@@ -89,14 +90,24 @@ export function firstTransitGuardHit(start, end, bodies, targetId = null) {
 
 export function transitArrivalDistanceMeters(ship, target, captureAccelerationMps2 = SIMULATION.shipBoostAcceleration) {
   if (!ship || !target) return 50_000_000;
-  const state = targetRelativeState(ship, target);
   const physicalStandOff = target.mass > 0
     ? propulsionSafeStandOffDistanceMeters(target, captureAccelerationMps2, { gravityFraction: 0.2 })
     : Math.max(50_000, Number(target.radius) || 50_000);
-  // Transit never rewrites local inertial velocity. Leave enough real distance for BOOST to remove
-  // the pre-existing target-relative velocity after the frame translation ends.
-  const brakingReserve = stoppingDistanceMeters(state.relativeSpeedMps, captureAccelerationMps2) * 1.35;
-  return Math.max(physicalStandOff * 2.0, 50_000_000, physicalStandOff + brakingReserve);
+  // FRAME exit performs an explicit fictional inertial-frame match, so no Newtonian braking reserve
+  // is needed for the pre-entry delta-v. We still stop outside the propulsion/model-safe stand-off.
+  return Math.max(physicalStandOff * 1.25, 10_000_000);
+}
+
+export function matchFrameExitVelocity(ship, target) {
+  if (!ship?.velocity || !target?.velocity) return { matched: false, deltaVMps: 0 };
+  const dvx = Number(target.velocity[0]) - Number(ship.velocity[0]);
+  const dvy = Number(target.velocity[1]) - Number(ship.velocity[1]);
+  const dvz = Number(target.velocity[2]) - Number(ship.velocity[2]);
+  const deltaVMps = Math.hypot(dvx, dvy, dvz);
+  ship.velocity[0] = Number(target.velocity[0]) || 0;
+  ship.velocity[1] = Number(target.velocity[1]) || 0;
+  ship.velocity[2] = Number(target.velocity[2]) || 0;
+  return { matched: true, deltaVMps };
 }
 
 export function effectiveTransitMultiple(maxMultipleC, distanceMeters, arrivalDistanceMeters) {

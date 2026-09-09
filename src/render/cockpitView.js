@@ -420,20 +420,30 @@ export class CockpitView {
     drawLine(nav.ctx, 'TARGET', t.targetName || 'NO TARGET', 72, nav.canvas.width, '#e7fbff');
     drawLine(nav.ctx, 'RANGE', formatDistance(t.targetDistanceMeters), 105, nav.canvas.width);
     drawLine(nav.ctx, 'REL V', formatSpeed(t.targetRelativeSpeedMps), 138, nav.canvas.width);
-    drawLine(nav.ctx, 'GUIDANCE', String(t.navigationMode || 'MANUAL').toUpperCase(), 171, nav.canvas.width, t.navigationMode === 'approach' ? '#ffd383' : '#cfeeff');
-    drawLine(nav.ctx, 'WARP', `${fmt(t.timeScale ?? 1, 0)}×`, 204, nav.canvas.width);
+    drawLine(nav.ctx, 'GUIDANCE', String(t.navigationMode || 'MANUAL').toUpperCase(), 171, nav.canvas.width, t.navigationMode === 'approach' ? '#ffd383' : t.frameActive ? '#d7c4ff' : '#cfeeff');
+    drawLine(nav.ctx, t.frameActive ? 'SIM' : 'WARP', t.frameActive ? '1× LOCK' : `${fmt(t.timeScale ?? 1, 0)}×`, 204, nav.canvas.width, t.frameActive ? '#d7c4ff' : '#cfeeff');
     nav.ctx.fillStyle = '#63c9e7'; nav.ctx.font = '600 16px ui-monospace, monospace'; nav.ctx.fillText('TOUCH SCREEN → SYSTEM MAP', 18, 250);
     nav.texture.needsUpdate = true;
 
     const flight = this.screenEntries.get('flight');
-    drawScreenFrame(flight.ctx, flight.canvas.width, flight.canvas.height, flight.title, flight.accent);
-    drawLine(flight.ctx, 'SPEED', formatSpeed(t.shipSpeedMps), 72, flight.canvas.width, '#ffffff');
-    drawLine(flight.ctx, 'ENGINE', String(t.engineMode || 'FLIGHT').toUpperCase(), 105, flight.canvas.width, t.engineMode === 'boost' ? '#ffb66f' : '#b8f5ff');
-    drawLine(flight.ctx, 'THRUST CAP', `${fmt(t.mainAccelerationMps2, 0)} m/s²`, 138, flight.canvas.width);
-    const thrustState = t.braking ? 'BRAKE' : t.reverseThrottle > 0 ? 'REVERSE' : t.throttle > 0 ? 'THRUST' : 'IDLE';
-    drawLine(flight.ctx, 'CONTROL', thrustState, 171, flight.canvas.width, thrustState === 'IDLE' ? '#b8d1df' : '#ffd383');
-    drawLine(flight.ctx, 'SIM', `${fmt(t.timeScale ?? 1, 0)}× · ${fmt((t.elapsedSimSeconds ?? 0) / 86400, 2)} d`, 204, flight.canvas.width);
-    flight.ctx.fillStyle = '#8dddeb'; flight.ctx.font = '600 16px ui-monospace, monospace'; flight.ctx.fillText('TOUCH SCREEN → FLIGHT / SYSTEM', 18, 250);
+    if (t.frameActive) {
+      drawScreenFrame(flight.ctx, flight.canvas.width, flight.canvas.height, 'FRAME DRIVE', '#c7a9ff');
+      drawLine(flight.ctx, 'RANGE', formatDistance(t.targetDistanceMeters), 72, flight.canvas.width, '#ffffff');
+      drawLine(flight.ctx, 'FRAME RATE', `${fmt(t.frameMultipleC ?? 0, 0)} c`, 105, flight.canvas.width, '#dcc8ff');
+      drawLine(flight.ctx, 'EXIT', 'MATCH TARGET', 138, flight.canvas.width, '#bff6ff');
+      drawLine(flight.ctx, 'LOCAL ΔV', formatSpeed(t.targetRelativeSpeedMps), 171, flight.canvas.width, '#dceeff');
+      drawLine(flight.ctx, 'ETA', Number.isFinite(t.frameEtaSeconds) ? `${fmt(t.frameEtaSeconds, 1)} s` : '—', 204, flight.canvas.width, '#ffd383');
+      flight.ctx.fillStyle = '#c7a9ff'; flight.ctx.font = '600 16px ui-monospace, monospace'; flight.ctx.fillText('SPACECRAFT-ONLY · TAP FRAME TO EXIT', 18, 250);
+    } else {
+      drawScreenFrame(flight.ctx, flight.canvas.width, flight.canvas.height, flight.title, flight.accent);
+      drawLine(flight.ctx, 'SPEED', formatSpeed(t.shipSpeedMps), 72, flight.canvas.width, '#ffffff');
+      drawLine(flight.ctx, 'ENGINE', String(t.engineMode || 'FLIGHT').toUpperCase(), 105, flight.canvas.width, t.engineMode === 'boost' ? '#ffb66f' : '#b8f5ff');
+      drawLine(flight.ctx, 'THRUST CAP', `${fmt(t.mainAccelerationMps2, 0)} m/s²`, 138, flight.canvas.width);
+      const thrustState = t.braking ? 'BRAKE' : t.reverseThrottle > 0 ? 'REVERSE' : t.throttle > 0 ? 'THRUST' : 'IDLE';
+      drawLine(flight.ctx, 'CONTROL', thrustState, 171, flight.canvas.width, thrustState === 'IDLE' ? '#b8d1df' : '#ffd383');
+      drawLine(flight.ctx, 'SIM', `${fmt(t.timeScale ?? 1, 0)}× · ${fmt((t.elapsedSimSeconds ?? 0) / 86400, 2)} d`, 204, flight.canvas.width);
+      flight.ctx.fillStyle = '#8dddeb'; flight.ctx.font = '600 16px ui-monospace, monospace'; flight.ctx.fillText('TOUCH SCREEN → FLIGHT / SYSTEM', 18, 250);
+    }
     flight.texture.needsUpdate = true;
 
     const science = this.screenEntries.get('science');
@@ -454,7 +464,7 @@ export class CockpitView {
     this.setStatusLight('power', true);
     this.setStatusLight('target', Boolean(t.targetName));
     this.setStatusLight('nav', Boolean(t.navigationMode && t.navigationMode !== 'manual'));
-    this.setStatusLight('propulsion', t.engineMode === 'boost' || t.engineMode === 'cruise' || t.throttle > 0 || t.reverseThrottle > 0);
+    this.setStatusLight('propulsion', Boolean(t.frameActive) || t.engineMode === 'boost' || t.engineMode === 'cruise' || t.throttle > 0 || t.reverseThrottle > 0);
     this.setStatusLight('caution', Boolean(t.braking));
 
     const active = new Set();

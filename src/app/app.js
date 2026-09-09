@@ -21,7 +21,7 @@ import { ParticleExperimentManager, PARTICLE_MODES } from '../experiments/partic
 import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
 import { SpaceWeatherManager } from '../cosmic/spaceWeather.js';
 import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
-import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition } from '../physics/transitDrive.js';
+import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition, matchFrameExitVelocity } from '../physics/transitDrive.js';
 import { UniverseRenderer } from '../render/threeRenderer.js';
 import { Hud } from '../ui/hud.js';
 import { SystemMapController } from '../ui/systemMap.js';
@@ -148,7 +148,7 @@ export class UniverseLabApp {
     this._lastWarpSafetyNotice = 0;
     this._lastNavigationPhase = null;
     this.turnBurnDirection = null;
-    this.transitState = { active: false, targetType: 'body', targetId: null, maxMultipleC: 100, autoCapture: true, previousTimeScale: 1, status: null };
+    this.transitState = { active: false, targetType: 'body', targetId: null, maxMultipleC: 100, matchOnExit: true, previousTimeScale: 1, status: null };
     this._particleWarpRestoreScale = null;
     this._particleWarpCapActive = false;
     this._announcedExperimentCompletions = new Set();
@@ -245,7 +245,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.6.1.2 online. Integrated cockpit diagnostics active: renderer/performance/debug telemetry now lives on the right-side ship-mounted diagnostic MFD while the forward canopy is cleaner. Renderer handoff isolation remains unchanged; iPhone/iPad WebKit still forces the WebGPURenderer WebGL2 backend. Active backend: ${backend}. Build DIAGMFD-14612.`);
+    this.hud.notify(`v0.1.4.6.1.3 online. FRAME DRIVE is tap-toggle spacecraft-only reference-frame travel; normal exit matches the target inertial velocity before ordinary ShipDynamics/gravity resume. The right-side SYSTEM DIAGNOSTICS MFD stays fixed and the iPhone flight-control cluster is compacted below it. Celestial gravity/body integration are unchanged. Active backend: ${backend}. Build FRAMECTRL-14613.`);
   }
 
   newSystem(seed) {
@@ -254,7 +254,7 @@ export class UniverseLabApp {
     if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false, preserveRunning: true });
     setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
     this.running = true;
-    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
+    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false, matchTarget: false });
     this._particleWarpRestoreScale = null;
     this._particleWarpCapActive = false;
     this._announcedExperimentCompletions.clear();
@@ -325,7 +325,7 @@ export class UniverseLabApp {
     if (!canEnterSurface(this.surfaceTransition) || this.surfaceSession?.active) return { ok: false, reason: `Surface transition is ${this.surfaceTransition?.phase ?? 'active'}.` };
     if (body.kind !== BODY_KIND.PLANET || body.planetType === 'gas') return { ok: false, reason: 'This target has no solid landing foundation.' };
     if (!body.landable || body.surfaceProfile !== 'anomalous-showcase-v1') return { ok: false, reason: 'Detailed surface generation is not enabled for this world yet.' };
-    if (this.transitState.active) return { ok: false, reason: 'Disengage TRANSIT before descent.' };
+    if (this.transitState.active) return { ok: false, reason: 'Disengage FRAME DRIVE before descent.' };
     if (this.particleExperiments.activeParticles > 0) return { ok: false, reason: 'Clear or finish the active particle experiment before changing into a local surface scene.' };
     const dx = this.ship.position[0] - body.position[0], dy = this.ship.position[1] - body.position[1], dz = this.ship.position[2] - body.position[2];
     const centerDistance = Math.hypot(dx, dy, dz);
@@ -531,7 +531,7 @@ export class UniverseLabApp {
     this._surfacePreviousTimeScale = previousTimeScale;
 
     try {
-      if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
+      if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false, matchTarget: false });
       this.returnToShipView(false);
       this.cancelNavigation();
       this.releaseAllHeldControls();
@@ -933,8 +933,11 @@ export class UniverseLabApp {
     const label = mode === 'boost' ? 'BOOST' : mode === 'cruise' ? 'CRUISE' : 'FLIGHT';
     const engineButton = this.root.querySelector('#engineModeButton');
     if (engineButton) engineButton.textContent = `ENGINE ${label}`;
+    const acceleration = this.ship.currentMainAcceleration();
+    const thrustValue = this.root.querySelector('#thrustValue');
+    if (thrustValue) thrustValue.textContent = acceleration.toLocaleString();
     const thrustButton = this.root.querySelector('#thrustButton');
-    if (thrustButton) thrustButton.textContent = `THRUST ${this.ship.currentMainAcceleration().toLocaleString()}`;
+    if (thrustButton) thrustButton.setAttribute('aria-label', `Main thrust ${acceleration.toLocaleString()} meters per second squared`);
   }
 
   syncViewClasses() {
@@ -964,7 +967,12 @@ export class UniverseLabApp {
       braking: this.ship.braking,
       timeScale: this.clock.timeScale,
       elapsedSimSeconds: this.clock.elapsedSimSeconds,
-      navigationMode: this.transitState.active ? 'transit' : this.navigationMode,
+      navigationMode: this.transitState.active ? 'frame' : this.navigationMode,
+      frameActive: this.transitState.active,
+      frameMultipleC: this.transitState.status?.multipleC ?? 0,
+      frameRateMps: this.transitState.status?.speedMps ?? 0,
+      frameRemainingMeters: this.transitState.status?.remainingMeters ?? null,
+      frameEtaSeconds: this.transitState.status?.speedMps > 0 ? Math.max(0, this.transitState.status.remainingMeters / this.transitState.status.speedMps) : null,
       targetName: target?.name ?? null,
       targetKind: target?.kind ?? null,
       targetDistanceMeters: distanceMeters,
@@ -991,7 +999,7 @@ export class UniverseLabApp {
     const button = this.root.querySelector('#cockpitToggle');
     if (button) button.textContent = `COCKPIT ${this.cockpitEnabled ? 'ON' : 'OFF'}`;
     const status = this.root.querySelector('#cockpitStatus');
-    if (status) status.textContent = this.cameraMode === 'observe' ? 'OBSERVE' : (this.ship.engineMode === 'boost' ? 'BOOST' : this.ship.engineMode === 'cruise' ? 'CRUISE' : 'ONLINE');
+    if (status) status.textContent = this.cameraMode === 'observe' ? 'OBSERVE' : this.transitState.active ? 'FRAME' : (this.ship.engineMode === 'boost' ? 'BOOST' : this.ship.engineMode === 'cruise' ? 'CRUISE' : 'ONLINE');
     this.syncViewClasses();
   }
 
@@ -1126,56 +1134,89 @@ export class UniverseLabApp {
     set('#transitEffectiveSpeed', this.transitState.active && status ? `${status.multipleC.toLocaleString()} c` : '—');
     set('#transitEta', this.transitState.active && status?.speedMps > 0 ? `${Math.max(0, status.remainingMeters / status.speedMps).toFixed(1)} s` : '—');
     const engage = this.root.querySelector('#transitEngage');
-    if (engage) engage.textContent = this.transitState.active ? 'DISENGAGE TRANSIT' : 'ENGAGE TRANSIT';
+    if (engage) engage.textContent = this.transitState.active ? 'DISENGAGE FRAME' : 'ENGAGE FRAME';
+    const quick = this.root.querySelector('#frameQuick');
+    if (quick) {
+      quick.textContent = this.transitState.active ? 'FRAME ON' : 'FRAME';
+      quick.classList.toggle('is-active', this.transitState.active);
+      quick.setAttribute('aria-pressed', this.transitState.active ? 'true' : 'false');
+    }
   }
 
   engageTransit() {
-    if (this.transitState.active) { this.disengageTransit({ notify: true, restoreWarp: false, reason: 'TRANSIT disengaged at 1×. Local Newtonian velocity was preserved for safe manual control.' }); return; }
+    if (this.transitState.active) {
+      this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: true });
+      return;
+    }
     const chosen = this.selectedTransitTarget();
-    if (!chosen) { this.hud.notify('TRANSIT requires a current celestial TARGET or selected COSMOS source.'); return; }
-    if (this.particleExperiments.activeParticles > 0) { this.hud.notify('TRANSIT blocked while a live local particle experiment is running. Clear or finish the experiment first so its fine-step physics is not skipped.'); return; }
-    if (this.shipContactId) { this.hud.notify('TRANSIT blocked while the spacecraft is in finite-radius contact with a body.'); return; }
+    if (!chosen) { this.hud.notify('FRAME DRIVE requires a current celestial TARGET or selected COSMOS source.'); return; }
+    if (this.particleExperiments.activeParticles > 0) { this.hud.notify('FRAME DRIVE blocked while a live local particle experiment is running. Clear or finish the experiment first so its fine-step physics is not skipped.'); return; }
+    if (this.shipContactId) { this.hud.notify('FRAME DRIVE blocked while the spacecraft is in finite-radius contact with a body.'); return; }
     const targetBodyId = chosen.type === 'body' ? chosen.id : (chosen.target.anchorBodyId ?? null);
     const clearance = transitClearanceCheck(this.ship.position, this.massiveBodies, targetBodyId);
     if (clearance) {
-      this.hud.notify(`TRANSIT blocked: too close to ${clearance.body.name}. Move outside the ${(clearance.guardRadiusMeters / 1000).toLocaleString(undefined,{maximumFractionDigits:0})} km transit-clearance envelope first.`);
+      this.hud.notify(`FRAME DRIVE blocked: too close to ${clearance.body.name}. Move outside the ${(clearance.guardRadiusMeters / 1000).toLocaleString(undefined,{maximumFractionDigits:0})} km frame-clearance envelope first.`);
       return;
     }
+
     const arrival = transitArrivalDistanceMeters(this.ship, chosen.target, SIMULATION.shipBoostAcceleration);
     const dx = chosen.target.position[0] - this.ship.position[0], dy = chosen.target.position[1] - this.ship.position[1], dz = chosen.target.position[2] - this.ship.position[2];
-    if (Math.hypot(dx, dy, dz) <= arrival) { this.hud.notify('Already inside the transit arrival envelope. Use BOOST + APPROACH / STOP RELATIVE for local maneuvering.'); return; }
+    const distance = Math.hypot(dx, dy, dz);
     const previousTimeScale = this.clock.timeScale;
     this.returnToShipView(false);
     this.cancelNavigation();
+    this.ship.throttle = 0;
+    this.ship.reverseThrottle = 0;
+    this.ship.braking = false;
+    this.ship.clearNavigationAcceleration();
     this.clock.setTimeScale(1);
     const timeSelect = this.root.querySelector('#timeScale'); if (timeSelect) timeSelect.value = '1';
+    const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = 'WARP 1×';
+
+    if (distance <= arrival) {
+      const sync = matchFrameExitVelocity(this.ship, chosen.target);
+      this._modelLimitLatched = false;
+      this.hud.toggleTransit(false);
+      this.hud.toggleMore(false);
+      this.hud.notify(`FRAME SYNC: already inside the safe arrival envelope for ${chosen.target.name}. The spacecraft alone matched the target inertial velocity${sync.deltaVMps > 0 ? ` (fictional Δv ${(sync.deltaVMps / 1000).toLocaleString(undefined,{maximumFractionDigits:2})} km/s)` : ''}; ordinary gravity resumes from this state.`);
+      this.updateTransitPanel();
+      this.updateCockpitUi();
+      this.invalidatePredictions();
+      return;
+    }
+
     const multipleC = normalizeTransitMultiple(this.root.querySelector('#transitTier')?.value ?? 100);
     this.transitState = {
       active: true,
       targetType: chosen.type,
       targetId: chosen.id,
       maxMultipleC: multipleC,
-      autoCapture: this.root.querySelector('#transitAutoCapture')?.checked !== false,
+      matchOnExit: true,
       previousTimeScale,
       status: null,
     };
     this.ship.transitVisualFactor = Math.min(1, Math.log10(Math.max(1, multipleC)) / 3);
     this.ship.transitVisualRelease = false;
     this.ship.transitDirection = new Float64Array(3);
-    this.root.querySelector('#warpQuick').textContent = 'TRANSIT';
     this.hud.toggleTransit(false);
     this.hud.toggleMore(false);
-    this.hud.notify(`SPECULATIVE TRANSIT engaged toward ${chosen.target.name} at up to ${multipleC.toLocaleString()} c. This translates the ship reference frame and does NOT add transit speed to the Newtonian velocity state.`);
+    this.hud.notify(`SPECULATIVE FRAME DRIVE engaged toward ${chosen.target.name} at up to ${multipleC.toLocaleString()} c. Only the spacecraft translation is overridden; celestial gravity, body integration, experiments and world state keep their existing simulation authority.`);
     this.updateTransitPanel();
+    this.updateCockpitUi();
   }
 
-  disengageTransit({ notify = true, restoreWarp = true, reason = null } = {}) {
+  disengageTransit({ notify = true, restoreWarp = false, reason = null, matchTarget = true } = {}) {
     if (!this.transitState.active) return;
     const previous = this.transitState.previousTimeScale;
+    const locked = this.lockedTransitTarget();
+    let sync = { matched: false, deltaVMps: 0 };
+    if (matchTarget && this.transitState.matchOnExit && locked?.target) sync = matchFrameExitVelocity(this.ship, locked.target);
     this.transitState.active = false;
     this.transitState.status = null;
+    this.ship.clearNavigationAcceleration();
+    this._modelLimitLatched = false;
     // Keep the purely visual streak/FOV state for a short exponential release instead of
-    // snapping it off on the arrival frame. Newtonian position/velocity remain untouched.
+    // snapping it off on the exit frame. FRAME coordinate rate never becomes Newtonian velocity.
     this.ship.transitVisualRelease = (Number(this.ship.transitVisualFactor) || 0) > 0.001;
     if (!this.ship.transitVisualRelease) {
       this.ship.transitVisualFactor = 0;
@@ -1190,16 +1231,26 @@ export class UniverseLabApp {
         }
         select.value = String(this.clock.timeScale);
       }
+    } else {
+      this.clock.setTimeScale(1);
+      const select = this.root.querySelector('#timeScale'); if (select) select.value = '1';
     }
     const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`;
-    if (notify) this.hud.notify(reason ?? 'TRANSIT disengaged. Newtonian local velocity was preserved.');
+    if (notify) {
+      const defaultMessage = sync.matched && locked?.target
+        ? `FRAME DRIVE disengaged. The spacecraft matched ${locked.target.name}'s inertial velocity, then normal ShipDynamics and gravity resumed at 1×.`
+        : 'FRAME DRIVE disengaged. The pre-frame local spacecraft velocity was preserved; normal ShipDynamics and gravity resumed.';
+      this.hud.notify(reason ?? defaultMessage);
+    }
+    this.invalidatePredictions();
     this.updateTransitPanel();
+    this.updateCockpitUi();
   }
 
   updateTransit(realDt) {
     if (!this.transitState.active) return;
     const locked = this.lockedTransitTarget();
-    if (!locked) { this.disengageTransit({ notify: true, restoreWarp: false, reason: 'TRANSIT target disappeared; returned to normal flight at 1×.' }); return; }
+    if (!locked) { this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: false, reason: 'FRAME target disappeared; returned to normal flight at 1× with the pre-frame local velocity preserved.' }); return; }
     const target = locked.target;
     const arrivalDistance = transitArrivalDistanceMeters(this.ship, target, SIMULATION.shipBoostAcceleration);
     const start = new Float64Array(this.ship.position);
@@ -1211,7 +1262,7 @@ export class UniverseLabApp {
       this.ship.position[0] = start[0] + (step.nextPosition[0] - start[0]) * safeFraction;
       this.ship.position[1] = start[1] + (step.nextPosition[1] - start[1]) * safeFraction;
       this.ship.position[2] = start[2] + (step.nextPosition[2] - start[2]) * safeFraction;
-      this.disengageTransit({ notify: true, restoreWarp: false, reason: `TRANSIT safety dropout before ${hit.body.name}. A swept clearance guard prevented the reference-frame path from crossing a massive body.` });
+      this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: false, reason: `FRAME safety dropout before ${hit.body.name}. A swept clearance guard prevented the spacecraft frame path from crossing a massive body; local velocity was preserved.` });
       return;
     }
     this.ship.position.set(step.nextPosition);
@@ -1219,24 +1270,11 @@ export class UniverseLabApp {
     const mag = Math.hypot(dx,dy,dz) || 1;
     this.ship.transitDirection[0] = dx / mag; this.ship.transitDirection[1] = dy / mag; this.ship.transitDirection[2] = dz / mag;
     this.ship.transitVisualFactor = Math.min(1, Math.log10(Math.max(1, step.multipleC)) / 3);
-    this.transitState.status = { mode: 'transit', phase: 'transit', multipleC: step.multipleC, speedMps: step.speedMps, remainingMeters: step.remainingMeters, arrivalDistanceMeters: arrivalDistance, distanceMeters: step.distanceMeters };
+    this.transitState.status = { mode: 'frame', phase: 'frame', multipleC: step.multipleC, speedMps: step.speedMps, remainingMeters: step.remainingMeters, arrivalDistanceMeters: arrivalDistance, distanceMeters: step.distanceMeters };
     this.invalidatePredictions();
     if (step.arrived) {
-      const autoCapture = this.transitState.autoCapture;
-      const targetType = this.transitState.targetType;
-      const targetId = this.transitState.targetId;
       const targetName = target.name;
-      this.disengageTransit({ notify: false, restoreWarp: false });
-      if (autoCapture) {
-        this.ship.engineMode = 'boost';
-        this.updateEngineUi();
-        if (targetType === 'cosmic') { this.navigationExperimentId = null; this.navigationPhenomenonId = targetId; }
-        else { this.navigationExperimentId = null; this.navigationPhenomenonId = null; this.selectTarget(targetId); }
-        this.setNavigationMode('approach');
-        this.hud.notify(`TRANSIT arrival envelope reached near ${targetName}. BOOST auto-capture is now removing the preserved local Δv with real bounded thrust; transit speed itself was not added to velocity.`);
-      } else {
-        this.hud.notify(`TRANSIT arrival envelope reached near ${targetName}. Local Newtonian velocity is unchanged; use STOP RELATIVE or BOOST APPROACH to capture.`);
-      }
+      this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: true, reason: `FRAME ARRIVAL: safe observation envelope reached near ${targetName}. The spacecraft matched the target inertial frame; ordinary gravity and ShipDynamics are active again at 1×.` });
     }
     this.updateTransitPanel();
   }
@@ -1663,8 +1701,8 @@ export class UniverseLabApp {
     if (this.transitState.active) {
       this.clock.setTimeScale(1);
       const select = this.root.querySelector('#timeScale'); if (select) select.value = '1';
-      const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = 'TRANSIT';
-      if (notify) this.hud.notify('Simulation warp is locked to 1× while the speculative TRANSIT reference-frame drive is active. Transit speed is controlled separately.');
+      const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = 'WARP 1×';
+      if (notify) this.hud.notify('Simulation warp is locked to 1× while the speculative FRAME DRIVE is active. Frame rate is controlled separately; celestial physics is otherwise unchanged.');
       return 1;
     }
     const cap = this.particleExperiments?.recommendedWarpCap ?? Infinity;
@@ -1688,7 +1726,7 @@ export class UniverseLabApp {
       select.value = String(applied);
     }
     const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = Number.isFinite(cap) && applied === cap ? `LAB ${cap.toLocaleString()}×` : `WARP ${applied.toLocaleString()}×`;
-    if (notify && applied === requested) this.hud.notify(`Time warp ${applied.toLocaleString()}×. Newtonian gravity/thrust integrate over accelerated simulation time; this is separate from fictional TRANSIT travel.`);
+    if (notify && applied === requested) this.hud.notify(`Time warp ${applied.toLocaleString()}×. Newtonian gravity/thrust integrate over accelerated simulation time; this is separate from fictional FRAME travel.`);
     return applied;
   }
 
@@ -1996,9 +2034,16 @@ export class UniverseLabApp {
     const sources = this.massiveBodies;
     const previousPositions = new Map(sources.map((body) => [body.id, new Float64Array(body.position)]));
     this.integrator.step(sources, dt);
-    this.updateNavigation(dt);
-    this.ship.step(dt, sources);
-    if (this.checkNewtonianModelLimit()) return false;
+    if (this.transitState.active) {
+      // FRAME DRIVE is a spacecraft-only fictional boundary. Major bodies, particles, weather and
+      // collisions continue through their existing simulation paths; only local ShipDynamics
+      // acceleration/integration is suspended until FRAME exit establishes the target inertial frame.
+      this.ship.clearNavigationAcceleration();
+    } else {
+      this.updateNavigation(dt);
+      this.ship.step(dt, sources);
+      if (this.checkNewtonianModelLimit()) return false;
+    }
     this.minorField?.step(dt, sources);
     const experimentStart = performance.now();
     this.particleExperiments.step(dt, sources);
@@ -2097,7 +2142,7 @@ export class UniverseLabApp {
     const orbitalRealDt = this._surfaceOrbitHandoffPending ? 0 : realDt;
     const physicsStart = performance.now();
     this.experimentMs = 0;
-    if (this.running) this.updateTransit(orbitalRealDt);
+    if (this.transitState.active) this.updateTransit(orbitalRealDt);
     this.enforceNavigationWarpSafety();
     this.enforceParticleWarpSafety();
     if (this.running) this.clock.advance(orbitalRealDt, (dt) => this.physicsStep(dt), this.currentPhysicsSubstepLimit());
@@ -2174,7 +2219,7 @@ export class UniverseLabApp {
   loadSave() {
     if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false, preserveRunning: true });
     setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
-    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
+    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false, matchTarget: false });
     this._particleWarpRestoreScale = null;
     this._particleWarpCapActive = false;
     this._announcedExperimentCompletions.clear();
@@ -2291,6 +2336,7 @@ export class UniverseLabApp {
     $('#transitTargetSource').addEventListener('change', () => this.updateTransitPanel());
     $('#transitTier').addEventListener('change', () => this.updateTransitPanel());
     $('#transitEngage').addEventListener('click', () => this.engageTransit());
+    $('#frameQuick').addEventListener('click', () => this.engageTransit());
     $('#labClose').addEventListener('click', () => this.hud.toggleLab(false));
     $('#scienceToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleScience(); });
     $('#scienceClose').addEventListener('click', () => this.hud.toggleScience(false));
@@ -2301,7 +2347,7 @@ export class UniverseLabApp {
     $('#mapUnknownToggle').addEventListener('change', (event) => { this.systemMap.includeUnknown = event.target.checked; this.systemMap.draw(); });
     $('#mapSelectAction').addEventListener('click', () => { if (!this.systemMap.selectCurrent()) this.hud.notify('Tap a body or cosmic marker on the SYSTEM MAP first.'); });
     $('#mapScanAction').addEventListener('click', () => { if (!this.systemMap.scanCurrent()) this.hud.notify('SCAN SIGNAL applies to a cosmic/anomaly marker. Tap one of those map markers first.'); });
-    $('#mapTransitAction').addEventListener('click', () => { if (!this.systemMap.transitCurrent()) this.hud.notify('Tap a body or cosmic marker before opening TRANSIT.'); });
+    $('#mapTransitAction').addEventListener('click', () => { if (!this.systemMap.transitCurrent()) this.hud.notify('Tap a body or cosmic marker before opening FRAME DRIVE.'); });
     $('#mapLandAction').addEventListener('click', () => { if (!this.systemMap.landCurrent()) this.hud.notify('LAND / DESCEND requires the current landable world inside its near-orbital descent envelope.'); });
     $('#mapCosmosAction').addEventListener('click', () => {
       const marker = this.systemMap.currentMarker();
@@ -2353,7 +2399,7 @@ export class UniverseLabApp {
     $('#randomSeed').addEventListener('click', () => this.newSystem(`SYS-${crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase()}`));
     $('#timeScale').addEventListener('change', (e) => this.requestTimeScale(e.target.value));
     $('#warpQuick').addEventListener('click', () => {
-      if (this.transitState.active) { this.hud.notify('TRANSIT drive is active. Simulation warp remains locked to 1×; change the transit tier in the TRANSIT drawer instead.'); return; }
+      if (this.transitState.active) { this.hud.notify('FRAME DRIVE is active. Simulation warp remains locked to 1×; change the frame rate in the FRAME DRIVE drawer instead.'); return; }
       const levels = [1, 60, 600, 3600];
       const currentRequested = Number.isFinite(this._particleWarpRestoreScale) ? this._particleWarpRestoreScale : this.clock.timeScale;
       const next = levels.find((value) => value > currentRequested) ?? levels[0];
@@ -2434,7 +2480,7 @@ export class UniverseLabApp {
     });
     $('#saveButton').addEventListener('click', () => { this.hud.toggleMore(false); this.saveSystem.save(this.serialize()); this.hud.notify('Saved locally on this device.'); });
     $('#loadButton').addEventListener('click', () => { this.hud.toggleMore(false); this.loadSave(); });
-    $('#homeButton').addEventListener('click', () => { this.hud.toggleMore(false); if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false }); this.cancelNavigation(); this.placeShipNearHome(); this.selectTarget(this.system.homeId); this.hud.notify('Ship returned to the seeded orbital demonstration position with a prograde-biased pilot view.'); });
+    $('#homeButton').addEventListener('click', () => { this.hud.toggleMore(false); if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false, matchTarget: false }); this.cancelNavigation(); this.placeShipNearHome(); this.selectTarget(this.system.homeId); this.hud.notify('Ship returned to the seeded orbital demonstration position with a prograde-biased pilot view.'); });
     $('#pathToggle').addEventListener('click', (event) => {
       this.shipPathEnabled = !this.shipPathEnabled;
       event.currentTarget.textContent = this.shipPathEnabled ? 'PATH ON' : 'PATH';

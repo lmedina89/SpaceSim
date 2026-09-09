@@ -207,7 +207,7 @@ export class SystemMapController {
       if (landButton) { landButton.disabled = !landing.ok; landButton.title = landing.ok ? 'Enter the seeded Shatterfall Basin surface region.' : landing.reason; }
       if (status) status.textContent = selection.body.scientificWarning || (selection.body.landable
         ? `Physical major-body target. This is the current detailed landing world. ${landing.ok ? 'LAND / DESCEND is available now.' : landing.reason}`
-        : 'Physical major-body target. TARGET selects it for scanner/navigation; TRANSIT opens the speculative travel layer.');
+        : 'Physical major-body target. TARGET selects it for scanner/navigation; FRAME opens the speculative spacecraft-only travel layer.');
       return;
     }
     if (selection.type === 'ship') {

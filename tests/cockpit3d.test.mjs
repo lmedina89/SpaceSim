@@ -105,3 +105,20 @@ test('integrated diagnostics MFD mirrors runtime telemetry without owning simula
   assert.match(css, /ship-cockpit-enabled \.seed-chip\{display:none\}/);
   assert.match(html, /id="rendererValue"/);
 });
+
+
+test('flight MFD becomes a FRAME status display without moving the diagnostics MFD', async()=>{
+  const cockpit=await cockpitSource();
+  assert.match(cockpit,/if \(t\.frameActive\)/);
+  assert.match(cockpit,/FRAME DRIVE/);
+  assert.match(cockpit,/MATCH TARGET/);
+  assert.match(cockpit,/SPACECRAFT-ONLY/);
+  assert.match(cockpit,/position: \[0\.755, 0\.150, -0\.815\]/);
+});
+
+test('mobile thrust overlay is compacted below the fixed diagnostics screen', async()=>{
+  const css=await readFile(new URL('../styles.css', import.meta.url),'utf8');
+  assert.match(css,/@media \(orientation:landscape\) and \(max-height:500px\)\{\.flight-controls\{[^}]*bottom:max\(26px/);
+  assert.match(css,/grid-template-columns:64px 60px/);
+  assert.match(css,/\.hold-button\.thrust b\{display:block;font-size:13px/);
+});

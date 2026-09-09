@@ -24,9 +24,9 @@ test('renderer applies close-star exposure/background adaptation without distanc
   assert.doesNotMatch(weather, /visual\.visible=scale<250000/);
 });
 
-test('transit visual cues release smoothly after arrival without modifying physical velocity', async () => {
+test('frame visual cues release smoothly while frame coordinate rate stays separate from Newtonian velocity', async () => {
   const app = await readFile(new URL('../src/app/app.js', import.meta.url), 'utf8');
   assert.match(app, /transitVisualRelease/);
   assert.match(app, /Math\.exp\(-realDt \* 2\.65\)/);
-  assert.match(app, /Newtonian position\/velocity remain untouched/);
+  assert.match(app, /FRAME coordinate rate never becomes Newtonian velocity/);
 });

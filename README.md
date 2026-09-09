@@ -1,14 +1,24 @@
-# Universe Lab v0.1.4.6.1.2 — Integrated Cockpit Diagnostics MFD
+# Universe Lab v0.1.4.6.1.3 — Frame Drive & Cockpit Flight-Control Polish
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `DIAGMFD-14612`
+**Build marker:** `FRAMECTRL-14613`
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)
 **Three.js:** 0.185.0 (unchanged)
 **Deployment:** GitHub Pages → `main` → `/(root)`
 **Release gate:** physical iPhone Safari
 
 
+
+## v0.1.4.6.1.3 Frame Drive & cockpit flight-control polish
+
+This release is built directly from the physically reviewed v0.1.4.6.1.2 cockpit-diagnostics build. The right-side **SYSTEM DIAGNOSTICS** MFD stays at the exact accepted 3D position; the overlapping HTML THRUST / REV / BRAKE cluster is made smaller and lower/right on short landscape viewports instead of moving the monitor. The bottom primary strip adds a direct **FRAME** control. FRAME is tap-toggle: one tap engages toward the currently selected target, another tap exits.
+
+**FRAME DRIVE is explicitly fictional and spacecraft-only.** It reuses the existing isolated transit module internally, but no longer presents the feature as a conventional velocity. While FRAME is active, the spacecraft position is translated toward the locked body/COSMOS target at a selected coordinate-rate tier while local `ShipDynamics` acceleration/integration is suspended. Major bodies continue through the existing direct Newtonian gravity + velocity-Verlet path, and particle/weather/collision systems keep their existing authority. Normal FRAME exit or automatic arrival matches only the spacecraft to the target's inertial velocity; ordinary `ShipDynamics` and gravity then resume immediately. Forced safety dropouts preserve the pre-FRAME local spacecraft velocity instead of performing a target match.
+
+FRAME locks simulation warp to 1× while active. It can still translate the spacecraft if the simulation has been paused by the 0.1c Newtonian model guard, which provides a recovery path without advancing the paused world's simulation clock. The existing **APPROACH** controller remains the real-physics option: bounded propulsion, braking-safe target-relative guidance, capture and station keeping are unchanged.
+
+The FLIGHT cockpit MFD becomes a temporary FRAME status screen while engaged, showing range, frame rate, exit rule, local Δv and ETA. Save schema remains 1, Three.js remains pinned to 0.185.0, and the iPhone/iPad WebKit forced-WebGL2 policy is unchanged.
 
 ## v0.1.4.6.1.2 integrated cockpit diagnostics
 
@@ -205,8 +215,8 @@ Older schema-1 saves remain valid. When loading an older save, deterministic lan
 - inertial velocity marker, PROGRADE / RETROGRADE, TURN & BURN
 - STOP RELATIVE
 - propulsion-safe APPROACH → BRAKING → CAPTURE → HOLD
-- explicitly fictional 1c / 10c / 100c / 500c / 1000c TRANSIT while preserving local Newtonian spacecraft velocity
-- transit swept-body guards and optional physical BOOST capture
+- explicitly fictional 1c / 10c / 100c / 500c / 1000c FRAME coordinate-rate travel, isolated to the spacecraft
+- FRAME swept-body guards, target-frame velocity matching on normal exit, and preserved local velocity on forced safety dropout
 - direct Newtonian major-body gravity + velocity-Verlet
 - adaptive strong-gravity substeps + 10% c Newtonian model guard
 - compact-object spawners, impacts, crater/fragment response
@@ -226,7 +236,7 @@ Older schema-1 saves remain valid. When loading an older save, deterministic lan
 8. Visit several differently colored/structured anomaly sites and conventional geology.
 9. SAVE while on the surface, refresh/load, and verify local position + scanned POIs return.
 10. Press **TAKEOFF / ORBIT** and verify the normal ship HUD/flight controls return in safe orbit at 1×.
-11. Regress SYSTEM MAP, free-space anomalies, weather continuity, stellar approaches, BOOST, APPROACH/HOLD, TRANSIT, compact objects, overlays, impacts and particle experiments.
+11. Regress SYSTEM MAP, free-space anomalies, weather continuity, stellar approaches, BOOST, APPROACH/HOLD, FRAME, compact objects, overlays, impacts and particle experiments.
 
 ## Automated QA
 

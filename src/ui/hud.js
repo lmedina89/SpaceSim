@@ -176,9 +176,9 @@ export class Hud {
     }
     this.navChip.hidden = false;
     const engine = engineMode === 'boost' ? 'BOOST' : engineMode === 'cruise' ? 'CRUISE' : 'FLIGHT';
-    if (status.mode === 'transit') {
+    if (status.mode === 'frame' || status.mode === 'transit') {
       const remaining = distance(status.remainingMeters);
-      this.navChip.textContent = `TRANSIT ${target?.name ?? ''} · ${fmt(status.multipleC,0)} c · remaining ${remaining} · local velocity preserved`;
+      this.navChip.textContent = `FRAME ${target?.name ?? ''} · ${fmt(status.multipleC,0)} c · remaining ${remaining} · exit matches target frame`;
       return;
     }
     if (status.mode === 'turn-burn') {

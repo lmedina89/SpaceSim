@@ -1,40 +1,24 @@
-# Universe Lab v0.1.4.6.1.2 — Integrated Cockpit Diagnostics iPhone Gate
+# Universe Lab v0.1.4.6.1.3 — Frame Drive & Cockpit Flight-Control iPhone Gate
 
 Before accepting this release on physical iPhone Safari:
 
-1. Confirm HUD version **v0.1.4.6.1.2**, build marker **DIAGMFD-14612**, and the right-side diagnostics MFD reports renderer **WebGL2 iOS**.
-2. In SHIP VIEW, verify the overall wide-canopy cockpit composition still matches the accepted v0.1.4.6.1 feel and that the outside universe remains dominant.
-3. Inspect the three MFDs carefully: **NAVIGATION, FLIGHT, SCIENCE must now read in front of the horizontal glare-shield/dash bar**, with no bar slicing through the screen faces.
-4. Tap each MFD: NAV opens System Map, FLIGHT opens Flight/System, SCIENCE opens Science.
-5. Confirm the bottom primary strip now contains **LAB · TARGET · SCAN · APPROACH · WARP** only; the redundant **MORE** launcher must be absent.
-6. Open Flight/System from the center FLIGHT MFD and verify all existing controls still work. Do not expect duplicate replacement buttons for the removed MORE launcher.
-7. Observe the subtle cockpit illumination/status lamps. They should remain restrained and readable against dark space; TARGET/NAV/PROPULSION/CAUTION should respond to their real states. No arcade-like full-cabin glow should appear.
-8. Tap every existing physical cockpit key at least once: MAP, TGT, APPR, ENG, PRO, RET, SCAN, SCI, OVR. Verify no dead key and no accidental celestial selection through a control.
-9. Toggle COCKPIT OFF. Confirm a small **COCKPIT** restore failsafe appears; tap it and verify the 3D cockpit returns.
-10. Enter OBSERVE and return; then LAND/DESCEND → BOARD/TAKEOFF. Cockpit visibility, sky continuity and the accepted WebGL2 iOS ascent handoff must remain intact.
-11. Repeat LAND → TAKEOFF once without refresh and watch sustained FPS/heat for several minutes. Report MFD clipping, excessive screen size, unreadable telemetry, touch misses, stale surface frames, runtime errors, or a lighting-related FPS regression.
+1. Confirm HUD version **v0.1.4.6.1.3**, build marker **FRAMECTRL-14613**, and SYSTEM DIAGNOSTICS still reports **WebGL2 iOS**.
+2. Confirm the right-side **SYSTEM DIAGNOSTICS** MFD is in the same accepted ship-mounted position as v0.1.4.6.1.2. It must not have been moved to solve the control overlap.
+3. Confirm THRUST / REV / BRAKE are materially smaller/lower on iPhone landscape and no longer cover the diagnostics screen. They must remain easy to tap and release reliably.
+4. Confirm the bottom primary strip reads **LAB · TARGET · SCAN · APPROACH · FRAME · WARP** and still fits the landscape safe area.
+5. Select a distant body, tap **FRAME** once, and confirm FRAME engages without holding a finger down. The button should show **FRAME ON** and the FLIGHT MFD should switch to FRAME status.
+6. While FRAME is active, verify the target distance falls rapidly, the display reports a FRAME rate/ETA rather than pretending the coordinate rate is ordinary ship km/s, and WARP remains 1×.
+7. Tap **FRAME** again before arrival. Confirm it disengages, target-relative velocity becomes near zero because the spacecraft matched the target inertial velocity, then ordinary gravity begins affecting the spacecraft again.
+8. Repeat and allow automatic arrival. Confirm the ship stops outside a safe observation envelope rather than flying through the target.
+9. With the simulation running, watch another body/orbit while FRAME is active if practical. Celestial motion/gravity must continue normally; FRAME must not drag, freeze, reposition or velocity-match any body.
+10. Exercise a route that crosses another massive-body guard if available and confirm FRAME drops out before crossing rather than tunneling through it. A safety dropout preserves local spacecraft velocity instead of target matching.
+11. Reproduce the >0.1c Newtonian model-limit pause using BOOST/time acceleration if desired. While paused, select a safe target and engage FRAME; the spacecraft should be able to translate/recover while the paused simulation clock does not advance. After FRAME matches the target frame, RESUME should return to ordinary physics.
+12. Regress real-physics **APPROACH**, STOP RELATIVE, BRAKE, FLIGHT/CRUISE/BOOST, LOOK, the three primary MFDs, the diagnostics MFD touch action, COCKPIT OFF/restore, OBSERVE, and LAND → TAKEOFF.
+13. Run for several minutes and watch for MFD clipping, bottom-bar crowding, stuck touch state, runtime errors, stale surface frames, transparent-screen artifacts, or sustained FPS/thermal regression.
 
-This release is intentionally presentation/UI-only. Physical acceptance is required because automated QA cannot prove iPhone visual depth ordering, touch ergonomics, WebKit presentation, or thermal behavior.
+FRAME DRIVE is explicitly fictional and spacecraft-only. Physical acceptance must confirm both sides of that boundary: convenient travel for the ship, no rewrite of celestial mechanics.
 
----
-
-
-## v0.1.4.6.1.2 cockpit diagnostics acceptance
-
-1. In normal SHIP VIEW, confirm the large top renderer/FPS/physics/render/ship/sim stat cards and the SEED/MAJOR/TEST/DRAW/PRED/EXP/LAB strip are no longer floating across the canopy.
-2. Confirm **UNIVERSE LAB v0.1.4.6.1.2** remains visible and the compact target ribbon still updates normally.
-3. Confirm the new right-side **SYSTEM DIAGNOSTICS** screen is fully visible, appears mounted to the cockpit, and does not visually collide with the SCIENCE MFD or THRUST/REV/BRAKE controls.
-4. Verify the monitor updates **WebGL2 iOS**, FPS, PHYSICS, RENDER, SHIP, SIM TIME, SEED, MAJOR, TEST, DRAW, PRED, EXP and LAB values while flying.
-5. Tap the diagnostics MFD and confirm the existing **FLIGHT / SYSTEM** drawer opens.
-6. Toggle **COCKPIT OFF** and confirm the ordinary top diagnostics return; restore the cockpit and confirm they move back off the canopy.
-7. Regress NAVIGATION / FLIGHT / SCIENCE MFDs, all nine physical keys, LAB/TARGET/SCAN/APPROACH/WARP, LOOK and THRUST/REV/BRAKE.
-8. Run several minutes in iPhone landscape and watch for sustained FPS/thermal regression, transparent-screen sorting artifacts, clipping, or touch-pick misses on the diagnostics panel.
-
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.6.1.2
-
-This archive is intended for direct repository-root upload from the existing iPhone workflow.
-
-## GitHub Pages
+## GitHub Pages deployment
 
 Repository → **Settings → Pages**:
 
@@ -42,20 +26,11 @@ Repository → **Settings → Pages**:
 - Branch: `main`
 - Folder: `/(root)`
 
-The distributable contains no wrapper directory and no `.github/workflows/*` files.
+The distributable must unzip directly into the repository root and contain no `.github/workflows/*` files. After upload/reload, confirm **v0.1.4.6.1.3**, **FRAMECTRL-14613**, **WebGL2 iOS**, the fixed diagnostics MFD, compact thrust controls, and the FRAME button. If an older marker appears, Safari/GitHub Pages is serving stale files.
 
-## Confirm deployed release
+Automated QA cannot prove physical iPhone WebKit presentation, touch ergonomics, thermal behavior, or the subjective cockpit layout. Physical Safari remains the release gate.
 
-After upload/reload verify:
-
-- title/HUD says **v0.1.4.6.1.2**,
-- Flight/System help shows **DIAGMFD-14612**,
-- renderer telemetry reads **WebGL2 iOS** on iPhone/iPad WebKit,
-- bottom MORE launcher is absent while FLIGHT MFD still opens Flight/System,
-- FPS/physics/render telemetry populate in orbit,
-- no `RUNTIME ERROR` banner appears.
-
-If an older marker appears, Safari/GitHub Pages is serving stale files.
+---
 
 ## v0.1.4.6 physical sky-continuity gate
 
@@ -82,7 +57,7 @@ Automated QA cannot establish physical WebKit presentation, touch behavior, ther
 7. Visit multiple anomaly types and verify terrain remains visible/readable beneath the effects.
 8. SAVE on the surface, refresh/load, and verify local position + scanned POIs restore.
 9. TAKEOFF / ORBIT and verify normal flight controls, System Map and 1× Newtonian flight return.
-10. Regress TRANSIT, weather continuity, stellar close approach and the existing lab/COSMOS systems.
+10. Regress FRAME, weather continuity, stellar close approach and the existing lab/COSMOS systems.
 
 Container/Node QA cannot prove physical iPhone WebGPU FPS, touch feel, browser thermal behavior or final visual taste. Physical Safari remains the release gate.
 
