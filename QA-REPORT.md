@@ -1,6 +1,6 @@
-# Universe Lab v0.1.3.1 — QA Report
+# Universe Lab v0.1.3.2 — QA Report
 
-Release: **Particle Framework + Navigation Arrival Safety Hotfix**
+Release: **Observation & Experiment Navigation Polish**
 
 ## Automated result
 
@@ -8,95 +8,84 @@ Release: **Particle Framework + Navigation Arrival Safety Hotfix**
 
 - Static structure check: PASS
 - JavaScript / MJS syntax checks: PASS
-- Node test suite: **50 / 50 PASS**
+- Node test suite: **55 / 55 PASS**
 - Save schema: **1 (unchanged)**
 - Three.js pin: **0.185.0 (unchanged)**
+- Distributable GitHub workflow files: **none**
 
-## New v0.1.3.1 navigation coverage
+## New v0.1.3.2 coverage
 
-The new regression set verifies:
+Five new numerical/architecture regressions verify:
 
-- APPROACH no longer treats stand-off distance alone as completion,
-- APPROACH transitions into persistent **HOLD** rather than releasing guidance,
-- HOLD uses bounded counter-thrust to cancel selected-target gravity and settle target-relative position/velocity,
-- propulsion-safe stand-off radius keeps target gravity within a reserved fraction of the selected drive authority,
-- 3-solar-mass black-hole APPROACH from 10 Gm reaches HOLD without entering the Newtonian model limit or crossing the safe stand-off,
-- the black-hole regression settles to <10 m/s residual target-relative speed,
-- adaptive strong-gravity physics substep limits become smaller than the ordinary 300 s ceiling near Earth-like gravity,
-- the Newtonian validity guard detects >10% c spacecraft speed,
-- the black-hole near-field guard detects entry inside the configured Schwarzschild-radius boundary,
-- SimulationClock honors caller-supplied adaptive substep ceilings,
-- SimulationClock can stop remaining accelerated-time substeps immediately when a scientific-model validity boundary is reached.
+- particle fields spawn just outside their configured extent rather than using the old fixed 40,000 km minimum,
+- deriving an experiment observation centroid / mean velocity / framing radius does not mutate particle state,
+- FRAME camera distance scales with experiment radius in local render coordinates,
+- TRACK places the camera behind the field's mean direction of motion,
+- an experiment can be represented as a massless target for the existing bounded-thrust APPROACH controller.
 
-## Retained v0.1.3 particle coverage
+Static checks additionally require the OBSERVE / TRACK / ORBIT / RENDEZVOUS / SHIP VIEW controls, camera indicator, observation app methods, pure observation-camera helper, and restored particle-field parameter/status integration methods.
 
-All Particle Experiment Framework tests remain green:
+## Retained coverage
 
-- typed spatial-hash insertion/retrieval,
-- Gravity Cloud SI major-body acceleration and test-particle/non-source status,
-- Particle Life birth behavior,
-- Species Forces spatial-work reduction versus naïve N² work,
-- global and mode-specific particle budgets,
-- Particle Gun ship-velocity inheritance and forward direction,
-- finite-radius experiment-particle absorption,
-- particle-safe integration/warp behavior.
+All existing v0.1.3.1 regressions remain green, including:
 
-## Retained impact / flight / generation coverage
+- target-relative APPROACH → BRAKING → CAPTURE → persistent HOLD,
+- propulsion-safe black-hole stand-off and 10%-of-c Newtonian validity guard,
+- adaptive strong-gravity substeps,
+- physical BRAKE / FLIGHT / CRUISE / MATCH behavior,
+- typed-array spatial-hash particle experiments,
+- Gravity Cloud / Particle Life / Species Forces / Particle Gun,
+- particle budget and 60× active-experiment warp cap,
+- swept major-body collision detection,
+- impact energy / crater / representative-fragment stability,
+- velocity-Verlet gravity/orbit regressions,
+- deterministic/barycentric seeded generation,
+- WebGPU body-color exposure-floor regression.
 
-The suite continues to verify:
+## Selector / shell audit
 
-- Newtonian gravity,
-- velocity-Verlet orbit stability,
-- deterministic/barycentric system generation,
-- swept high-speed major-body collision detection,
-- impact energy / angle / crater sanity / momentum conservation,
-- bounded representative fragmentation and cascade suppression,
-- body-color exposure-floor regression,
-- FLIGHT/CRUISE declared acceleration,
-- physical BRAKE behavior with no hidden damping,
-- trajectory prediction and orbital telemetry.
+Current shell/app audit:
 
-## Long-run generated-system regression
+- HTML IDs: **111 unique**
+- duplicate IDs: **0**
+- JS selector references with missing shell IDs: **0**
 
-Eight deterministic generated systems were integrated for **30 simulated days** each at **900 s** major-body steps.
+## Static HTTP smoke
 
-- spontaneous swept major-body collisions: **0**
-- maximum generated major-body count in this sample: **20**
+A local static HTTP server returned **200** for:
 
-This is a regression check, not a claim that all seeds are indefinitely stable.
+- `/`
+- `/styles.css`
+- `/src/main.js`
+- `/src/app/app.js`
+- `/src/render/observationCamera.js`
+- `/src/experiments/particles/particleExperimentManager.js`
+- `/src/render/threeRenderer.js`
 
-## Scientific boundary introduced by this hotfix
+## Generated-system long-run regression
 
-The renderer and guidance system must not disguise an invalid Newtonian solution as real relativity. v0.1.3.1 therefore pauses rather than clamping state when:
+Eight deterministic generated systems were each integrated for **30 simulated days** at **900 s** steps using the existing direct Newtonian / velocity-Verlet major-body solver and swept collision monitor.
 
-- ship inertial speed reaches **10% of c**, or
-- the craft enters the black-hole near-field guard (**100 Schwarzschild radii**, with a **100 km minimum**).
+- spontaneous major-body collisions: **0**
+- maximum generated major-body count in this sample: **21**
 
-These are model-validity boundaries, not physical barriers. General relativity remains future work.
+## Observation-state development benchmark
 
-APPROACH uses a propulsion-safe stand-off derived from the selected target's `GM/r²` field and active engine acceleration. On capture it keeps applying real bounded thrust in HOLD until manual input cancels guidance.
+On this Node/container environment only, after warm-up, deriving centroid/mean velocity/framing radius for a 30,000-particle Gravity Cloud averaged approximately **0.7 ms** per scan. The app throttles observation-state refreshes rather than performing them for every visual frame.
 
-## Packaging/deployment checks required before release archive
+This is **not an iPhone performance claim**. Physical iPhone Safari remains the release gate.
 
-Final packaging verifies:
+## Physical-device release gate
 
-- repository files at ZIP root (no wrapper directory),
-- ZIP integrity,
-- no `.github/workflows/*`,
-- `index.html`, `package.json`, and `VERSION.json` all report v0.1.3.1,
-- Three.js remains pinned to 0.185.0,
-- static HTTP 200 smoke for shell/CSS/main/app/flightComputer/particle manager/renderer.
+On iPhone Safari / GitHub Pages verify:
 
-## Remaining physical-device release gate
+1. HUD/version reports **v0.1.3.2**; MORE contains build marker **OBSNAV-132**.
+2. SPAWN + OBSERVE immediately frames the new experiment instead of requiring a long ship flight.
+3. Entering OBSERVE does not change ship speed/position; SHIP VIEW returns to the same physical ship state.
+4. LOOK rotates the observation view rather than spacecraft attitude while OBSERVE is active.
+5. FRAME / TRACK / ORBIT remain centered on an evolving experiment.
+6. APPROACH button becomes a one-tap SHIP VIEW return while observing.
+7. RENDEZVOUS physically approaches the selected experiment and remains subject to bounded drive acceleration and the active-experiment 60× warp cap.
+8. Existing v0.1.3.1 flight HOLD safety, planet readability, impact fragment restraint, iOS hold controls, and particle performance remain intact.
 
-The automated suite cannot substitute for the user's real iPhone Safari/WebGPU test. On-device validation should specifically check:
-
-1. Target a normal planet and press APPROACH: APPROACH → BRAKING → CAPTURE → HOLD.
-2. Once HOLD appears, leave controls untouched and confirm the target stays nearby instead of the ship flying away.
-3. Touch THRUST/REV/BRAKE/RCS while holding; manual takeover should release HOLD and return warp to 1×.
-4. Spawn a black hole, use CRUISE + APPROACH, and confirm the computer stops much farther out rather than diving toward the visual event horizon.
-5. Confirm ship speed never numerically explodes to the hundreds of thousands of km/s seen in v0.1.2.1. If the 10% c limit is reached by another experiment, the simulator should visibly pause with a MODEL LIMIT message.
-6. Re-test v0.1.3 Gravity Cloud / Particle Life / Species Forces / Particle Gun functionality and FPS.
-7. Confirm v0.1.2.1 fragment restraint and planet-color readability remain intact.
-
-Do not claim a physical iPhone pass until those are actually tested on-device.
+No automated interactive WebGPU iPhone playthrough is claimed.

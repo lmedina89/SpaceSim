@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.3.1
+# Architecture — Universe Lab v0.1.3.2
 
 ## Core rule
 
@@ -38,6 +38,13 @@ Simulation clock
                            ↓
 Floating reference frame → Three.js/WebGPU renderer
 ```
+
+
+## Observation camera layer
+
+Observation is deliberately separated from simulation/navigation. `ParticleExperiment.observationState()` derives a centroid, mean velocity and framing radius from authoritative typed arrays without mutating them. The renderer recenters the floating reference frame on that observation centroid and computes a local camera pose through the pure `render/observationCamera.js` helper. No mass, thrust, teleportation or state change is associated with the camera.
+
+The physical **RENDEZVOUS** path is separate: the selected experiment is exposed to the existing flight computer as a massless virtual target whose position/velocity are the current field centroid/mean velocity and whose radius is the current field extent. Ship motion therefore remains bounded by the declared engine acceleration and braking envelope.
 
 ## Particle data layout
 

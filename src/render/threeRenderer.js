@@ -1,7 +1,8 @@
 import * as THREE from 'three/webgpu';
 import { createStarfield } from './starfield.js';
 import { createCelestialVisual } from './celestialFactory.js';
-import { BODY_KIND } from '../core/constants.js';
+import { BODY_KIND, SIMULATION } from '../core/constants.js';
+import { computeObservationCameraPose } from './observationCamera.js';
 
 function disposeObject(root) {
   root.traverse?.((node) => {
@@ -477,8 +478,9 @@ export class UniverseRenderer {
     };
   }
 
-  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [] }) {
-    referenceFrame.centerOn(ship.position);
+  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cameraView = null }) {
+    const observing = cameraView?.mode === 'observe' && cameraView.center;
+    referenceFrame.centerOn(observing ? cameraView.center : ship.position);
     this.syncBodies(bodies);
     for (const body of bodies) {
       const visual = this.bodyVisuals.get(body.id);
@@ -506,14 +508,33 @@ export class UniverseRenderer {
       this.targetMarker.visible = false;
     }
 
-    this.updateMotionCue(ship);
-    const desiredFov = 66 + (ship.throttle > 0 ? 5 : 0) + (ship.reverseThrottle > 0 ? 2 : 0);
-    const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.14;
-    if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
-    this.camera.position.set(0, 0, 0);
-    const basis = ship.basis();
-    this.camera.up.set(basis.up[0], basis.up[1], basis.up[2]);
-    this.camera.lookAt(basis.forward[0] * 100, basis.forward[1] * 100, basis.forward[2] * 100);
+    this._motionLines.visible = !observing;
+    if (observing) {
+      const desiredFov = 58;
+      const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.16;
+      if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
+      const pose = computeObservationCameraPose({
+        radiusMeters: cameraView.radiusMeters,
+        metersPerRenderUnit: SIMULATION.metersPerRenderUnit,
+        fovDegrees: this.camera.fov,
+        yaw: cameraView.yaw,
+        pitch: cameraView.pitch,
+        style: cameraView.style,
+        velocity: cameraView.velocity,
+      });
+      this.camera.position.set(...pose.position);
+      this.camera.up.set(...pose.up);
+      this.camera.lookAt(...pose.lookAt);
+    } else {
+      this.updateMotionCue(ship);
+      const desiredFov = 66 + (ship.throttle > 0 ? 5 : 0) + (ship.reverseThrottle > 0 ? 2 : 0);
+      const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.14;
+      if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
+      this.camera.position.set(0, 0, 0);
+      const basis = ship.basis();
+      this.camera.up.set(basis.up[0], basis.up[1], basis.up[2]);
+      this.camera.lookAt(basis.forward[0] * 100, basis.forward[1] * 100, basis.forward[2] * 100);
+    }
     this.renderer.render(this.scene, this.camera);
   }
 

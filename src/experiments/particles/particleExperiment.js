@@ -277,6 +277,47 @@ export class ParticleExperiment {
     return { simulatedSeconds: dt - remaining, droppedSeconds: remaining, substeps };
   }
 
+  observationState(sampleLimit = 30_000) {
+    const active = this.active;
+    const position = this.position;
+    const velocity = this.velocity;
+    const stride = Math.max(1, Math.ceil(this.count / Math.max(1, sampleLimit)));
+    let samples = 0;
+    let cx = 0, cy = 0, cz = 0;
+    let vx = 0, vy = 0, vz = 0;
+    for (let i = 0; i < this.count; i += stride) {
+      if (!active[i]) continue;
+      const k = i * 3;
+      cx += position[k]; cy += position[k + 1]; cz += position[k + 2];
+      vx += velocity[k]; vy += velocity[k + 1]; vz += velocity[k + 2];
+      samples += 1;
+    }
+    if (!samples) {
+      return {
+        id: this.id, label: this.label, mode: this.mode, activeCount: 0, count: this.count,
+        center: new Float64Array(this.origin),
+        velocity: new Float64Array(this.baseVelocity),
+        radiusMeters: this.radiusMeters, elapsedSeconds: this.elapsedSeconds, scientificStatus: this.scientificStatus,
+      };
+    }
+    cx /= samples; cy /= samples; cz /= samples;
+    vx /= samples; vy /= samples; vz /= samples;
+    let maxR2 = 0;
+    for (let i = 0; i < this.count; i += stride) {
+      if (!active[i]) continue;
+      const k = i * 3;
+      const dx = position[k] - cx, dy = position[k + 1] - cy, dz = position[k + 2] - cz;
+      maxR2 = Math.max(maxR2, dx * dx + dy * dy + dz * dz);
+    }
+    return {
+      id: this.id, label: this.label, mode: this.mode, activeCount: this.activeCount, count: this.count,
+      center: new Float64Array([cx, cy, cz]),
+      velocity: new Float64Array([vx, vy, vz]),
+      radiusMeters: Math.max(10_000, Math.sqrt(maxR2), this.radiusMeters * 0.08),
+      elapsedSeconds: this.elapsedSeconds, scientificStatus: this.scientificStatus,
+    };
+  }
+
   summary() {
     return {
       id: this.id,

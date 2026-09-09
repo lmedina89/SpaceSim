@@ -1,4 +1,4 @@
-# Scientific Model Boundaries — Universe Lab v0.1.3.1
+# Scientific Model Boundaries — Universe Lab v0.1.3.2
 
 Universe Lab explicitly distinguishes physical models, approximations, visualization layers, and intentionally artificial experiments.
 
@@ -20,7 +20,7 @@ They do not source gravity. Therefore the cloud is valid for studying trajectori
 
 Particle integration currently uses bounded semi-implicit Euler substeps rather than the major-body velocity-Verlet kernel. This is a performance/architecture reference implementation; smaller local time steps and test-particle status make the tradeoff explicit.
 
-Finite-radius contact with a major body deactivates a test particle. Individual micro-impacts do not add mass, craters, heat, or ejecta to the target in v0.1.3.1.
+Finite-radius contact with a major body deactivates a test particle. Individual micro-impacts do not add mass, craters, heat, or ejecta to the target in v0.1.3.2.
 
 ## Particle Life
 
@@ -44,6 +44,13 @@ The uniform grid removes the need to inspect all N² particle pairs for local-ru
 
 While particle experiments exist, global time warp is capped at 60×. This is a numerical-resolution policy, not a physical law. It prevents the application from advancing high-resolution local rules by huge simulation intervals between visible frames.
 
+
+
+## Observation versus physical travel
+
+OBSERVE / FRAME / TRACK / ORBIT are visualization-only scientific cameras. They may reposition instantly because they are not spacecraft, bodies, signals, or physical observers inside the model. They do not change simulation time, particle state, ship position, ship velocity, gravity, or collision state.
+
+RENDEZVOUS is different: it moves the real spacecraft. The selected experiment's measured centroid and mean velocity are used as a massless target for the existing bounded-thrust APPROACH/CAPTURE/HOLD controller. Particle experiments still cap accelerated simulation time at 60× while active.
 
 ## Navigation / strong-gravity validity
 

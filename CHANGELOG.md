@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.1.3.2 — Observation & Experiment Navigation Polish
+
+Built from v0.1.3.1 to remove the need to physically commute to newly spawned particle experiments just to inspect them.
+
+### Added / changed
+
+- massless OBSERVE camera with FRAME / TRACK / ORBIT modes,
+- experiment centroid / mean-velocity / active-radius observation state from authoritative typed arrays,
+- LOOK pad orbits the observation camera without changing spacecraft attitude,
+- one-tap SHIP VIEW return; APPROACH becomes SHIP VIEW while observing,
+- selectable active experiment list and NEXT FIELD control,
+- physical RENDEZVOUS to an experiment using the existing bounded-thrust approach computer,
+- smarter nearby field placement based on field radius rather than a 40,000 km minimum,
+- smaller mode-appropriate defaults for Life/Species experiments,
+- OBSNAV-132 build marker to help detect stale mobile deployments,
+- restored explicit particle-field parameter/status methods in the v0.1.3.1 app integration path and added static regression coverage for them.
+
+Observation cameras never alter authoritative ship or particle state. Schema 1 remains unchanged; observation/session particle fields are not serialized.
+
+
 ## v0.1.3.1 — Navigation Arrival & Strong-Gravity Safety Hotfix
 
 Built from v0.1.3 after physical iPhone testing showed APPROACH could reach a black-hole target, release guidance with huge target-relative velocity, and then numerically run away under strong Newtonian gravity/time stepping.

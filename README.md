@@ -1,12 +1,21 @@
-# Universe Lab v0.1.3.1 — Particle Framework + Navigation Arrival Safety Hotfix
+# Universe Lab v0.1.3.2 — Observation & Experiment Navigation Polish
 
 Universe Lab is a mobile-first scientific/experimental solar-system sandbox built for static GitHub Pages. One deterministic seeded system is simulated at a time; the spacecraft is both observer and laboratory platform.
 
-v0.1.3.1 keeps the full v0.1.3 Particle Experiment Framework and hotfixes the target-relative flight computer after physical iPhone testing exposed an unsafe arrival handoff around a spawned black hole. Save schema 1, Three.js 0.185.0, particle architecture, impact architecture, and the phone-safe GitHub Pages workflow remain unchanged.
+v0.1.3.2 builds on the physically tested v0.1.3/v0.1.3.1 particle and navigation foundation. It adds massless experiment-observation cameras and physical experiment rendezvous so scientific fields can be inspected immediately without turning simulation time warp into a travel control. Save schema 1, Three.js 0.185.0, particle/impact architecture, and phone-safe branch-root GitHub Pages deployment remain unchanged.
 
-## What is new
 
-## v0.1.3.1 navigation hotfix
+## v0.1.3.2 observation/navigation additions
+
+- Particle fields now spawn just outside their own configured extent instead of using a fixed 40,000 km minimum. Particle Life / Species mode changes also suggest smaller 2,000 km fields for easier mobile observation.
+- Spawning a field automatically selects it and enters **OBSERVE / FRAME** view. This is a massless scientific camera only: the spacecraft, velocity, gravity, and experiment state are untouched.
+- **FRAME** fits the current active-particle extent, **TRACK** follows the field centroid from behind its mean motion, and **ORBIT** circles the field. Dragging LOOK while observing manually orbits the camera.
+- **SHIP VIEW** returns instantly. While observing, the main APPROACH button temporarily becomes a one-tap SHIP VIEW return control.
+- Active experiment fields are selectable in the LAB. Status shows ship-to-field distance and approximate active-particle radius.
+- **RENDEZVOUS** returns to SHIP VIEW and treats the selected experiment centroid/mean velocity as a massless navigation target. Existing bounded FLIGHT/CRUISE thrust, braking-safe APPROACH, CAPTURE/HOLD, and the 60× particle warp cap remain in force.
+- Observation-state scans use existing typed arrays and are throttled; a 30,000-particle Node development benchmark averaged well under 1 ms per centroid/radius scan. This is not an iPhone performance claim.
+- Visible build marker **OBSNAV-132** is included in the system menu/camera HUD to make stale Safari deployments easier to spot.
+## Retained v0.1.3.1 navigation hotfix
 
 - APPROACH no longer switches off merely because stand-off distance was reached. It transitions through **CAPTURE** into persistent thrust-powered **HOLD**.
 - HOLD continuously matches target-relative velocity and counteracts the selected target's local gravity with bounded physical thrust. Manual THRUST/REV/BRAKE/RCS input releases HOLD and returns to 1×.

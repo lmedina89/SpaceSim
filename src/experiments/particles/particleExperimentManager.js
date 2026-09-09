@@ -41,6 +41,7 @@ export class ParticleExperimentManager {
   get totalParticles() { return this.values.reduce((sum, field) => sum + field.count, 0); }
   get activeParticles() { return this.values.reduce((sum, field) => sum + field.activeCount, 0); }
   get hasActive() { return this.fields.size > 0; }
+  get newestField() { const values = this.values; return values.length ? values[values.length - 1] : null; }
   get recommendedWarpCap() { return this.hasActive ? SIMULATION.particleExperimentWarpCap : Infinity; }
 
   clear() {
@@ -66,7 +67,9 @@ export class ParticleExperimentManager {
     const initialSpeedMps = clamp(Number(params.initialSpeedMps) || 1_500, 0, 200_000);
     const localStrengthMps2 = clamp(Number(params.localStrengthMps2) || 20, 0, 250);
     const f = context.ship.forward();
-    const distance = Math.max(radiusMeters * 2.8, 4e7);
+    // Experiments are laboratory objects, not astronomical destinations. Spawn the field just
+    // outside its own radius so the ship can see it immediately while OBSERVE can frame it exactly.
+    const distance = Math.max(radiusMeters * 1.38, radiusMeters + 1.5e6);
     const origin = new Float64Array([
       context.ship.position[0] + f[0] * distance,
       context.ship.position[1] + f[1] * distance,
@@ -126,6 +129,11 @@ export class ParticleExperimentManager {
     });
     this.fields.set(id, field);
     return field;
+  }
+
+  observationState(id) {
+    const field = id ? this.fields.get(id) : this.newestField;
+    return field?.observationState() ?? null;
   }
 
   randomizeArtificialParams(seedText) {

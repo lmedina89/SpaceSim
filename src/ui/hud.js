@@ -55,6 +55,7 @@ export class Hud {
     this._messageTimer = null;
     this.targetChip = root.querySelector('#targetChip');
     this.navChip = root.querySelector('#navChip');
+    this.cameraChip = root.querySelector('#cameraChip');
     this.targetName = root.querySelector('#targetName');
     this.targetKind = root.querySelector('#targetKind');
     this.targetDistance = root.querySelector('#targetDistance');
@@ -119,6 +120,20 @@ export class Hud {
     }
   }
 
+
+  setCamera(mode, label = null, style = null, state = null) {
+    if (!this.cameraChip) return;
+    if (mode !== 'observe') {
+      this.cameraChip.hidden = true;
+      this.cameraChip.textContent = 'CAMERA SHIP';
+      this.cameraChip.classList.remove('observing');
+      return;
+    }
+    this.cameraChip.hidden = false;
+    const active = state?.activeCount != null ? Number(state.activeCount).toLocaleString() : '—';
+    this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD OBSNAV-132`;
+    this.cameraChip.classList.add('observing');
+  }
 
   setNavigation(status, target, engineMode, accelerationMps2) {
     if (!status || !this.navChip) {

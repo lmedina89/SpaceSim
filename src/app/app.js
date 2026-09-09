@@ -122,13 +122,24 @@ export class UniverseLabApp {
     this._rollDirection = 0;
     this.navigationMode = 'manual';
     this.navigationStatus = null;
+    this.navigationExperimentId = null;
     this._lastWarpSafetyNotice = 0;
     this._lastNavigationPhase = null;
     this._modelLimitLatched = false;
+    this.cameraMode = 'ship';
+    this.observationStyle = 'frame';
+    this.observationYaw = 0;
+    this.observationPitch = 0.18;
+    this.selectedExperimentId = null;
+    this.navigationExperimentId = null;
+    this._observationState = null;
+    this._nextObservationRefreshAt = 0;
   }
 
   get bodies() { return this.registry.values(); }
   get target() { return this.targetId ? this.registry.get(this.targetId) : null; }
+  get selectedExperiment() { return this.selectedExperimentId ? this.particleExperiments.fields.get(this.selectedExperimentId) ?? null : null; }
+  get navigationTarget() { return this.navigationExperimentId ? this.experimentNavigationTarget(this.navigationExperimentId) : this.target; }
 
   rebuildBodyCaches() {
     this.massiveBodies = this.registry.values().filter((body) => body.gravitySource);
@@ -140,12 +151,14 @@ export class UniverseLabApp {
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
     this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.3.1 online. Particle framework + navigation arrival safety hotfix active.');
+    this.hud.notify('v0.1.3.2 online. Observation camera + experiment navigation active. Build OBSNAV-132.');
   }
 
   newSystem(seed) {
     this.cancelNavigation();
     this.particleExperiments.clear();
+    this.returnToShipView(false);
+    this.selectedExperimentId = null;
     this.system = generateSystem(seed);
     this.registry.clear();
     for (const body of this.system.bodies) this.registry.create(body);
@@ -205,6 +218,7 @@ export class UniverseLabApp {
   selectTarget(id) {
     const body = id ? this.registry.get(id) : null;
     this.targetId = body?.id ?? null;
+    if (body && this.navigationMode === 'manual') this.navigationExperimentId = null;
     this.renderer.setTarget(this.targetId);
     if (body) this.hud.notify(`Target locked: ${body.name}. Scanner uses two-body osculating telemetry plus N-body path prediction.`);
     this.invalidatePredictions();
@@ -240,6 +254,105 @@ export class UniverseLabApp {
     this.ship.lookAt(target.position);
     this.invalidatePredictions();
     this.hud.notify(`Ship attitude aligned toward ${target.name}. No autopilot thrust was applied.`);
+  }
+
+  experimentNavigationTarget(id = this.selectedExperimentId) {
+    const state = this.particleExperiments.observationState(id);
+    if (!state) return null;
+    return {
+      id: `experiment:${state.id}`,
+      experimentId: state.id,
+      name: state.label,
+      kind: 'experiment',
+      mass: 0,
+      radius: Math.max(50_000, state.radiusMeters),
+      position: state.center,
+      velocity: state.velocity,
+      gravitySource: false,
+    };
+  }
+
+  selectExperiment(id, notify = true) {
+    const field = id ? this.particleExperiments.fields.get(id) : null;
+    this.selectedExperimentId = field?.id ?? null;
+    const select = this.root.querySelector('#experimentSelect');
+    if (select && field) select.value = field.id;
+    if (!field && this.cameraMode === 'observe') this.returnToShipView(false);
+    if (notify && field) this.hud.notify(`Experiment selected: ${field.label}. OBSERVE moves only the camera; RENDEZVOUS moves the physical ship.`);
+    this.updateParticleLabStatus();
+    return field;
+  }
+
+  cycleExperiment() {
+    const fields = this.particleExperiments.values;
+    if (!fields.length) { this.hud.notify('No active particle experiments.'); return null; }
+    const index = fields.findIndex((field) => field.id === this.selectedExperimentId);
+    const field = fields[(index + 1 + fields.length) % fields.length];
+    this.selectExperiment(field.id);
+    return field;
+  }
+
+  refreshObservationState(now = performance.now(), force = false) {
+    if (this.cameraMode !== 'observe') return null;
+    if (!force && now < this._nextObservationRefreshAt && this._observationState?.id === this.selectedExperimentId) return this._observationState;
+    const state = this.particleExperiments.observationState(this.selectedExperimentId);
+    if (!state) { this.returnToShipView(false); return null; }
+    this._observationState = state;
+    this._nextObservationRefreshAt = now + 180;
+    return state;
+  }
+
+  currentCameraView(now = performance.now(), realDt = 0) {
+    if (this.cameraMode !== 'observe') return { mode: 'ship' };
+    const state = this.refreshObservationState(now);
+    if (!state) return { mode: 'ship' };
+    if (this.observationStyle === 'orbit') this.observationYaw += Math.min(0.05, Math.max(0, realDt)) * 0.32;
+    return {
+      mode: 'observe',
+      style: this.observationStyle === 'track' ? 'track' : 'frame',
+      center: state.center,
+      velocity: state.velocity,
+      radiusMeters: state.radiusMeters,
+      yaw: this.observationYaw,
+      pitch: this.observationPitch,
+      label: state.label,
+    };
+  }
+
+  enterObservation(style = 'frame') {
+    const field = this.selectedExperiment ?? this.particleExperiments.newestField;
+    if (!field) { this.hud.notify('Spawn or select a particle experiment first.'); return; }
+    this.selectExperiment(field.id, false);
+    this.cameraMode = 'observe';
+    this.observationStyle = ['frame', 'track', 'orbit'].includes(style) ? style : 'frame';
+    if (style === 'frame') { this.observationYaw = 0.55; this.observationPitch = 0.22; }
+    this._nextObservationRefreshAt = 0;
+    const state = this.refreshObservationState(performance.now(), true);
+    this.hud.setCamera('observe', field.label, this.observationStyle, state);
+    const quickReturn = this.root.querySelector('#approachButton');
+    if (quickReturn) quickReturn.textContent = 'SHIP VIEW';
+    this.hud.toggleLab(false);
+    this.hud.notify(`OBSERVE: ${field.label}. Camera reposition only — the spacecraft and experiment physics are untouched. Drag LOOK to orbit; SHIP VIEW returns instantly.`);
+  }
+
+  returnToShipView(notify = true) {
+    this.cameraMode = 'ship';
+    this._observationState = null;
+    this.hud?.setCamera('ship', null, null, null);
+    const approach = this.root?.querySelector?.('#approachButton');
+    if (approach) approach.textContent = this.navigationMode === 'approach' ? (this.navigationStatus?.phase === 'holding' ? 'HOLDING' : 'APPROACH ON') : 'APPROACH';
+    if (notify) this.hud.notify('SHIP VIEW restored. Observation camera never moved the spacecraft.');
+  }
+
+  rendezvousExperiment() {
+    const field = this.selectedExperiment ?? this.particleExperiments.newestField;
+    if (!field) { this.hud.notify('Spawn or select a particle experiment first.'); return; }
+    this.selectExperiment(field.id, false);
+    this.returnToShipView(false);
+    this.navigationExperimentId = field.id;
+    this.setNavigationMode('approach');
+    this.hud.toggleLab(false);
+    this.hud.notify(`RENDEZVOUS engaged toward ${field.label}. This one moves the real ship with bounded thrust and target-relative braking.`);
   }
 
   predictionHorizonSeconds() {
@@ -354,7 +467,8 @@ export class UniverseLabApp {
   }
 
   setNavigationMode(mode) {
-    if (mode !== 'manual' && !this.target) { this.hud.notify('Select a target first.'); return; }
+    const navTarget = this.navigationTarget;
+    if (mode !== 'manual' && !navTarget) { this.hud.notify('Select a celestial target or particle experiment first.'); return; }
     if (mode === 'manual') { this.cancelNavigation(); return; }
     this.ship.throttle = 0;
     this.ship.reverseThrottle = 0;
@@ -363,8 +477,8 @@ export class UniverseLabApp {
     this.navigationMode = mode;
     this.root.querySelector('#approachButton').textContent = mode === 'approach' ? 'APPROACH ON' : 'APPROACH';
     this.root.querySelector('#matchVelocity').textContent = mode === 'match' ? 'MATCHING…' : 'MATCH VELOCITY';
-    if (mode === 'approach') this.hud.notify(`Approach computer engaged toward ${this.target.name}. Uses real thrust and braking; no teleportation.`);
-    if (mode === 'match') this.hud.notify(`Matching velocity with ${this.target.name} using bounded physical thrust.`);
+    if (mode === 'approach') this.hud.notify(`Approach computer engaged toward ${navTarget.name}. Uses real thrust and braking; no teleportation.`);
+    if (mode === 'match') this.hud.notify(`Matching velocity with ${navTarget.name} using bounded physical thrust.`);
   }
 
   updateNavigation(dt) {
@@ -376,7 +490,7 @@ export class UniverseLabApp {
       this.navigationStatus = { mode: 'brake', phase: command.complete ? 'stopped' : 'braking', relativeSpeedMps: command.speedMps };
       return;
     }
-    const target = this.target;
+    const target = this.navigationTarget;
     if (!target || this.navigationMode === 'manual') { this.navigationStatus = null; this._lastNavigationPhase = null; return; }
     if (this.navigationMode === 'match') {
       const command = computeMatchVelocityAcceleration(this.ship, target, maxAccel, dt);
@@ -389,7 +503,7 @@ export class UniverseLabApp {
     this.ship.setNavigationAcceleration(command.acceleration);
     this.navigationStatus = { mode: 'approach', ...command, ...command.state };
     const approachButton = this.root.querySelector('#approachButton');
-    if (approachButton) approachButton.textContent = command.phase === 'holding' ? 'HOLDING' : command.phase === 'capture' ? 'CAPTURE' : 'APPROACH ON';
+    if (approachButton && this.cameraMode !== 'observe') approachButton.textContent = command.phase === 'holding' ? 'HOLDING' : command.phase === 'capture' ? 'CAPTURE' : 'APPROACH ON';
     if (command.phase === 'holding' && this._lastNavigationPhase !== 'holding') {
       this.clock.setTimeScale(1);
       const select = this.root.querySelector('#timeScale');
@@ -402,13 +516,14 @@ export class UniverseLabApp {
   }
 
   enforceNavigationWarpSafety() {
-    if (this.navigationMode === 'manual' || !this.target) return;
-    const state = targetRelativeState(this.ship, this.target);
+    const navTarget = this.navigationTarget;
+    if (this.navigationMode === 'manual' || !navTarget) return;
+    const state = targetRelativeState(this.ship, navTarget);
     const maxAccel = this.engineAcceleration();
     const desiredWarp = recommendedWarpCap({
       mode: this.navigationMode,
       targetState: state,
-      targetRadius: this.target.radius,
+      targetRadius: navTarget.radius,
       standOffDistanceMeters: this.navigationStatus?.standOffDistance ?? null,
       phase: this.navigationStatus?.phase ?? null,
       targetGravityMps2: this.navigationStatus?.targetGravityMps2 ?? 0,
@@ -452,6 +567,55 @@ export class UniverseLabApp {
 
   currentPhysicsSubstepLimit() {
     return navigationPhysicsStepLimitSeconds(this.ship, this.massiveBodies, SIMULATION.maxPhysicsSubstepSeconds);
+  }
+
+  particleFieldParams() {
+    return {
+      mode: this.root.querySelector('#particleMode').value,
+      count: this.root.querySelector('#particleCount').value,
+      radiusMeters: safeNumber(this.root.querySelector('#particleRadiusKm').value, 5_000) * 1000,
+      neighborRadiusMeters: safeNumber(this.root.querySelector('#particleNeighborKm').value, 500) * 1000,
+      initialSpeedMps: this.root.querySelector('#particleSpeed').value,
+      localStrengthMps2: this.root.querySelector('#particleStrength').value,
+      majorGravity: this.root.querySelector('#particleMajorGravity').checked,
+    };
+  }
+
+  updateParticleLabStatus() {
+    const element = this.root.querySelector('#particleStatus');
+    const select = this.root.querySelector('#experimentSelect');
+    if (!element) return;
+    const fields = this.particleExperiments.values;
+    if (this.navigationExperimentId && !this.particleExperiments.fields.has(this.navigationExperimentId)) {
+      this.cancelNavigation('Experiment rendezvous target expired or was cleared. Navigation returned to MANUAL at 1×.');
+    }
+    if (select) {
+      const previous = this.selectedExperimentId;
+      select.replaceChildren();
+      if (!fields.length) {
+        const option = document.createElement('option'); option.value = ''; option.textContent = 'No active experiment'; select.appendChild(option);
+      } else {
+        for (const field of fields) {
+          const option = document.createElement('option'); option.value = field.id; option.textContent = field.label; select.appendChild(option);
+        }
+        if (!previous || !this.particleExperiments.fields.has(previous)) this.selectedExperimentId = fields[fields.length - 1].id;
+        select.value = this.selectedExperimentId;
+      }
+    }
+    const summaries = this.particleExperiments.summaries();
+    if (!summaries.length) {
+      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.3.2 and are intentionally not written into schema-1 saves.';
+      if (this.cameraMode === 'observe') this.returnToShipView(false);
+      return;
+    }
+    const selectedState = this.particleExperiments.observationState(this.selectedExperimentId);
+    let selectedText = '';
+    if (selectedState) {
+      const dx = selectedState.center[0] - this.ship.position[0], dy = selectedState.center[1] - this.ship.position[1], dz = selectedState.center[2] - this.ship.position[2];
+      const dKm = Math.hypot(dx, dy, dz) / 1000;
+      selectedText = `Selected ${selectedState.label}: ${(dKm).toLocaleString(undefined,{maximumFractionDigits:0})} km from ship · field radius ~${(selectedState.radiusMeters/1000).toLocaleString(undefined,{maximumFractionDigits:0})} km. `;
+    }
+    element.textContent = selectedText + summaries.map((s) => `${s.label}: ${s.activeCount.toLocaleString()}/${s.count.toLocaleString()} active${s.absorbedCount ? ` · ${s.absorbedCount.toLocaleString()} absorbed` : ''}${s.mode === 'life' ? ` · births ${s.births.toLocaleString()} · deaths ${s.deaths.toLocaleString()}` : ''}`).join(' | ');
   }
 
   applyImpactResolution(event) {
@@ -541,10 +705,12 @@ export class UniverseLabApp {
 
     this.refreshPredictions(now);
     const renderStart = performance.now();
-    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values });
+    const cameraView = this.currentCameraView(now, realDt);
+    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cameraView });
     this.renderMs = performance.now() - renderStart;
     this.updateTargetTelemetry();
-    this.hud.setNavigation(this.navigationStatus, this.target, this.ship.engineMode, this.ship.currentMainAcceleration());
+    this.hud.setNavigation(this.navigationStatus, this.navigationTarget, this.ship.engineMode, this.ship.currentMainAcceleration());
+    if (this.cameraMode === 'observe') this.hud.setCamera('observe', this.selectedExperiment?.label ?? 'Experiment', this.observationStyle, this._observationState);
     if (now >= this._nextParticleStatusAt) { this.updateParticleLabStatus(); this._nextParticleStatusAt = now + 500; }
 
     this.fpsFrames += 1;
@@ -593,6 +759,8 @@ export class UniverseLabApp {
     }
     this.system = generateSystem(payload.seed);
     this.particleExperiments.clear();
+    this.returnToShipView(false);
+    this.selectedExperimentId = null;
     this.registry.clear();
     for (const raw of payload.bodies) this.registry.create(restoreBody(raw));
     this.rebuildBodyCaches();
@@ -647,8 +815,8 @@ export class UniverseLabApp {
     $('#scannerToggle').addEventListener('click', () => this.hud.toggleScanner());
     $('#scannerClose').addEventListener('click', () => this.hud.toggleScanner(false));
     $('#targetButton').addEventListener('click', () => this.selectReticleTarget());
-    $('#approachButton').addEventListener('click', () => this.setNavigationMode(this.navigationMode === 'approach' ? 'manual' : 'approach'));
-    $('#matchVelocity').addEventListener('click', () => this.setNavigationMode(this.navigationMode === 'match' ? 'manual' : 'match'));
+    $('#approachButton').addEventListener('click', () => { if (this.cameraMode === 'observe') { this.returnToShipView(); return; } if (this.navigationMode !== 'approach') this.navigationExperimentId = null; this.setNavigationMode(this.navigationMode === 'approach' ? 'manual' : 'approach'); });
+    $('#matchVelocity').addEventListener('click', () => { if (this.navigationMode !== 'match') this.navigationExperimentId = null; this.setNavigationMode(this.navigationMode === 'match' ? 'manual' : 'match'); });
     $('#engineModeButton').addEventListener('click', (event) => {
       this.ship.engineMode = this.ship.engineMode === 'cruise' ? 'flight' : 'cruise';
       event.currentTarget.textContent = this.ship.engineMode === 'cruise' ? 'ENGINE CRUISE' : 'ENGINE FLIGHT';
@@ -687,7 +855,12 @@ export class UniverseLabApp {
       if (Number(countInput.value) > mode.maxCount) countInput.value = String(mode.maxCount);
       $('#particleModeHelp').textContent = `${mode.scientificStatus} Current mobile-first mode limit: ${mode.maxCount.toLocaleString()} slots.`;
     };
-    $('#particleMode').addEventListener('change', updateParticleModeHelp);
+    $('#particleMode').addEventListener('change', () => {
+      updateParticleModeHelp();
+      const mode = $('#particleMode').value;
+      if (mode === 'life' || mode === 'species') { $('#particleRadiusKm').value = '2000'; $('#particleNeighborKm').value = '250'; }
+      else { $('#particleRadiusKm').value = '10000'; $('#particleNeighborKm').value = '1000'; }
+    });
     updateParticleModeHelp();
     $('#randomizeParticleRules').addEventListener('click', () => {
       const mode = $('#particleMode').value;
@@ -703,8 +876,10 @@ export class UniverseLabApp {
         const field = this.particleExperiments.spawnField(this, this.particleFieldParams());
         this.clock.setTimeScale(Math.min(this.clock.timeScale, this.particleExperiments.recommendedWarpCap));
         $('#timeScale').value = String(this.clock.timeScale); updateWarpButton();
+        this.selectExperiment(field.id, false);
         this.updateParticleLabStatus();
-        this.hud.notify(`${field.label} spawned ahead of the ship: ${field.count.toLocaleString()} slots in a ${(field.radiusMeters / 1000).toLocaleString()} km region. ${field.scientificStatus}`, 7000);
+        this.enterObservation('frame');
+        this.hud.notify(`${field.label} spawned nearby and automatically framed: ${field.count.toLocaleString()} slots in a ${(field.radiusMeters / 1000).toLocaleString()} km region. OBSERVE moved only the camera. ${field.scientificStatus}`, 7000);
       } catch (error) { this.hud.notify(`Particle field rejected: ${error.message}`); }
     });
     $('#fireParticleGun').addEventListener('click', () => {
@@ -712,15 +887,28 @@ export class UniverseLabApp {
         const field = this.particleExperiments.fireGun(this, { count: $('#particleGunCount').value, speedMps: $('#particleGunSpeed').value, spreadDegrees: $('#particleGunSpread').value });
         this.clock.setTimeScale(Math.min(this.clock.timeScale, this.particleExperiments.recommendedWarpCap));
         $('#timeScale').value = String(this.clock.timeScale); updateWarpButton();
+        this.selectExperiment(field.id, false);
         this.updateParticleLabStatus();
-        this.hud.notify(`${field.label} fired: ${field.count.toLocaleString()} ballistic test particles at ${Number($('#particleGunSpeed').value).toLocaleString()} m/s.`);
+        this.hud.notify(`${field.label} fired: ${field.count.toLocaleString()} ballistic test particles at ${Number($('#particleGunSpeed').value).toLocaleString()} m/s. Use OBSERVE to follow the shot without moving the ship.`);
       } catch (error) { this.hud.notify(`Particle gun rejected: ${error.message}`); }
     });
     $('#clearParticleExperiments').addEventListener('click', () => {
       this.particleExperiments.clear();
+      this.selectedExperimentId = null;
+      if (this.navigationExperimentId) this.cancelNavigation();
+      this.returnToShipView(false);
       this.updateParticleLabStatus();
-      this.hud.notify('All session-local particle experiments cleared.');
+      this.hud.notify('All session-local particle experiments cleared. Camera returned to SHIP VIEW.');
     });
+    $('#experimentSelect').addEventListener('change', (event) => this.selectExperiment(event.target.value, false));
+    $('#observeExperiment').addEventListener('click', () => this.enterObservation('frame'));
+    $('#frameExperiment').addEventListener('click', () => this.enterObservation('frame'));
+    $('#trackExperiment').addEventListener('click', () => this.enterObservation('track'));
+    $('#orbitExperiment').addEventListener('click', () => this.enterObservation('orbit'));
+    $('#nextExperiment').addEventListener('click', () => this.cycleExperiment());
+    $('#shipViewButton').addEventListener('click', () => { this.hud.toggleLab(false); this.returnToShipView(); });
+    $('#rendezvousExperiment').addEventListener('click', () => this.rendezvousExperiment());
+
     $('#pauseToggle').addEventListener('click', (e) => {
       this.hud.toggleMore(false);
       this.running = !this.running;
@@ -818,8 +1006,14 @@ export class UniverseLabApp {
       const dx = event.clientX - this._lookLast[0];
       const dy = event.clientY - this._lookLast[1];
       this._lookLast = [event.clientX, event.clientY];
-      this.ship.rotateLook(-dx * 0.0045, dy * 0.0038);
-      this.invalidatePredictions();
+      if (this.cameraMode === 'observe') {
+        this.observationYaw -= dx * 0.006;
+        this.observationPitch = Math.max(-1.25, Math.min(1.25, this.observationPitch + dy * 0.0045));
+        if (this.observationStyle === 'track') this.observationStyle = 'frame';
+      } else {
+        this.ship.rotateLook(-dx * 0.0045, dy * 0.0038);
+        this.invalidatePredictions();
+      }
     });
     const releaseLook = (event) => {
       if (event.pointerId === this._lookPointer) this._lookPointer = null;
@@ -862,9 +1056,9 @@ export class UniverseLabApp {
       window.addEventListener('blur', () => release(null, true));
       document.addEventListener('visibilitychange', () => { if (document.hidden) release(null, true); });
     };
-    bindHold($('#thrustButton'), () => { this.cancelNavigation(); this.ship.throttle = 1; }, () => { this.ship.throttle = 0; });
-    bindHold($('#reverseButton'), () => { this.cancelNavigation(); this.ship.reverseThrottle = 1; }, () => { this.ship.reverseThrottle = 0; });
-    bindHold($('#brakeButton'), () => { this.cancelNavigation(); this.ship.braking = true; }, () => { this.ship.braking = false; this.ship.clearNavigationAcceleration(); });
+    bindHold($('#thrustButton'), () => { this.returnToShipView(false); this.cancelNavigation(); this.ship.throttle = 1; }, () => { this.ship.throttle = 0; });
+    bindHold($('#reverseButton'), () => { this.returnToShipView(false); this.cancelNavigation(); this.ship.reverseThrottle = 1; }, () => { this.ship.reverseThrottle = 0; });
+    bindHold($('#brakeButton'), () => { this.returnToShipView(false); this.cancelNavigation(); this.ship.braking = true; }, () => { this.ship.braking = false; this.ship.clearNavigationAcceleration(); });
     bindHold($('#rcsLeft'), () => { this.cancelNavigation(); this.ship.strafe = -1; }, () => { if (this.ship.strafe < 0) this.ship.strafe = 0; });
     bindHold($('#rcsRight'), () => { this.cancelNavigation(); this.ship.strafe = 1; }, () => { if (this.ship.strafe > 0) this.ship.strafe = 0; });
     bindHold($('#rcsUp'), () => { this.cancelNavigation(); this.ship.lift = 1; }, () => { if (this.ship.lift > 0) this.ship.lift = 0; });
