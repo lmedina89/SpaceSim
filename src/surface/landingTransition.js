@@ -79,6 +79,8 @@ export function validateOrbitHandoff({
   rootSurfaceActive = false,
   cameraMode = null,
   timeScale = null,
+  running = null,
+  pilotControlsNeutral = null,
   shipPosition = null,
   shipVelocity = null,
 } = {}) {
@@ -90,6 +92,8 @@ export function validateOrbitHandoff({
   if (rootSurfaceActive) problems.push('surface-active UI class still set');
   if (cameraMode !== 'ship') problems.push(`cameraMode=${cameraMode ?? 'missing'}`);
   if (!(Number.isFinite(timeScale) && Math.abs(timeScale - 1) < 1e-9)) problems.push(`timeScale=${timeScale}`);
+  if (running !== true) problems.push(`running=${running}`);
+  if (pilotControlsNeutral !== true) problems.push('pilot controls are not neutral/released');
   const finiteVector = (value) => value && value.length >= 3 && Number.isFinite(value[0]) && Number.isFinite(value[1]) && Number.isFinite(value[2]);
   if (!finiteVector(shipPosition)) problems.push('ship position is not finite');
   if (!finiteVector(shipVelocity)) problems.push('ship velocity is not finite');

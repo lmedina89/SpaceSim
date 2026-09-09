@@ -138,6 +138,7 @@ export class UniverseLabApp {
     this._lookPointer = null;
     this._lookLast = [0, 0];
     this._viewportTap = null;
+    this._holdReleases = new Set();
     this._rollDirection = 0;
     this.navigationMode = 'manual';
     this.navigationStatus = null;
@@ -170,6 +171,7 @@ export class UniverseLabApp {
     this.surfaceTransition = createLandingTransition();
     this._surfaceRecoveryGuard = false;
     this._surfaceOrbitHandoffPending = null;
+    this._ascentDiagnosticUntil = 0;
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
     this._surfacePreviousRunning = true;
     this._surfacePreviousTimeScale = 1;
@@ -217,7 +219,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.5.2 online. Ascent/orbit handoff reliability hotfix active: surface ownership is detached before ORBIT commits, and ASCENT COMPLETE waits for a successful orbital render. Build SHIPLAND-1452.');
+    this.hud.notify('v0.1.4.5.3 online. Takeoff flight-recovery hotfix active: ascent now returns to an unmistakable prograde orbital view, force-restores live flight/input, clears held controls, and verifies multiple orbital frames before success. Build SHIPLAND-1453.');
   }
 
   newSystem(seed) {
@@ -359,10 +361,19 @@ export class UniverseLabApp {
     this.ship.yaw = 0; this.ship.pitch = 0; this.ship.roll = 0;
     this.ship.throttle = 0; this.ship.reverseThrottle = 0; this.ship.strafe = 0; this.ship.lift = 0; this.ship.braking = false;
     this.ship.clearNavigationAcceleration();
+
+    // The v0.1.4.5.2 return pose looked steeply back toward the planet, which could make a
+    // successful orbital handoff look indistinguishable from a frozen surface view. Point the
+    // ship along its actual body-relative prograde vector instead. This does not change the orbit;
+    // it only makes the post-takeoff state visually and operationally unambiguous.
+    const rvx = this.ship.velocity[0] - body.velocity[0];
+    const rvy = this.ship.velocity[1] - body.velocity[1];
+    const rvz = this.ship.velocity[2] - body.velocity[2];
+    const relativeSpeed = Math.hypot(rvx, rvy, rvz) || 1;
     this.ship.lookAt(new Float64Array([
-      this.ship.position[0] + distance * 0.55,
-      this.ship.position[1] - distance * 0.84,
-      this.ship.position[2],
+      this.ship.position[0] + (rvx / relativeSpeed) * distance,
+      this.ship.position[1] + (rvy / relativeSpeed) * distance,
+      this.ship.position[2] + (rvz / relativeSpeed) * distance,
     ]));
     this.shipContactId = null;
     this.invalidatePredictions();
@@ -383,6 +394,60 @@ export class UniverseLabApp {
     const move = this.root.querySelector('#surfaceMovePad');
     if (move) move.classList.toggle('transition-locked', !active);
     if (!active) this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
+  }
+
+  releaseAllHeldControls() {
+    // WebKit can transfer/cancel a captured pointer while UI layers are being hidden. The old
+    // bindHold closure would then still believe a pointer was active and ignore the next press.
+    // Force every registered hold binding through its normal release path before changing modes.
+    for (const release of this._holdReleases ?? []) {
+      try { release(); } catch (error) { console.warn('Held-control release failed', error); }
+    }
+    this._lookPointer = null;
+    this._viewportTap = null;
+    this._rollDirection = 0;
+    this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
+    this.ship.throttle = 0;
+    this.ship.reverseThrottle = 0;
+    this.ship.strafe = 0;
+    this.ship.lift = 0;
+    this.ship.braking = false;
+    this.ship.clearNavigationAcceleration();
+    for (const element of this.root.querySelectorAll('.is-held,[aria-pressed="true"]')) {
+      element.classList.remove('is-held');
+      if (element.hasAttribute('aria-pressed')) element.setAttribute('aria-pressed', 'false');
+    }
+    this.invalidatePredictions();
+  }
+
+  pilotControlsNeutral() {
+    const nav = this.ship.navigationAcceleration;
+    const navigationNeutral = !nav || (Math.abs(nav[0]) < 1e-12 && Math.abs(nav[1]) < 1e-12 && Math.abs(nav[2]) < 1e-12);
+    return this._lookPointer === null
+      && this._rollDirection === 0
+      && this.ship.throttle === 0
+      && this.ship.reverseThrottle === 0
+      && this.ship.strafe === 0
+      && this.ship.lift === 0
+      && this.ship.braking === false
+      && navigationNeutral
+      && !this.root.querySelector('.is-held,[aria-pressed="true"]');
+  }
+
+  showAscentDiagnostic(text, holdMs = 0) {
+    const chip = this.root.querySelector('#ascentDiagnostic');
+    if (!chip) return;
+    chip.textContent = text;
+    chip.hidden = false;
+    this._ascentDiagnosticUntil = holdMs > 0 ? performance.now() + holdMs : Infinity;
+  }
+
+  updateAscentDiagnosticVisibility(now = performance.now()) {
+    if (this._surfaceOrbitHandoffPending) return;
+    if (!(Number.isFinite(this._ascentDiagnosticUntil) && now >= this._ascentDiagnosticUntil)) return;
+    const chip = this.root.querySelector('#ascentDiagnostic');
+    if (chip) chip.hidden = true;
+    this._ascentDiagnosticUntil = 0;
   }
 
   updateSurfaceTransitionUi() {
@@ -443,7 +508,7 @@ export class UniverseLabApp {
       if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
       this.returnToShipView(false);
       this.cancelNavigation();
-      this.ship.throttle = 0; this.ship.reverseThrottle = 0; this.ship.strafe = 0; this.ship.lift = 0; this.ship.braking = false; this.ship.clearNavigationAcceleration();
+      this.releaseAllHeldControls();
       this.clock.setTimeScale(1);
       const timeSelect = this.root.querySelector('#timeScale'); if (timeSelect) timeSelect.value = '1';
       const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = 'SURFACE';
@@ -503,7 +568,7 @@ export class UniverseLabApp {
       try { this.renderer.exitSurface(); } catch (error) { console.error('Surface renderer recovery cleanup failed', error); }
       this.surfaceSession = null;
       this.surfaceRegion = null;
-      this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
+      this.releaseAllHeldControls();
       this.root.classList.remove('surface-active');
       const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = true;
       const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = true;
@@ -522,11 +587,12 @@ export class UniverseLabApp {
         timeSelect.value = String(scale);
       }
       const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = `WARP ${scale.toLocaleString()}×`;
-      this.running = previousRunning !== false;
+      this.running = restoreOrbit ? true : previousRunning !== false;
       const pause = this.root.querySelector('#pauseToggle'); if (pause) pause.textContent = this.running ? 'PAUSE' : 'RESUME';
       setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
       this.syncViewClasses();
       this.updateLandingUi();
+      this.showAscentDiagnostic(`ORBIT RECOVERY · surface=OFF · render=SPACE · run=${this.running ? 'YES' : 'NO'} · input=${this.pilotControlsNeutral() ? 'YES' : 'NO'}`, 9000);
       this.hud.notify(`SURFACE RECOVERY: ${reason} Returned to a valid orbital state instead of leaving the simulation half-transitioned.`, 7600);
       return true;
     } finally {
@@ -545,6 +611,7 @@ export class UniverseLabApp {
     // Keep the lifecycle in DESCENDING/LANDED/ASCENDING until every surface-owned subsystem
     // has been detached. ORBIT is the commit state, not the start of cleanup.
     this.setSurfaceControlsEnabled(false);
+    this.releaseAllHeldControls();
     try { this.renderer.exitSurface(); } catch (error) { console.error('Surface renderer exit cleanup failed', error); }
     this.surfaceSession = null;
     this.surfaceRegion = null;
@@ -553,6 +620,7 @@ export class UniverseLabApp {
     const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = true;
     const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = true;
     if (returnToOrbit && body) {
+      this.cancelNavigation();
       this.placeShipInSurfaceReturnOrbit(body);
       this.selectTarget(body.id);
       this.returnToShipView(false);
@@ -563,7 +631,15 @@ export class UniverseLabApp {
       const timeSelect = this.root.querySelector('#timeScale'); if (timeSelect) timeSelect.value = '1';
       const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = 'WARP 1×';
     }
-    if (!preserveRunning) this.running = returnToOrbit ? this._surfacePreviousRunning !== false : false;
+    // A completed takeoff must always return to an actively stepping flight loop. A pre-landing
+    // pause should never masquerade as a post-takeoff freeze; the player can pause again manually.
+    if (returnToOrbit) {
+      this.running = true;
+      this._surfacePreviousRunning = true;
+      this._surfacePreviousTimeScale = 1;
+    } else if (!preserveRunning) {
+      this.running = false;
+    }
     const pause = this.root.querySelector('#pauseToggle'); if (pause) pause.textContent = this.running ? 'PAUSE' : 'RESUME';
 
     // Commit ORBIT only after renderer/session/UI/camera/ship state has been detached/restored.
@@ -596,8 +672,10 @@ export class UniverseLabApp {
       regionId: this.surfaceRegion.id,
     });
     this.setSurfaceControlsEnabled(false);
+    this.releaseAllHeldControls();
     this.setSurfaceHudExpanded(false, false);
     this.updateSurfaceTransitionUi();
+    this.showAscentDiagnostic('ASCENT · surface=ON · render=SURFACE · run=HELD · input=LOCKED');
     this.hud.notify('BOARDING COMPLETE: ascent sequence engaged. VTOL thrusters are lifting the spacecraft clear of the landing site before orbital handoff.', 5200);
     return true;
   }
@@ -611,6 +689,8 @@ export class UniverseLabApp {
       rootSurfaceActive: this.root.classList.contains('surface-active'),
       cameraMode: this.cameraMode,
       timeScale: this.clock.timeScale,
+      running: this.running,
+      pilotControlsNeutral: this.pilotControlsNeutral(),
       shipPosition: this.ship.position,
       shipVelocity: this.ship.velocity,
     });
@@ -633,7 +713,10 @@ export class UniverseLabApp {
         bodyId: body.id,
         bodyName: body.name,
         transitionSerial: this.surfaceTransition.serial,
+        renderedFrames: 0,
+        requiredFrames: 3,
       };
+      this.showAscentDiagnostic('HANDOFF · surface=OFF · render=SPACE · run=YES · input=YES · frame=0/3');
       return true;
     } catch (error) {
       console.error('Surface ascent completion failure', error);
@@ -646,10 +729,24 @@ export class UniverseLabApp {
     const pending = this._surfaceOrbitHandoffPending;
     if (!pending) return false;
     const status = this.surfaceOrbitHandoffStatus();
-    if (!status.ok) throw new Error(`Post-render orbital handoff invariant failed: ${status.problems.join('; ')}`);
+    if (!status.ok) {
+      const body = this.registry.get(pending.bodyId) ?? null;
+      const reason = `Post-render orbital handoff invariant failed: ${status.problems.join('; ')}`;
+      console.error(reason);
+      this._surfaceOrbitHandoffPending = null;
+      this.showAscentDiagnostic(`HANDOFF FAILED · ${status.problems.join(' · ')}`, 10000);
+      // Never allow an invariant miss to escape into the animation-loop fault latch. Recover to
+      // a clean, live 1× orbital state and keep the renderer alive for physical debugging.
+      return this.recoverSurfaceRuntime({ body, reason, restoreOrbit: true, previousRunning: true, previousTimeScale: 1 });
+    }
+    pending.renderedFrames = (Number(pending.renderedFrames) || 0) + 1;
+    const requiredFrames = Math.max(1, Number(pending.requiredFrames) || 3);
+    this.showAscentDiagnostic(`VERIFY ORBIT · surface=OFF · render=SPACE · run=YES · input=YES · frame=${pending.renderedFrames}/${requiredFrames}`);
+    if (pending.renderedFrames < requiredFrames) return false;
     this._surfaceOrbitHandoffPending = null;
     this.updateLandingUi();
-    this.hud.notify(`ASCENT COMPLETE: ${pending.bodyName} surface cleared and the spacecraft rendered successfully back in safe orbit. LAND / DESCEND is available again after the normal eligibility checks.`, 7200);
+    this.showAscentDiagnostic('ORBIT VERIFIED · surface=OFF · render=SPACE · run=YES · input=YES', 9000);
+    this.hud.notify(`ASCENT COMPLETE: ${pending.bodyName} surface cleared, live flight controls are restored, and multiple orbital frames verified successfully. The ship is now facing prograde in safe orbit.`, 7200);
     return true;
   }
 
@@ -1852,6 +1949,7 @@ export class UniverseLabApp {
   frame(now) {
     const realDt = Math.min(SIMULATION.maxFrameDeltaSeconds, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
+    this.updateAscentDiagnosticVisibility(now);
     if (!this.transitState.active && this.ship.transitVisualRelease) {
       this.ship.transitVisualFactor = Math.max(0, (Number(this.ship.transitVisualFactor) || 0) * Math.exp(-realDt * 2.65));
       if (this.ship.transitVisualFactor < 0.008) {
@@ -2382,6 +2480,7 @@ export class UniverseLabApp {
       document.addEventListener('pointercancel', (event) => release(event), true);
       window.addEventListener('blur', () => release(null, true));
       document.addEventListener('visibilitychange', () => { if (document.hidden) release(null, true); });
+      this._holdReleases.add(() => release(null, true));
     };
     bindHold($('#thrustButton'), () => { this.manualPilotTakeover(); this.ship.throttle = 1; }, () => { this.ship.throttle = 0; });
     bindHold($('#reverseButton'), () => { this.manualPilotTakeover(); this.ship.reverseThrottle = 1; }, () => { this.ship.reverseThrottle = 0; });

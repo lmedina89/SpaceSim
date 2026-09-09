@@ -1,13 +1,23 @@
-# Universe Lab v0.1.4.5.2 — Ascent Orbit Handoff Reliability Hotfix
+# Universe Lab v0.1.4.5.3 — Takeoff Flight Recovery Reliability Hotfix
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `SHIPLAND-1452`  
+**Build marker:** `SHIPLAND-1453`  
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
 
+
+## v0.1.4.5.3 takeoff flight-recovery hotfix
+
+v0.1.4.5.3 is built directly from the exact v0.1.4.5.2 release after physical iPhone Safari testing still showed takeoff as failed/unresponsive. The partially started v0.1.4.6 astronomy phase was intentionally abandoned as a source base until takeoff is physically reliable.
+
+The handoff now restores more than lifecycle flags. All registered held touch controls are force-released, the ship is guaranteed to resume an actively stepping 1× flight loop, and the return attitude points along the actual body-relative prograde velocity instead of steeply back into the planet. This makes a valid orbital return visually distinct from the landed view and prevents a stale WebKit pointer capture from leaving BRAKE/thrust/RCS logically held.
+
+After surface ownership is detached, the build requires **three successful orbital render frames** with `surface=OFF`, ship camera active, `run=YES`, neutral input, 1× time and finite ship state before announcing `ASCENT COMPLETE`. A failed post-render invariant now recovers to a valid live orbital state instead of throwing through the animation loop. A temporary green takeoff diagnostic chip is included specifically for the physical Safari release gate.
+
+No astronomical observer/real-sky work is included yet. That phase remains blocked behind a physically reliable **land → takeoff → controllable orbit → land → takeoff** cycle.
 
 ## v0.1.4.5.2 ascent/orbit handoff hotfix
 

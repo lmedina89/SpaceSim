@@ -14,14 +14,14 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.5.2')) throw new Error('Shell version is not v0.1.4.5.2.');
-if (!html.includes('SHIPLAND-1452')) throw new Error('SHIPLAND-1452 build marker missing.');
-if (pkg.version !== '0.1.4.5.2') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.4.5.3')) throw new Error('Shell version is not v0.1.4.5.3.');
+if (!html.includes('SHIPLAND-1453')) throw new Error('SHIPLAND-1453 build marker missing.');
+if (pkg.version !== '0.1.4.5.3') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Secondary mobile control drawer missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
 if (!html.includes('>BRAKE</button>')) throw new Error('Physical BRAKE control missing.');
-for (const id of ['velocityMarker','progradeButton','retrogradeButton','turnBurnButton','transitToggle','transitPanel','transitTargetSource','transitTier','transitAutoCapture','transitEngage','cockpitOverlay','cockpitStatus','cockpitToggle']) if (!html.includes(`id="${id}"`)) throw new Error(`Navigation/transit/cockpit control missing: ${id}`);
+for (const id of ['velocityMarker','progradeButton','retrogradeButton','turnBurnButton','transitToggle','transitPanel','transitTargetSource','transitTier','transitAutoCapture','transitEngage','cockpitOverlay','cockpitStatus','cockpitToggle','ascentDiagnostic']) if (!html.includes(`id="${id}"`)) throw new Error(`Navigation/transit/cockpit control missing: ${id}`);
 for (const id of ['particleMode','particleCount','spawnParticleField','fireParticleGun','clearParticleExperiments','particleStatus','experimentSelect','observeExperiment','trackExperiment','orbitExperiment','rendezvousExperiment','shipViewButton','replayExperiment','cameraChip']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Particle experiment control missing: ${id}`);
 for (const id of ['cosmosToggle','cosmosPanel','phenomenonSelect','phenomenonReality','phenomenonScanDepth','mapToggle','mapPanel','systemMapCanvas','mapZoom','mapUnknownToggle','mapSelectAction','mapScanAction','mapTransitAction','mapCosmosAction','scanPhenomenon','observePhenomenon','orbitPhenomenon','nextPhenomenon','rendezvousPhenomenon','shipViewCosmos','compactObjectType','neutronStarMass','pulsarSpinPeriod','pulsarMagneticField','spawnNeutronStar','extremeObjectType','spawnExtremeObject','spaceWeatherActive','spaceWeatherNext','spaceWeatherStatus','triggerCme','autoWeatherToggle','overlayToggle','overlayPanel','overlayMaster','overlayLagrange','overlayHill','overlayRoche','overlayGravity','overlayOrbitPlane']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Cosmic exploration control missing: ${id}`);
 for (const id of ['landTarget','surfaceLandButton','mapLandAction','surfaceHud','surfaceWorldName','surfaceBiome','surfaceGravity','surfaceTemperature','surfaceAtmosphere','surfaceCoords','surfaceDiscoveries','surfaceNearest','surfaceScanStatus','surfaceScanButton','surfaceSprintButton','surfaceSaveButton','surfaceTakeoffButton','surfaceMovePad','surfaceForward','surfaceBack','surfaceLeft','surfaceRight','surfaceWeather','surfaceWind','surfaceShipDistance','surfaceClock','surfaceWeatherStatus','surfaceRegionSelect','surfaceRegionLabel','surfaceHudToggle','surfaceHudDetails','surfaceShipCompact','surfacePhase']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Surface foundation control missing: ${id}`);
@@ -100,7 +100,7 @@ if (!renderer.includes('spaceWeatherVisuals') || !renderer.includes('scientificO
 if (!css.includes('.cockpit-overlay') || !css.includes('.ship-cockpit-enabled')) throw new Error('Cockpit overlay CSS missing.');
 if (!app.includes('toggleCockpit') || !app.includes('updateCockpitUi') || !app.includes('syncViewClasses') || !app.includes('cockpitEnabled')) throw new Error('Cockpit view app integration missing.');
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'SHIPLAND-1452') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'SHIPLAND-1453') throw new Error('VERSION.json build marker mismatch.');
 if (!String(versionJson.cockpitView || '').includes('default-on')) throw new Error('VERSION.json cockpit capability missing.');
 
 const surfaceWeather = await readFile(new URL('../src/surface/surfaceWeather.js', import.meta.url), 'utf8');
@@ -116,7 +116,8 @@ for (const token of ['SURFACE_PHASE','DESCENDING','LANDED','ASCENDING','beginLan
 for (const token of ['requestSurfaceTakeoff','completeSurfaceAscent','commitSurfaceOrbitHandoff','surfaceOrbitHandoffStatus','recoverSurfaceRuntime','surfaceShipDistanceMeters','updateSurfaceTransitionUi']) if (!app.includes(token)) throw new Error(`Landing reliability app token missing: ${token}`);
 if (!String(versionJson.landingLifecycle || '').includes('ORBIT -> DESCENDING -> LANDED -> ASCENDING -> ORBIT')) throw new Error('VERSION.json landing lifecycle capability missing.');
 if (!String(versionJson.landingRecovery || '').includes('valid orbital state')) throw new Error('VERSION.json landing recovery capability missing.');
-if (!String(versionJson.ascentHandoff || '').includes('same animation callback')) throw new Error('VERSION.json ascent handoff capability missing.');
+if (!String(versionJson.ascentHandoff || '').includes('three orbital frames')) throw new Error('VERSION.json ascent handoff capability missing.');
+if (!String(versionJson.takeoffPhysicalDiagnostics || '').includes('iPhone Safari')) throw new Error('VERSION.json takeoff physical diagnostics capability missing.');
 const anomalyGenerator = await readFile(new URL('../src/cosmic/anomalyGenerator.js', import.meta.url), 'utf8');
 for (const token of ['generateAnomalies','impossible','anomaly-phase-rift','anomaly-orbital-knot']) if (!anomalyGenerator.includes(token)) throw new Error(`Anomaly generator token missing: ${token}`);
 const systemMap = await readFile(new URL('../src/ui/systemMap.js', import.meta.url), 'utf8');

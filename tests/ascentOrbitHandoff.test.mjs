@@ -19,6 +19,8 @@ test('orbital handoff invariant accepts only a fully detached finite ship-view s
     rootSurfaceActive: false,
     cameraMode: 'ship',
     timeScale: 1,
+    running: true,
+    pilotControlsNeutral: true,
     shipPosition: new Float64Array([1, 2, 3]),
     shipVelocity: new Float64Array([4, 5, 6]),
   });
@@ -33,6 +35,8 @@ test('orbital handoff invariant accepts only a fully detached finite ship-view s
     rootSurfaceActive: true,
     cameraMode: 'ship',
     timeScale: 1,
+    running: true,
+    pilotControlsNeutral: true,
     shipPosition: new Float64Array([1, 2, 3]),
     shipVelocity: new Float64Array([4, 5, 6]),
   });
@@ -46,6 +50,8 @@ test('orbital handoff invariant rejects wrong camera, warp, and non-finite ship 
     phase: SURFACE_PHASE.ASCENDING,
     cameraMode: 'observe',
     timeScale: 60,
+    running: false,
+    pilotControlsNeutral: false,
     shipPosition: [NaN, 0, 0],
     shipVelocity: [0, Infinity, 0],
   });
@@ -54,6 +60,8 @@ test('orbital handoff invariant rejects wrong camera, warp, and non-finite ship 
   assert.match(joined, /phase=ascending/);
   assert.match(joined, /cameraMode=observe/);
   assert.match(joined, /timeScale=60/);
+  assert.match(joined, /running=false/);
+  assert.match(joined, /pilot controls are not neutral\/released/);
   assert.match(joined, /ship position is not finite/);
   assert.match(joined, /ship velocity is not finite/);
 });
@@ -67,6 +75,11 @@ test('ascent queues success until a real orbital render commits the handoff', as
   assert.match(complete, /this\._surfaceOrbitHandoffPending\s*=\s*\{/);
   assert.doesNotMatch(complete, /ASCENT COMPLETE:/, 'success must not be announced before an orbital frame renders');
   assert.match(commit, /Post-render orbital handoff invariant failed/);
+  assert.match(commit, /renderedFrames/);
+  assert.match(commit, /requiredFrames/);
+  assert.match(commit, /recoverSurfaceRuntime/);
+  assert.doesNotMatch(commit, /throw new Error\(`Post-render orbital handoff invariant failed/,
+    'post-render invariant misses must recover without faulting the animation loop');
   assert.match(commit, /ASCENT COMPLETE:/);
 
   const surfaceCall = frame.indexOf('this.frameSurface(now, realDt);');
@@ -78,6 +91,33 @@ test('ascent queues success until a real orbital render commits the handoff', as
   assert.ok(orbitalRender > conditionalReturn, 'completed ascent must fall through to the orbital renderer in the same animation callback');
   assert.ok(handoffCommit > orbitalRender, 'ASCENT COMPLETE commit must occur only after the orbital render call');
   assert.match(frame, /const orbitalRealDt = this\._surfaceOrbitHandoffPending \? 0 : realDt/);
+});
+
+test('takeoff handoff force-restores live flight and neutralizes held controls', async () => {
+  const source = await readFile(new URL('../src/app/app.js', import.meta.url), 'utf8');
+  const exitSurface = methodSource(source, 'exitSurface', 'requestSurfaceTakeoff');
+  const release = methodSource(source, 'releaseAllHeldControls', 'pilotControlsNeutral');
+  const placement = methodSource(source, 'placeShipInSurfaceReturnOrbit', 'surfaceShipDistanceMeters');
+
+  assert.match(exitSurface, /this\.releaseAllHeldControls\(\)/);
+  assert.match(exitSurface, /this\.running\s*=\s*true/);
+  assert.match(exitSurface, /this\._surfacePreviousRunning\s*=\s*true/);
+  assert.match(release, /this\._holdReleases/);
+  assert.match(release, /this\.ship\.braking\s*=\s*false/);
+  assert.match(release, /querySelectorAll\('\.is-held,\[aria-pressed="true"\]'\)/);
+  assert.match(placement, /rvx\s*=\s*this\.ship\.velocity\[0\]\s*-\s*body\.velocity\[0\]/);
+  assert.match(placement, /relativeSpeed/);
+  assert.doesNotMatch(placement, /distance \* 0\.55/,
+    'return camera must not reuse the steep planet-facing v0.1.4.5.2 pose');
+});
+
+test('hold bindings register force-release hooks for WebKit pointer loss', async () => {
+  const source = await readFile(new URL('../src/app/app.js', import.meta.url), 'utf8');
+  const bindStart = source.indexOf('    const bindHold = (element, on, off) => {');
+  const viewportStart = source.indexOf('    const viewport = $(\'#viewport\');', bindStart);
+  assert.ok(bindStart >= 0 && viewportStart > bindStart);
+  const binding = source.slice(bindStart, viewportStart);
+  assert.match(binding, /this\._holdReleases\.add\(\(\) => release\(null, true\)\)/);
 });
 
 test('surface renderer detaches ownership before disposing its local world', async () => {

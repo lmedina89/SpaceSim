@@ -1,4 +1,4 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.5.2
+# Scientific / Model Notes — Universe Lab v0.1.4.5.3
 
 Universe Lab deliberately mixes physically motivated simulation with clearly labeled speculative/fictional presentation. The boundary matters more as planetary surfaces and anomalies are introduced.
 
@@ -22,7 +22,7 @@ While landed, orbital N-body time is intentionally held. This prevents hidden sy
 
 ## Landing / takeoff boundary
 
-`LAND / DESCEND` and `BOARD / TAKEOFF` are scripted visual transitions. v0.1.4.5 models their software lifecycle explicitly and v0.1.4.5.2 hardens the software handoff back to the orbital renderer, but neither release claims:
+`LAND / DESCEND` and `BOARD / TAKEOFF` are scripted visual transitions. v0.1.4.5 models their software lifecycle explicitly; v0.1.4.5.2 hardens surface-renderer detachment; and v0.1.4.5.3 hardens live-flight/input/prograde multi-frame verification after ascent, but none of these releases claims:
 
 - atmospheric entry heating,
 - lift/drag/aerodynamics,

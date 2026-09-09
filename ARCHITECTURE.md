@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.5.2
+# Architecture — Universe Lab v0.1.4.5.3
 
 ## Core invariant
 
@@ -23,7 +23,7 @@ This keeps the effect inexpensive on mobile while restoring a stronger sense of 
 
 v0.1.4.5 adds `src/surface/landingTransition.js` as the explicit lifecycle controller. The allowed progression is ORBIT → DESCENDING → LANDED → ASCENDING → ORBIT. `UniverseLabApp` owns the controller, boarding distance checks, input locking, orbital handoff and recovery fallback.
 
-v0.1.4.5.2 hardens the **ASCENDING → ORBIT commit boundary**. ORBIT is not written until surface renderer/session/UI ownership is detached, the safe 5-radius physical ship state and ship camera are restored, and the handoff invariants pass. The animation callback that finishes ascent then falls through into the ordinary orbital renderer at zero simulation dt; only after that render succeeds is `ASCENT COMPLETE` announced.
+v0.1.4.5.3 hardens the **ASCENDING → live-flight ORBIT commit boundary**. ORBIT is not treated as user-visible success until surface renderer/session/UI ownership is detached, every registered held control is force-released, the safe 5-radius physical ship state is restored, the ship is oriented body-relative prograde, the simulation is actively running at 1×, and the handoff invariants pass. The animation loop then renders three ordinary orbital frames at zero simulation dt before `ASCENT COMPLETE` is announced. A post-render invariant miss recovers to a known live orbital state rather than escaping into the global frame-fault latch.
 
 A failed renderer entry/ascent completion is cleaned up through one recovery path that clears surface renderer/session/UI state, resets the phase to ORBIT and restores a valid spacecraft/orbit state. Surface renderer ownership is detached before local resource disposal so a disposal fault cannot leave the renderer logically stuck in surface mode. This prevents repeated LAND calls from operating on stale surface state.
 

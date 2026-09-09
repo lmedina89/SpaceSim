@@ -1,4 +1,4 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.5.2
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.5.3
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -16,8 +16,8 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 
 After upload/reload verify:
 
-- title/HUD says **v0.1.4.5**,
-- MORE help shows **SHIPLAND-1452**,
+- title/HUD says **v0.1.4.5.3**,
+- MORE help shows **SHIPLAND-1453**,
 - FPS/physics/render telemetry populate in orbit,
 - no `RUNTIME ERROR` banner appears.
 
@@ -56,7 +56,7 @@ Container/Node QA cannot prove physical iPhone WebGPU FPS, touch feel, browser t
 - SAVE while expanded, reload the surface save, and confirm the expanded preference is restored.
 - Confirm the smaller WALK pad remains comfortably thumb-usable inside the right safe area.
 
-## v0.1.4.5.2 landing-cycle / orbital-handoff acceptance
+## v0.1.4.5.3 landing-cycle / live-flight orbital-handoff acceptance
 
 1. Fresh ORIGIN-001 → LAND / DESCEND and confirm the ship visibly descends before controls unlock.
 2. Walk more than 36 m from the spacecraft; DETAILS should show RETURN TO SHIP and TAKEOFF must stay locked.
@@ -66,3 +66,5 @@ Container/Node QA cannot prove physical iPhone WebGPU FPS, touch feel, browser t
 6. Confirm the ship controls respond at safe orbit/1×, then immediately LAND / DESCEND again and confirm the second surface session loads normally with no freeze.
 7. Repeat after SAVE/LOAD from the surface.
 8. Inspect the rebuilt ship exterior for clipping/sinking and verify nav/strobe/landing lights and landing gear remain performant on iPhone.
+
+For this build, successful physical takeoff must also show the temporary green diagnostic reaching **ORBIT VERIFIED · surface=OFF · render=SPACE · run=YES · input=YES**. The returned view should face body-relative prograde rather than down into the planet. Confirm THRUST, REV, BRAKE, LOOK and at least one RCS control respond immediately after ascent.

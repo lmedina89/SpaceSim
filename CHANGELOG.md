@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.4.5.3 — Takeoff Flight Recovery Reliability Hotfix
+
+- Built directly from the exact v0.1.4.5.2 archive after the physical iPhone Safari release gate still failed. The interrupted v0.1.4.6 astronomy work was not used as a base.
+- Changed the post-takeoff camera attitude from the steep planet-facing v0.1.4.5.2 pose to the spacecraft's actual body-relative prograde direction, so a successful return to orbit cannot visually masquerade as a frozen surface view.
+- Successful takeoff now force-restores an actively running 1× flight loop instead of inheriting a pre-surface paused state.
+- Added a central held-input release registry. Every touch/hold binding can now be force-released across WebKit pointer-capture loss; takeoff clears throttle, reverse, BRAKE, RCS, roll, LOOK pointer state and surface movement before orbital handoff.
+- Expanded orbital handoff invariants to require `running === true` and neutral/released pilot controls in addition to detached surface renderer/session/UI, ship camera, 1× time and finite ship state.
+- Replaced fatal post-render handoff invariant throws with recovery to a known live 1× orbital state, preventing a verification miss from tripping the global animation-loop fault latch and looking like a freeze.
+- `ASCENT COMPLETE` now requires three successfully rendered orbital frames. N-body/ship integration remains held at zero dt during this short verification window.
+- Added a temporary compact physical-test diagnostic chip showing surface ownership, render mode, run/input state and verification-frame count for iPhone Safari screenshots.
+- No astronomy, universe-rendering, cockpit redesign, orbital-force, propulsion, surface-generation, weather, anomaly or save-schema changes. Save schema remains 1.
+- Automated QA: **119/119 tests passing** plus static/syntax checks. Physical iPhone Safari remains the release gate.
+
 ## v0.1.4.5.2 — Ascent Orbit Handoff Reliability Hotfix
 
 - Fixed the physically reported iPhone Safari takeoff failure where ascent visuals completed and cockpit/UI returned to ORBIT while the previous surface framebuffer remained visible and the transition appeared frozen.
