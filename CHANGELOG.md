@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.4.5.2 — Ascent Orbit Handoff Reliability Hotfix
+
+- Fixed the physically reported iPhone Safari takeoff failure where ascent visuals completed and cockpit/UI returned to ORBIT while the previous surface framebuffer remained visible and the transition appeared frozen.
+- Changed ascent to a transactional handoff: surface renderer/session/UI state is detached before ORBIT is committed.
+- The animation frame that completes ASCENDING now falls through immediately to the normal orbital renderer instead of returning after surface teardown.
+- The first restored orbital frame uses zero simulation dt, so no N-body/ship step is mixed into the surface-teardown callback.
+- `ASCENT COMPLETE` is queued until a real orbital frame renders successfully; it is no longer announced merely because cleanup code ran.
+- Added explicit post-cleanup/post-render invariants covering landing phase, surface session/region/renderer ownership, surface UI class, camera mode, 1× handoff warp and finite ship position/velocity.
+- Surface renderer ownership is cleared before local-world disposal so a disposal fault cannot leave the renderer logically stuck in surface mode.
+- Added four regression tests targeted at the actual stale-frame/ascent-handoff failure mode.
+- No physics, propulsion, surface-generation, weather, anomaly, cockpit geometry or save-schema changes. Save schema remains 1.
+- Automated QA: **117/117 tests passing** plus static/syntax checks.
+
 ## v0.1.4.5.1 — Landing Startup Reliability Hotfix
 
 - Fixed startup regression where `newSystem()` used `surfaceTransition` before the app constructor initialized it, producing `Startup failed: Landing transition state is required.`

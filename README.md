@@ -1,13 +1,21 @@
-# Universe Lab v0.1.4.5.1 — Landing Startup Reliability Hotfix
+# Universe Lab v0.1.4.5.2 — Ascent Orbit Handoff Reliability Hotfix
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `SHIPLAND-1451`  
+**Build marker:** `SHIPLAND-1452`  
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
 
+
+## v0.1.4.5.2 ascent/orbit handoff hotfix
+
+v0.1.4.5.2 is a focused corrective release built directly from the physically tested v0.1.4.5.1 startup-hotfix baseline. It addresses the reported iPhone Safari failure where the scripted ascent visibly lifted the parked ship, the UI/cockpit switched back to ORBIT, but the last surface framebuffer remained on screen and the transition appeared frozen.
+
+The handoff is now transactional: surface renderer/session/UI ownership is detached first, the physical ship is restored to the safe 5-radius orbit at 1×, camera and lifecycle invariants are validated, and the *same animation callback* immediately renders an orbital ship-view frame at zero simulation dt. **ASCENT COMPLETE is not announced until that orbital render has succeeded.** Surface renderer ownership is also cleared before local resource disposal, so cleanup cannot leave the renderer logically stuck in surface mode if disposal itself faults.
+
+No orbital physics, propulsion values, BOOST/TRANSIT behavior, surface generation, weather, anomalies, spacecraft geometry or save schema was redesigned in this hotfix.
 
 ## v0.1.4.5.1 startup hotfix
 

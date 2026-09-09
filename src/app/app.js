@@ -26,7 +26,7 @@ import { Hud } from '../ui/hud.js';
 import { SystemMapController } from '../ui/systemMap.js';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
-import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff } from '../surface/landingTransition.js';
+import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
 import { stepSurfaceWeather, surfaceWeatherReading } from '../surface/surfaceWeather.js';
 
 function safeNumber(value, fallback) {
@@ -169,6 +169,7 @@ export class UniverseLabApp {
     this.surfaceSession = null;
     this.surfaceTransition = createLandingTransition();
     this._surfaceRecoveryGuard = false;
+    this._surfaceOrbitHandoffPending = null;
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
     this._surfacePreviousRunning = true;
     this._surfacePreviousTimeScale = 1;
@@ -216,11 +217,12 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.5.1 online. Startup landing-state initialization hotfix active; landing reliability, guarded boarding/ascent, transition recovery and upgraded spacecraft presence remain unchanged. Build SHIPLAND-1451.');
+    this.hud.notify('v0.1.4.5.2 online. Ascent/orbit handoff reliability hotfix active: surface ownership is detached before ORBIT commits, and ASCENT COMPLETE waits for a successful orbital render. Build SHIPLAND-1452.');
   }
 
   newSystem(seed) {
     this.selectedSurfaceRegionId = 'shatterfall-basin';
+    this._surfaceOrbitHandoffPending = null;
     if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false, preserveRunning: true });
     setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
     this.running = true;
@@ -431,6 +433,7 @@ export class UniverseLabApp {
       return false;
     }
 
+    this._surfaceOrbitHandoffPending = null;
     const previousRunning = this.running;
     const previousTimeScale = this.clock.timeScale;
     this._surfacePreviousRunning = previousRunning;
@@ -495,19 +498,19 @@ export class UniverseLabApp {
   recoverSurfaceRuntime({ body = null, reason = 'Surface transition recovery.', restoreOrbit = true, previousRunning = this._surfacePreviousRunning, previousTimeScale = this._surfacePreviousTimeScale } = {}) {
     if (this._surfaceRecoveryGuard) return false;
     this._surfaceRecoveryGuard = true;
+    this._surfaceOrbitHandoffPending = null;
     try {
       try { this.renderer.exitSurface(); } catch (error) { console.error('Surface renderer recovery cleanup failed', error); }
       this.surfaceSession = null;
       this.surfaceRegion = null;
       this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
-      setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
       this.root.classList.remove('surface-active');
-      this.syncViewClasses();
       const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = true;
       const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = true;
       if (restoreOrbit && body) {
         this.placeShipInSurfaceReturnOrbit(body);
         this.selectTarget(body.id);
+        this.returnToShipView(false);
       }
       const scale = Math.max(1, Number(previousTimeScale) || 1);
       this.clock.setTimeScale(scale);
@@ -521,6 +524,8 @@ export class UniverseLabApp {
       const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = `WARP ${scale.toLocaleString()}×`;
       this.running = previousRunning !== false;
       const pause = this.root.querySelector('#pauseToggle'); if (pause) pause.textContent = this.running ? 'PAUSE' : 'RESUME';
+      setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
+      this.syncViewClasses();
       this.updateLandingUi();
       this.hud.notify(`SURFACE RECOVERY: ${reason} Returned to a valid orbital state instead of leaving the simulation half-transitioned.`, 7600);
       return true;
@@ -531,23 +536,26 @@ export class UniverseLabApp {
 
   exitSurface({ returnToOrbit = true, notify = true, preserveRunning = false } = {}) {
     if (!this.surfaceSession?.active && !this.surfaceRegion) {
-      setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
+      if (!this.renderer.surfaceWorld) setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
       return false;
     }
     const bodyId = this.surfaceSession?.bodyId ?? this.surfaceRegion?.bodyId;
     const body = bodyId ? this.registry.get(bodyId) : null;
+
+    // Keep the lifecycle in DESCENDING/LANDED/ASCENDING until every surface-owned subsystem
+    // has been detached. ORBIT is the commit state, not the start of cleanup.
+    this.setSurfaceControlsEnabled(false);
     try { this.renderer.exitSurface(); } catch (error) { console.error('Surface renderer exit cleanup failed', error); }
     this.surfaceSession = null;
     this.surfaceRegion = null;
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
-    setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
     this.root.classList.remove('surface-active');
-    this.syncViewClasses();
     const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = true;
     const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = true;
     if (returnToOrbit && body) {
       this.placeShipInSurfaceReturnOrbit(body);
       this.selectTarget(body.id);
+      this.returnToShipView(false);
       // A successful ascent always hands control back at 1×. The pre-surface orbital scale is
       // preserved in saves/recovery metadata, but is not re-applied automatically after landing.
       const restoreScale = 1;
@@ -557,6 +565,10 @@ export class UniverseLabApp {
     }
     if (!preserveRunning) this.running = returnToOrbit ? this._surfacePreviousRunning !== false : false;
     const pause = this.root.querySelector('#pauseToggle'); if (pause) pause.textContent = this.running ? 'PAUSE' : 'RESUME';
+
+    // Commit ORBIT only after renderer/session/UI/camera/ship state has been detached/restored.
+    setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
+    this.syncViewClasses();
     this.updateLandingUi();
     if (notify && returnToOrbit) this.hud.notify(`ORBIT RESTORED: spacecraft returned to a safe 5-radius orbit around ${body?.name ?? 'the landing world'}. Normal Newtonian flight is active again.`, 7000);
     return true;
@@ -577,6 +589,7 @@ export class UniverseLabApp {
       this.surfaceSession.yaw = Math.atan2(shipSite.x - this.surfaceSession.x, shipSite.z - this.surfaceSession.z);
       this.surfaceSession.pitch = 0.06;
     }
+    this._surfaceOrbitHandoffPending = null;
     beginLandingTransition(this.surfaceTransition, SURFACE_PHASE.ASCENDING, {
       durationSeconds: SURFACE_TRANSITION_SECONDS.ascent,
       bodyId: this.surfaceSession.bodyId,
@@ -589,19 +602,55 @@ export class UniverseLabApp {
     return true;
   }
 
+  surfaceOrbitHandoffStatus() {
+    return validateOrbitHandoff({
+      phase: this.surfaceTransition?.phase,
+      sessionActive: Boolean(this.surfaceSession?.active),
+      regionActive: Boolean(this.surfaceRegion),
+      rendererSurfaceActive: Boolean(this.renderer.surfaceWorld),
+      rootSurfaceActive: this.root.classList.contains('surface-active'),
+      cameraMode: this.cameraMode,
+      timeScale: this.clock.timeScale,
+      shipPosition: this.ship.position,
+      shipVelocity: this.ship.velocity,
+    });
+  }
+
   completeSurfaceAscent() {
     const bodyId = this.surfaceSession?.bodyId ?? this.surfaceRegion?.bodyId;
     const body = bodyId ? this.registry.get(bodyId) : null;
     try {
       if (!body) throw new Error('Landing body was lost during ascent.');
-      this.exitSurface({ returnToOrbit: true, notify: false });
-      this.returnToShipView(false);
-      this.hud.notify(`ASCENT COMPLETE: ${body.name} surface cleared and the spacecraft is back in safe orbit. LAND / DESCEND is available again after the normal eligibility checks.`, 7200);
+      const exited = this.exitSurface({ returnToOrbit: true, notify: false });
+      if (!exited) throw new Error('Surface session disappeared before orbital handoff could detach it.');
+      const status = this.surfaceOrbitHandoffStatus();
+      if (!status.ok) throw new Error(`Orbital handoff invariant failed: ${status.problems.join('; ')}`);
+
+      // Do not announce success yet. The animation callback must successfully render one orbital
+      // frame after the surface renderer is gone; this prevents a stale surface framebuffer with
+      // the cockpit/UI already switched back to ORBIT.
+      this._surfaceOrbitHandoffPending = {
+        bodyId: body.id,
+        bodyName: body.name,
+        transitionSerial: this.surfaceTransition.serial,
+      };
       return true;
     } catch (error) {
       console.error('Surface ascent completion failure', error);
+      this._surfaceOrbitHandoffPending = null;
       return this.recoverSurfaceRuntime({ body, reason: `Ascent handoff failed: ${error?.message ?? error}`, restoreOrbit: true });
     }
+  }
+
+  commitSurfaceOrbitHandoff() {
+    const pending = this._surfaceOrbitHandoffPending;
+    if (!pending) return false;
+    const status = this.surfaceOrbitHandoffStatus();
+    if (!status.ok) throw new Error(`Post-render orbital handoff invariant failed: ${status.problems.join('; ')}`);
+    this._surfaceOrbitHandoffPending = null;
+    this.updateLandingUi();
+    this.hud.notify(`ASCENT COMPLETE: ${pending.bodyName} surface cleared and the spacecraft rendered successfully back in safe orbit. LAND / DESCEND is available again after the normal eligibility checks.`, 7200);
+    return true;
   }
 
   updateSurface(realDt) {
@@ -1765,8 +1814,17 @@ export class UniverseLabApp {
     this.physicsMs = 0;
     this.experimentMs = 0;
     this.updateSurface(realDt);
+
+    // Ascent completion can detach the local surface during updateSurface(). In that case this
+    // callback must immediately fall through to the orbital renderer instead of returning with
+    // the previous surface framebuffer still on screen.
+    if (!this.surfaceSession?.active || !this.surfaceRegion) {
+      this.renderMs = 0;
+      return false;
+    }
+
     const renderStart = performance.now();
-    if (this.surfaceSession?.active) this.renderer.renderSurface({ session: this.surfaceSession, transition: this.surfaceTransition, realTimeSeconds: now / 1000 });
+    this.renderer.renderSurface({ session: this.surfaceSession, transition: this.surfaceTransition, realTimeSeconds: now / 1000 });
     this.renderMs = performance.now() - renderStart;
     this.fpsFrames += 1;
     if (now - this.fpsClock >= 500) {
@@ -1778,7 +1836,7 @@ export class UniverseLabApp {
     this.hud.update({
       fps: this.fps,
       elapsedSeconds: this.clock.elapsedSimSeconds,
-      shipSpeed: this.surfaceSession?.lastMoveSpeedMps ?? 0,
+      shipSpeed: this.surfaceSession.lastMoveSpeedMps ?? 0,
       bodyCount: this.bodies.length,
       minorCount: this.minorField?.count ?? 0,
       physicsMs: 0,
@@ -1788,6 +1846,7 @@ export class UniverseLabApp {
       experimentParticles: 0,
       experimentMs: 0,
     });
+    return true;
   }
 
   frame(now) {
@@ -1803,22 +1862,28 @@ export class UniverseLabApp {
     }
     if (this.surfaceSession?.active) {
       this.frameSurface(now, realDt);
-      return;
+      if (this.surfaceSession?.active) return;
     }
+
+    // The first orbital frame after ASCENDING is a visual/state commit frame: render the restored
+    // ship/orbit immediately but do not advance N-body time in the same callback that tore down
+    // the local surface world.
+    const orbitalRealDt = this._surfaceOrbitHandoffPending ? 0 : realDt;
     const physicsStart = performance.now();
     this.experimentMs = 0;
-    if (this.running) this.updateTransit(realDt);
+    if (this.running) this.updateTransit(orbitalRealDt);
     this.enforceNavigationWarpSafety();
     this.enforceParticleWarpSafety();
-    if (this.running) this.clock.advance(realDt, (dt) => this.physicsStep(dt), this.currentPhysicsSubstepLimit());
+    if (this.running) this.clock.advance(orbitalRealDt, (dt) => this.physicsStep(dt), this.currentPhysicsSubstepLimit());
     this.physicsMs = performance.now() - physicsStart;
-    if (this._rollDirection) { this.ship.rotateRoll(this._rollDirection * realDt * 1.4); this.invalidatePredictions(); }
+    if (this._rollDirection) { this.ship.rotateRoll(this._rollDirection * orbitalRealDt * 1.4); this.invalidatePredictions(); }
 
     this.refreshPredictions(now);
     const renderStart = performance.now();
-    const cameraView = this.currentCameraView(now, realDt);
+    const cameraView = this.currentCameraView(now, orbitalRealDt);
     this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, spaceWeather: this.spaceWeather.states(this.bodies.find((body) => body.kind === BODY_KIND.STAR), this.clock.elapsedSimSeconds), scientificOverlays: this.scientificOverlays, target: this.target, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView });
     this.renderMs = performance.now() - renderStart;
+    if (this._surfaceOrbitHandoffPending) this.commitSurfaceOrbitHandoff();
     this.updateTargetTelemetry();
     this.updateVelocityMarker();
     this.updateTransitPanel();

@@ -534,10 +534,16 @@ export class UniverseRenderer {
   }
 
   exitSurface() {
-    if (!this.surfaceWorld) return;
-    this.surfaceWorld.dispose();
+    const surfaceWorld = this.surfaceWorld;
+    // Detach first so an exception during disposal cannot leave the renderer logically stuck in
+    // surface mode. The caller can still recover/raise the disposal error, but mode ownership is
+    // no longer ambiguous.
     this.surfaceWorld = null;
-    this.renderer.toneMappingExposure = this._stellarExposure || 1;
+    try {
+      surfaceWorld?.dispose();
+    } finally {
+      this.renderer.toneMappingExposure = this._stellarExposure || 1;
+    }
   }
 
   renderSurface({ session, transition = null, realTimeSeconds = 0 }) {

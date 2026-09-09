@@ -70,3 +70,28 @@ export function canWalkSurface(state) {
 export function canRequestTakeoff(state) {
   return state?.phase === SURFACE_PHASE.LANDED;
 }
+
+export function validateOrbitHandoff({
+  phase = null,
+  sessionActive = false,
+  regionActive = false,
+  rendererSurfaceActive = false,
+  rootSurfaceActive = false,
+  cameraMode = null,
+  timeScale = null,
+  shipPosition = null,
+  shipVelocity = null,
+} = {}) {
+  const problems = [];
+  if (phase !== SURFACE_PHASE.ORBIT) problems.push(`phase=${phase ?? 'missing'}`);
+  if (sessionActive) problems.push('surfaceSession still active');
+  if (regionActive) problems.push('surfaceRegion still active');
+  if (rendererSurfaceActive) problems.push('surface renderer still active');
+  if (rootSurfaceActive) problems.push('surface-active UI class still set');
+  if (cameraMode !== 'ship') problems.push(`cameraMode=${cameraMode ?? 'missing'}`);
+  if (!(Number.isFinite(timeScale) && Math.abs(timeScale - 1) < 1e-9)) problems.push(`timeScale=${timeScale}`);
+  const finiteVector = (value) => value && value.length >= 3 && Number.isFinite(value[0]) && Number.isFinite(value[1]) && Number.isFinite(value[2]);
+  if (!finiteVector(shipPosition)) problems.push('ship position is not finite');
+  if (!finiteVector(shipVelocity)) problems.push('ship velocity is not finite');
+  return { ok: problems.length === 0, problems };
+}

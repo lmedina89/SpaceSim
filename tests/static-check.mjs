@@ -14,9 +14,9 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.5.1')) throw new Error('Shell version is not v0.1.4.5.1.');
-if (!html.includes('SHIPLAND-1451')) throw new Error('SHIPLAND-1451 build marker missing.');
-if (pkg.version !== '0.1.4.5.1') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.4.5.2')) throw new Error('Shell version is not v0.1.4.5.2.');
+if (!html.includes('SHIPLAND-1452')) throw new Error('SHIPLAND-1452 build marker missing.');
+if (pkg.version !== '0.1.4.5.2') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Secondary mobile control drawer missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -100,7 +100,7 @@ if (!renderer.includes('spaceWeatherVisuals') || !renderer.includes('scientificO
 if (!css.includes('.cockpit-overlay') || !css.includes('.ship-cockpit-enabled')) throw new Error('Cockpit overlay CSS missing.');
 if (!app.includes('toggleCockpit') || !app.includes('updateCockpitUi') || !app.includes('syncViewClasses') || !app.includes('cockpitEnabled')) throw new Error('Cockpit view app integration missing.');
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'SHIPLAND-1451') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'SHIPLAND-1452') throw new Error('VERSION.json build marker mismatch.');
 if (!String(versionJson.cockpitView || '').includes('default-on')) throw new Error('VERSION.json cockpit capability missing.');
 
 const surfaceWeather = await readFile(new URL('../src/surface/surfaceWeather.js', import.meta.url), 'utf8');
@@ -112,10 +112,11 @@ if (!app.includes('setSurfaceHudExpanded') || !app.includes('toggleSurfaceHud'))
 if (!String(versionJson.surfaceHud || '').includes('compact-by-default')) throw new Error('VERSION.json surface HUD capability missing.');
 
 const landingTransition = await readFile(new URL('../src/surface/landingTransition.js', import.meta.url), 'utf8');
-for (const token of ['SURFACE_PHASE','DESCENDING','LANDED','ASCENDING','beginLandingTransition','stepLandingTransition','canEnterSurface','canRequestTakeoff']) if (!landingTransition.includes(token)) throw new Error(`Landing transition token missing: ${token}`);
-for (const token of ['requestSurfaceTakeoff','completeSurfaceAscent','recoverSurfaceRuntime','surfaceShipDistanceMeters','updateSurfaceTransitionUi']) if (!app.includes(token)) throw new Error(`Landing reliability app token missing: ${token}`);
+for (const token of ['SURFACE_PHASE','DESCENDING','LANDED','ASCENDING','beginLandingTransition','stepLandingTransition','canEnterSurface','canRequestTakeoff','validateOrbitHandoff']) if (!landingTransition.includes(token)) throw new Error(`Landing transition token missing: ${token}`);
+for (const token of ['requestSurfaceTakeoff','completeSurfaceAscent','commitSurfaceOrbitHandoff','surfaceOrbitHandoffStatus','recoverSurfaceRuntime','surfaceShipDistanceMeters','updateSurfaceTransitionUi']) if (!app.includes(token)) throw new Error(`Landing reliability app token missing: ${token}`);
 if (!String(versionJson.landingLifecycle || '').includes('ORBIT -> DESCENDING -> LANDED -> ASCENDING -> ORBIT')) throw new Error('VERSION.json landing lifecycle capability missing.');
 if (!String(versionJson.landingRecovery || '').includes('valid orbital state')) throw new Error('VERSION.json landing recovery capability missing.');
+if (!String(versionJson.ascentHandoff || '').includes('same animation callback')) throw new Error('VERSION.json ascent handoff capability missing.');
 const anomalyGenerator = await readFile(new URL('../src/cosmic/anomalyGenerator.js', import.meta.url), 'utf8');
 for (const token of ['generateAnomalies','impossible','anomaly-phase-rift','anomaly-orbital-knot']) if (!anomalyGenerator.includes(token)) throw new Error(`Anomaly generator token missing: ${token}`);
 const systemMap = await readFile(new URL('../src/ui/systemMap.js', import.meta.url), 'utf8');
