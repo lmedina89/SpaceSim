@@ -941,13 +941,42 @@ export class UniverseLabApp {
     const showCockpit = this.cockpitEnabled && this.cameraMode === 'ship' && !this.surfaceSession?.active;
     this.root.classList.toggle('ship-cockpit-enabled', showCockpit);
     this.root.classList.toggle('cockpit-hidden', !showCockpit);
+    this.renderer.setCockpitVisible(showCockpit);
+  }
+
+  cockpitTelemetry() {
+    const target = this.target;
+    const state = target ? targetRelativeState(this.ship, target) : null;
+    const distanceMeters = state?.distanceMeters ?? null;
+    const targetGravityMps2 = target?.mass > 0 && distanceMeters > 0
+      ? (PHYSICS.G * target.mass) / (distanceMeters * distanceMeters)
+      : null;
+    return {
+      shipSpeedMps: Math.hypot(...this.ship.velocity),
+      engineMode: this.ship.engineMode,
+      mainAccelerationMps2: this.ship.currentMainAcceleration(),
+      throttle: this.ship.throttle,
+      reverseThrottle: this.ship.reverseThrottle,
+      braking: this.ship.braking,
+      timeScale: this.clock.timeScale,
+      elapsedSimSeconds: this.clock.elapsedSimSeconds,
+      navigationMode: this.transitState.active ? 'transit' : this.navigationMode,
+      targetName: target?.name ?? null,
+      targetKind: target?.kind ?? null,
+      targetDistanceMeters: distanceMeters,
+      targetRelativeSpeedMps: state?.relativeSpeedMps ?? null,
+      targetRadiusMeters: target?.radius ?? null,
+      targetTemperatureK: target?.temperatureK ?? null,
+      targetGravityMps2,
+      overlaysEnabled: Boolean(this.scientificOverlays.enabled),
+    };
   }
 
   updateCockpitUi() {
     const button = this.root.querySelector('#cockpitToggle');
     if (button) button.textContent = `COCKPIT ${this.cockpitEnabled ? 'ON' : 'OFF'}`;
     const status = this.root.querySelector('#cockpitStatus');
-    if (status) status.textContent = this.cameraMode === 'observe' ? 'OBSERVE' : (this.ship.engineMode === 'boost' ? 'BOOST' : this.ship.engineMode === 'cruise' ? 'CRUISE' : 'CLEAR');
+    if (status) status.textContent = this.cameraMode === 'observe' ? 'OBSERVE' : (this.ship.engineMode === 'boost' ? 'BOOST' : this.ship.engineMode === 'cruise' ? 'CRUISE' : 'ONLINE');
     this.syncViewClasses();
   }
 
@@ -955,8 +984,66 @@ export class UniverseLabApp {
     this.cockpitEnabled = typeof force === 'boolean' ? force : !this.cockpitEnabled;
     this.updateCockpitUi();
     this.hud.notify(this.cockpitEnabled
-      ? 'Cockpit canopy enabled. SHIP VIEW now shows a low-obstruction interior frame for scale and presence.'
-      : 'Cockpit canopy hidden. SHIP VIEW returned to the unobstructed camera view.');
+      ? 'Interactive 3D cockpit online. NAV, FLIGHT and SCIENCE screens plus every visible cockpit key are live controls.'
+      : 'Cockpit hidden. SHIP VIEW returned to the unobstructed astronomy camera.');
+  }
+
+  cycleEngineMode() {
+    const next = this.ship.engineMode === 'flight' ? 'cruise' : this.ship.engineMode === 'cruise' ? 'boost' : 'flight';
+    this.ship.engineMode = next;
+    this.updateEngineUi();
+    this.updateCockpitUi();
+    const status = next === 'boost' ? 'SPECULATIVE BOOST' : next.toUpperCase();
+    if (next === 'boost' && this.navigationMode === 'manual' && !this.transitState.active && this.clock.timeScale > 1) this.requestTimeScale(1, false);
+    this.hud.notify(`${status} propulsion selected: ${this.ship.currentMainAcceleration().toLocaleString()} m/s² maximum bounded main acceleration.${next === 'boost' ? ' BOOST is fictional and intended for rapid local vector changes; manual selection drops simulation warp to 1× for control.' : ''}`);
+  }
+
+  handleCockpitAction(action) {
+    switch (action) {
+      case 'nav-screen':
+      case 'nav-map':
+        this.hud.toggleMore(false);
+        this.hud.toggleMap(true);
+        this.systemMap.updateSelectionText();
+        requestAnimationFrame(() => this.systemMap.draw());
+        break;
+      case 'flight-screen':
+        this.hud.toggleMore(true);
+        break;
+      case 'science-screen':
+      case 'science':
+        this.hud.toggleMore(false);
+        this.hud.toggleScience(true);
+        break;
+      case 'target-cycle':
+        this.cycleTarget();
+        break;
+      case 'approach':
+        if (this.navigationMode !== 'approach') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; }
+        this.setNavigationMode(this.navigationMode === 'approach' ? 'manual' : 'approach');
+        break;
+      case 'engine-cycle':
+        this.cycleEngineMode();
+        break;
+      case 'prograde':
+        this.alignVelocityAttitude(1);
+        break;
+      case 'retrograde':
+        this.alignVelocityAttitude(-1);
+        break;
+      case 'scanner':
+        this.hud.toggleMore(false);
+        this.hud.toggleScanner(true);
+        break;
+      case 'overlays':
+        this.hud.toggleMore(false);
+        this.updateOverlayPanel();
+        this.hud.toggleOverlays(true);
+        break;
+      default:
+        return false;
+    }
+    return true;
   }
 
   alignVelocityAttitude(sign = 1) {
@@ -2005,6 +2092,7 @@ export class UniverseLabApp {
     const renderStart = performance.now();
     const cameraView = this.currentCameraView(now, orbitalRealDt);
     const astronomy = this.solveAstronomicalObserver();
+    if (this.cockpitEnabled && this.cameraMode === 'ship') this.renderer.updateCockpitTelemetry(this.cockpitTelemetry(), now);
     this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, spaceWeather: this.spaceWeather.states(this.bodies.find((body) => body.kind === BODY_KIND.STAR), this.clock.elapsedSimSeconds), scientificOverlays: this.scientificOverlays, target: this.target, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView, astronomy });
     this.renderMs = performance.now() - renderStart;
     if (this._surfaceOrbitHandoffPending) this.commitSurfaceOrbitHandoff();
@@ -2240,15 +2328,7 @@ export class UniverseLabApp {
     $('#progradeButton').addEventListener('click', () => { this.hud.toggleMore(false); this.alignVelocityAttitude(1); });
     $('#retrogradeButton').addEventListener('click', () => { this.hud.toggleMore(false); this.alignVelocityAttitude(-1); });
     $('#turnBurnButton').addEventListener('click', () => this.engageTurnAndBurn());
-    $('#engineModeButton').addEventListener('click', () => {
-      const next = this.ship.engineMode === 'flight' ? 'cruise' : this.ship.engineMode === 'cruise' ? 'boost' : 'flight';
-      this.ship.engineMode = next;
-      this.updateEngineUi();
-      this.updateCockpitUi();
-      const status = next === 'boost' ? 'SPECULATIVE BOOST' : next.toUpperCase();
-      if (next === 'boost' && this.navigationMode === 'manual' && !this.transitState.active && this.clock.timeScale > 1) this.requestTimeScale(1, false);
-      this.hud.notify(`${status} propulsion selected: ${this.ship.currentMainAcceleration().toLocaleString()} m/s² maximum bounded main acceleration.${next === 'boost' ? ' BOOST is fictional and intended for rapid local vector changes; manual selection drops simulation warp to 1× for control.' : ''}`);
-    });
+    $('#engineModeButton').addEventListener('click', () => this.cycleEngineMode());
     $('#nextTarget').addEventListener('click', () => this.cycleTarget());
     $('#aimTarget').addEventListener('click', () => this.aimAtTarget());
     $('#regenerate').addEventListener('click', () => this.newSystem($('#seedInput').value));
@@ -2531,6 +2611,10 @@ export class UniverseLabApp {
       this._viewportTap = null;
       if (!tap || tap.id !== event.pointerId || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 12) return;
       if (this.surfaceSession?.active) return;
+      if (this.cockpitEnabled && this.cameraMode === 'ship') {
+        const cockpitAction = this.renderer.pickCockpitControl(event.clientX, event.clientY);
+        if (cockpitAction && this.handleCockpitAction(cockpitAction)) return;
+      }
       const id = this.renderer.pickBodyAt(event.clientX, event.clientY);
       if (id) this.selectTarget(id);
     });

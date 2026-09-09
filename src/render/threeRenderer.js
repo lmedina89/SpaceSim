@@ -10,6 +10,7 @@ import { computeObservationCameraPose } from './observationCamera.js';
 import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPerception.js';
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
+import { CockpitView } from './cockpitView.js';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
@@ -71,6 +72,8 @@ export class UniverseRenderer {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x010207);
     this.camera = new THREE.PerspectiveCamera(66, 1, 0.02, 480_000);
+    this.scene.add(this.camera);
+    this.cockpitView = new CockpitView(this.camera);
     this.backendPolicy = rendererBackendPolicy();
     this.renderer = new THREE.WebGPURenderer({
       antialias: true,
@@ -516,6 +519,18 @@ export class UniverseRenderer {
     this._motionMaterial.color.setHex(transitFactor > 0 ? 0xb7f4ff : 0x8bdfff);
   }
 
+  setCockpitVisible(visible) {
+    this.cockpitView?.setVisible(Boolean(visible));
+  }
+
+  updateCockpitTelemetry(telemetry, now = performance.now()) {
+    this.cockpitView?.update(telemetry, now);
+  }
+
+  pickCockpitControl(clientX, clientY) {
+    return this.cockpitView?.pick(clientX, clientY, this.renderer, this.raycaster, this.pointer) ?? null;
+  }
+
   pickBodyAt(clientX, clientY) {
     const rect = this.renderer.domElement.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
@@ -748,6 +763,7 @@ export class UniverseRenderer {
     for (const visual of this.spaceWeatherVisuals.values()) { this.scene.remove(visual); disposeObject(visual); }
     this.spaceWeatherVisuals.clear();
     if (this.scientificOverlayHolder.group) { this.scene.remove(this.scientificOverlayHolder.group); disposeObject(this.scientificOverlayHolder.group); }
+    this.cockpitView?.dispose();
     this._motionGeometry.dispose();
     this._motionMaterial.dispose();
     this.renderer.dispose();

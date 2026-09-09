@@ -1,12 +1,21 @@
-# Universe Lab v0.1.4.6 — Astronomical Observer & Sky Continuity Foundation
+# Universe Lab v0.1.4.6.1 — Interactive 3D Cockpit Visual Foundation
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `SKYOBS-146`  
+**Build marker:** `COCKPIT-1461`  
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
+
+
+## v0.1.4.6.1 interactive 3D cockpit
+
+This release builds directly on the physically accepted v0.1.4.6 sky-continuity foundation without changing orbital physics, observer math, landing lifecycle, save schema, or the iPhone WebGL2 backend policy. The old decorative DOM/CSS cockpit shell is replaced visually by a camera-attached Three.js cockpit designed around a wide astronomy window.
+
+The cockpit has three live CanvasTexture MFDs: **NAVIGATION**, **FLIGHT**, and **SCIENCE**. Each displays live simulation data and is itself touch-active. Nine visible physical keys are also functional: **MAP, TGT, APPR, ENG, PRO, RET, SCAN, SCI, OVR**. No visible cockpit button or screen is decorative-only. The controls dispatch the existing authoritative app actions rather than creating a second flight/science state machine. OBSERVE and surface modes still auto-hide the cockpit, and the existing cockpit preference remains schema-1 compatible.
+
+The procedural shell is deliberately modular. A future licensed/optimized GLB cockpit can replace the geometry while keeping the live MFD, telemetry, action-routing, visibility, and save-preference interfaces.
 
 
 ## v0.1.4.6 astronomical observer and sky continuity

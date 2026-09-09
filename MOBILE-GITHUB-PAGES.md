@@ -1,4 +1,23 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.6
+# Universe Lab v0.1.4.6.1 — iPhone Cockpit Physical Gate
+
+Before accepting this release on physical iPhone Safari:
+
+1. Confirm HUD version **v0.1.4.6.1**, build marker **COCKPIT-1461**, and renderer **WebGL2 iOS**.
+2. In SHIP VIEW, confirm the real 3D cockpit appears with a wide unobstructed forward view; NAV/FLIGHT/SCIENCE MFD text should be legible enough to identify values.
+3. Tap each MFD: NAV must open System Map, FLIGHT must open Flight/System, SCIENCE must open Science.
+4. Tap every physical cockpit key at least once: MAP, TGT, APPR, ENG, PRO, RET, SCAN, SCI, OVR. Confirm each causes the corresponding real app action and no dead key remains.
+5. Verify celestial targeting still works when tapping the universe away from cockpit controls.
+6. Toggle COCKPIT OFF/ON; confirm the unobstructed view returns and the 3D cockpit comes back.
+7. Enter OBSERVE and return to SHIP VIEW; cockpit must hide/show correctly.
+8. LAND/DESCEND and BOARD/TAKEOFF; cockpit must stay absent on the surface and return after orbit handoff with no stale surface frame.
+9. Repeat the v0.1.4.6 sky-continuity orbit → descent → surface → ascent checks; cockpit work must not regress the accepted astronomical observer behavior.
+10. Watch sustained FPS/heat for several minutes in landscape. Report clipped dashboard, unreadable MFDs, touch misses, accidental body selection through a cockpit control, excessive canopy obstruction, or renderer errors.
+
+The procedural shell is a visual foundation, not the final asset. Physical acceptance should focus on view proportion, touch usability, legibility, and regression safety before visual-detail expansion.
+
+---
+
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.6.1
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -16,8 +35,8 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 
 After upload/reload verify:
 
-- title/HUD says **v0.1.4.6**,
-- MORE help shows **SKYOBS-146**,
+- title/HUD says **v0.1.4.6.1**,
+- MORE help shows **COCKPIT-1461**,
 - renderer telemetry reads **WebGL2 iOS** on iPhone/iPad WebKit,
 - FPS/physics/render telemetry populate in orbit,
 - no `RUNTIME ERROR` banner appears.

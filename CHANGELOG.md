@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.4.6.1 — Interactive 3D Cockpit Visual Foundation
+
+- Added a camera-attached procedural Three.js cockpit shell with a wide forward canopy, thin structural framing, low dashboard and restrained material/emissive treatment.
+- Replaced the old fake dashboard/strut DOM artwork with a glass/reflection/status overlay only; cockpit structure now exists in the 3D scene.
+- Added live **NAVIGATION**, **FLIGHT**, and **SCIENCE** MFDs using CanvasTexture telemetry updated at a bounded cadence.
+- Made every visible cockpit screen interactive: NAV opens System Map, FLIGHT opens Flight/System, SCIENCE opens Science.
+- Added nine functional physical cockpit keys: MAP, TGT, APPR, ENG, PRO, RET, SCAN, SCI and OVR.
+- Cockpit touches use Three.js ray-picking and are consumed before celestial-body target picking.
+- Existing app actions remain authoritative; cockpit controls are presentation/input aliases, not duplicate simulation logic.
+- Cockpit still auto-hides in OBSERVE and surface modes and respects the existing schema-1 `cockpitEnabled` preference.
+- Preserved Three.js 0.185.0, save schema 1, canonical astronomical observer, landing/ascent recovery, and the accepted iPhone/iPad forced-WebGL2 renderer policy.
+
+
 ## v0.1.4.6 — Astronomical Observer & Sky Continuity Foundation
 
 - Added a canonical read-only observer solution for ship, descent and surface modes with inertial position, orientation, local horizon basis, parent/anchor/altitude and canonical simulation time.

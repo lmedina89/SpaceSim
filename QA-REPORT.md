@@ -1,55 +1,71 @@
-# Universe Lab v0.1.4.6 — Astronomical Observer & Sky Continuity Foundation QA Report
+# Universe Lab v0.1.4.6.1 — Interactive 3D Cockpit Visual Foundation QA Report
 
 ## Release identity
 
-- Version: **0.1.4.6**
-- Build marker: **SKYOBS-146**
-- Baseline archive SHA-256: `eb4b2a66d9d323718e36525cf8dd2701495425fd41f1bbbb45ecc9f38f5132d0`
-- Baseline identity: **v0.1.4.5.4 / RENDER-1454**
+- Version: **0.1.4.6.1**
+- Build marker: **COCKPIT-1461**
+- Baseline archive SHA-256: `2c150f00091dc07382ca4880d618aa3b6b20ee5c0ae10cd576ffce3e1fa71cdb`
+- Baseline identity: **v0.1.4.6 / SKYOBS-146**
 - Save schema: **1**, unchanged
 - Three.js: **0.185.0**, pinned
 - Deployment: GitHub Pages branch root; no workflows
 - Physical release gate: **iPhone/iPad Safari/WebKit**
 
-## Baseline verification
+## Scope implemented
 
-The uploaded archive name had a harmless `(1)` suffix. Its content hash exactly matched the required authoritative baseline. Root layout, VERSION.json, package.json, schema, Three.js import pin, renderer policy and absence of `.github/workflows/*` were verified before editing. Baseline automated QA passed **123/123**.
+- Added `src/render/cockpitView.js`, a camera-attached procedural Three.js cockpit shell.
+- Kept the forward astronomy window deliberately large: low glare shield/dashboard plus thin side/upper canopy structure instead of a view-blocking cockpit cave.
+- Added three live CanvasTexture MFDs: **NAVIGATION**, **FLIGHT**, **SCIENCE**.
+- NAV shows target, range, relative velocity, guidance mode and simulation warp.
+- FLIGHT shows inertial ship speed, engine mode, acceleration cap, active control state and simulation time/warp.
+- SCIENCE shows target class, physical radius, temperature, local target gravity and scientific-overlay state.
+- Every visible cockpit screen is touch-active: NAV opens System Map, FLIGHT opens Flight/System, SCIENCE opens Science.
+- Every visible physical cockpit key is functional: **MAP, TGT, APPR, ENG, PRO, RET, SCAN, SCI, OVR**.
+- Cockpit ray-picking runs before celestial-body picking so a real cockpit control cannot accidentally target a body behind it.
+- Existing UniverseLabApp systems remain authoritative. Cockpit inputs only route to existing navigation/engine/scanner/science/overlay actions.
+- Existing COCKPIT ON/OFF preference remains schema-1 compatible.
+- Cockpit auto-hides in OBSERVE and local surface modes and returns in SHIP VIEW.
+- Removed the old decorative CSS dashboard/struts from the visible shell; retained only subtle glass/reflection/status presentation above the 3D renderer.
+- No external cockpit model or texture asset is bundled, preserving a clean later path to replace the procedural shell with an optimized GLB.
 
-## Implemented and verified
+## Regression boundaries preserved
 
-- Canonical ship/descent/surface observer position and orthonormal orientation/local horizon bases.
-- Read-only live-body direction/range/horizon records with physical apparent angular radius.
-- Stable deterministic inertial catalog reused without landing reseed.
-- Fixed-time descent → surface and surface → orbit direction continuity.
-- Surface lower-hemisphere occlusion, live Sun direction and bounded major-body visual proxies.
-- Daylight/weather exposure hooks preserve model/catalog existence.
-- Schema-1 save/load reconstructs observer state without duplicate persisted data.
-- NaN/Infinity guards and renderer isolation from authoritative physics.
-- Existing iOS forced WebGL2 backend policy and ascent regressions remain covered.
-- Two separated 1.55-solar-mass magnetars receive equal/opposite Newtonian acceleration.
-- Repeated LAB magnetars use deterministic 120,000 km collision-safe placement offsets; no magnetic force was introduced.
+The cockpit pass does not modify:
+
+- direct Newtonian gravity,
+- velocity-Verlet integration,
+- `ShipDynamics` physics authority,
+- canonical astronomical observer math,
+- inertial star catalog / surface sky continuity,
+- landing/descent/ascent lifecycle or recovery,
+- magnetar Newtonian behavior,
+- BOOST/TRANSIT physics boundaries,
+- save schema,
+- Three.js version, or
+- the accepted iPhone/iPad WebKit forced-WebGL2 backend policy.
 
 ## Automated verification
 
 - `npm run check`: **PASS**
 - Static structure/import-token checks: **PASS**
 - Every JS/MJS file via `node --check`: **PASS**
-- `npm test`: **143/143 PASS**
+- `npm test`: **148/148 PASS**
+- Cockpit-specific automated tests: **5 new tests PASS**
 - Save schema: **1**
 - Three.js import map: **0.185.0**
-- iPhone/iPad renderer policy: **WebGPURenderer forced to WebGL2**
-- GitHub-root layout: **PASS**
+- iPhone/iPad renderer policy regression tests: **PASS**
+- Astronomical observer/sky-continuity regressions: **PASS**
+- Landing/ascent handoff regressions: **PASS**
+- Clean-unzip GitHub-root layout: **PASS**
 - `.github/workflows/*`: **absent**
+- Local static HTTP resource checks for shell, CSS, main/app/renderer/cockpit modules and VERSION.json: **HTTP 200 PASS**
 
-## Performance review
+## Performance design review
 
-The inertial catalog uses stable typed arrays and is generated once per system seed. Surface horizon projection is created once per surface-world entry, not rebuilt each frame. Per-frame work is limited to the small major-body list, cached sprites and opacity/transform updates; observer records are reused. No renderer backend hot-swap or hidden landed N-body simulation was added.
-
-## Known boundary
-
-Orbital N-body time remains intentionally held while landed. The surface sky therefore preserves the same astronomical instant across the transition but does not yet advance with a body rotation/ephemeris model. Surface weather retains its independent bounded clock.
+Cockpit geometry is static and camera-attached. It uses shared materials, three bounded-resolution CanvasTextures, and a bounded ~180 ms screen refresh cadence instead of repainting MFD text on every render frame. Interaction uses ray-picking only on completed taps. No GLB loader, post-processing stack, dynamic reflection probe, or additional simulation loop was added.
 
 ## Physical iPhone release gate
 
-Automated testing cannot prove WebKit framebuffer presentation, visual continuity, touch behavior, sustained FPS or thermal behavior. Follow the on-device sequence in `MOBILE-GITHUB-PAGES.md`: verify **WebGL2 iOS**, compare a recognizable sky/body arrangement through orbit → descent → surface → ascent → orbit, rotate the surface view, repeat a landing cycle and repeat after schema-1 SAVE/LOAD. Do not declare physical acceptance until that test passes.
+Automated checks cannot establish final visual proportion, MFD legibility, touch hit accuracy, WebKit framebuffer behavior, sustained FPS, or thermal performance. Follow the first checklist in `MOBILE-GITHUB-PAGES.md` on the physical iPhone.
 
+Do not declare v0.1.4.6.1 physically accepted until the user confirms the cockpit view, all 12 cockpit touch surfaces (3 MFDs + 9 physical keys), normal sky targeting, COCKPIT OFF/ON, OBSERVE return, LAND/TAKEOFF return, and sky-continuity regression sequence.

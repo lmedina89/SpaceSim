@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.6
+# Architecture — Universe Lab v0.1.4.6.1
 
 ## Canonical astronomical observer
 
@@ -22,16 +22,13 @@ Normal spacecraft/major-body state remains SI/Float64. Major gravity remains dir
 
 ## Ship-view cockpit presentation
 
-v0.1.4.3.1 adds a lightweight DOM/CSS cockpit presentation layer that sits above the renderer only during normal `SHIP VIEW`. It is intentionally not a 3D interior mesh and does not participate in physics, occlusion, collision or target selection.
+v0.1.4.6.1 moves the cockpit structure into the Three.js scene while keeping it strictly presentation/input-side. `src/render/cockpitView.js` owns the camera-attached shell, three CanvasTexture MFDs, nine physical control meshes, touch ray-picking and transient button feedback. It does **not** own spacecraft state, navigation physics, target state, experiment state or save authority.
 
-`UniverseLabApp` owns a `cockpitEnabled` preference, a `toggleCockpit()` action, and view-mode class synchronization. The shell uses those classes to:
+`UniverseLabApp` remains authoritative. It exposes a compact read-only `cockpitTelemetry()` snapshot and `handleCockpitAction()` routes cockpit interactions into the same existing app actions used by the normal UI. `UniverseRenderer` only forwards visibility, telemetry and picking to the cockpit module. This is intentional so a future GLB cockpit can replace the procedural shell without changing application or simulation boundaries.
 
-- show the cockpit only during ship view,
-- hide it automatically during OBSERVE camera modes,
-- hide it automatically during local surface sessions, and
-- preserve the user's cockpit preference through save/load without changing schema 1.
+Every visible cockpit screen/button has a real function. The three MFDs are live and touch-active; MAP/TGT/APPR/ENG/PRO/RET/SCAN/SCI/OVR keys map to existing System Map, target cycling, approach guidance, engine mode, attitude aids, scanner, science and overlay controls. There are no decorative dead cockpit buttons.
 
-This keeps the effect inexpensive on mobile while restoring a stronger sense of physical spacecraft presence.
+The cockpit remains excluded from OBSERVE and local surface views. `cockpitEnabled` remains an optional schema-1 preference. The cockpit is never inserted into `EntityRegistry`, never participates in gravity/collision/trajectory calculations, and never alters the canonical astronomical observer.
 
 ## Landing lifecycle / recovery boundary
 

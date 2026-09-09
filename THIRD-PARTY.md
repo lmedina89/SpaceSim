@@ -11,3 +11,7 @@ The speculative TRANSIT drive is project code and is explicitly fictional; it is
 See the Three.js project for its upstream license and notices.
 
 No third-party weather, terrain, spacecraft or anomaly art assets were added in v0.1.4.5; these visuals are generated from Three.js primitives, canvas textures and seeded procedural data.
+
+## v0.1.4.6.1 cockpit
+
+The interactive cockpit in `src/render/cockpitView.js` is original procedural geometry/code created for Universe Lab. No external cockpit model, GLB, texture pack, marketplace asset, or generated-image asset is bundled in this release. Runtime Three.js remains pinned to 0.185.0 through the existing CDN import map.
