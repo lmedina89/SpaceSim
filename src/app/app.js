@@ -179,6 +179,7 @@ export class UniverseLabApp {
     this._surfacePreviousTimeScale = 1;
     this.selectedSurfaceRegionId = 'shatterfall-basin';
     this.cockpitEnabled = true;
+    this.rendererBackend = 'INIT';
   }
 
   get bodies() { return this.registry.values(); }
@@ -219,6 +220,7 @@ export class UniverseLabApp {
 
   async init() {
     const backend = await this.renderer.init();
+    this.rendererBackend = backend;
     this.hud.setRenderer(backend);
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
@@ -243,7 +245,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.6.1.1 online. Cockpit ergonomics/lighting polish active; renderer handoff isolation remains unchanged: iPhone/iPad WebKit forces the WebGPURenderer WebGL2 backend while other devices retain automatic backend selection. Active backend: ${backend}. Build COCKPIT-14611.`);
+    this.hud.notify(`v0.1.4.6.1.2 online. Integrated cockpit diagnostics active: renderer/performance/debug telemetry now lives on the right-side ship-mounted diagnostic MFD while the forward canopy is cleaner. Renderer handoff isolation remains unchanged; iPhone/iPad WebKit still forces the WebGPURenderer WebGL2 backend. Active backend: ${backend}. Build DIAGMFD-14612.`);
   }
 
   newSystem(seed) {
@@ -946,7 +948,7 @@ export class UniverseLabApp {
     this.renderer.setCockpitVisible(showCockpit);
   }
 
-  cockpitTelemetry() {
+  cockpitTelemetry(runtime = {}) {
     const target = this.target;
     const state = target ? targetRelativeState(this.ship, target) : null;
     const distanceMeters = state?.distanceMeters ?? null;
@@ -971,6 +973,17 @@ export class UniverseLabApp {
       targetTemperatureK: target?.temperatureK ?? null,
       targetGravityMps2,
       overlaysEnabled: Boolean(this.scientificOverlays.enabled),
+      rendererBackend: this.rendererBackend,
+      fps: this.fps,
+      physicsMs: this.physicsMs,
+      renderMs: this.renderMs,
+      seed: this.system?.seed ?? 'ORIGIN-001',
+      bodyCount: this.bodies.length,
+      minorCount: this.minorField?.count ?? 0,
+      drawCalls: runtime.drawCalls ?? this.renderer.getStats()?.drawCalls ?? null,
+      predictionMs: this.predictionMs,
+      experimentParticles: this.particleExperiments.activeParticles,
+      experimentMs: this.experimentMs,
     };
   }
 
@@ -986,7 +999,7 @@ export class UniverseLabApp {
     this.cockpitEnabled = typeof force === 'boolean' ? force : !this.cockpitEnabled;
     this.updateCockpitUi();
     this.hud.notify(this.cockpitEnabled
-      ? 'Interactive 3D cockpit online. NAV, FLIGHT and SCIENCE screens plus every visible cockpit key are live controls.'
+      ? 'Interactive 3D cockpit online. NAV, FLIGHT, SCIENCE and SYSTEM DIAGNOSTICS screens plus every visible cockpit key are live controls.'
       : 'Cockpit hidden. SHIP VIEW returned to the unobstructed astronomy camera.');
   }
 
@@ -1010,6 +1023,7 @@ export class UniverseLabApp {
         requestAnimationFrame(() => this.systemMap.draw());
         break;
       case 'flight-screen':
+      case 'diagnostics-screen':
         this.hud.toggleMore(true);
         break;
       case 'science-screen':
@@ -2094,7 +2108,6 @@ export class UniverseLabApp {
     const renderStart = performance.now();
     const cameraView = this.currentCameraView(now, orbitalRealDt);
     const astronomy = this.solveAstronomicalObserver();
-    if (this.cockpitEnabled && this.cameraMode === 'ship') this.renderer.updateCockpitTelemetry(this.cockpitTelemetry(), now);
     this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, spaceWeather: this.spaceWeather.states(this.bodies.find((body) => body.kind === BODY_KIND.STAR), this.clock.elapsedSimSeconds), scientificOverlays: this.scientificOverlays, target: this.target, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView, astronomy });
     this.renderMs = performance.now() - renderStart;
     if (this._surfaceOrbitHandoffPending) this.commitSurfaceOrbitHandoff();
@@ -2116,6 +2129,9 @@ export class UniverseLabApp {
       this.fpsClock = now;
     }
     const renderStats = this.renderer.getStats();
+    if (this.cockpitEnabled && this.cameraMode === 'ship') {
+      this.renderer.updateCockpitTelemetry(this.cockpitTelemetry({ drawCalls: renderStats.drawCalls }), now);
+    }
     this.hud.update({
       fps: this.fps,
       elapsedSeconds: this.clock.elapsedSimSeconds,

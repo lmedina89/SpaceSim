@@ -1,13 +1,24 @@
-# Universe Lab v0.1.4.6.1.1 — Cockpit Ergonomics, Lighting & Menu Cleanup Polish
+# Universe Lab v0.1.4.6.1.2 — Integrated Cockpit Diagnostics MFD
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `COCKPIT-14611`
+**Build marker:** `DIAGMFD-14612`
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)
 **Three.js:** 0.185.0 (unchanged)
 **Deployment:** GitHub Pages → `main` → `/(root)`
 **Release gate:** physical iPhone Safari
 
+
+
+## v0.1.4.6.1.2 integrated cockpit diagnostics
+
+This is a contained cockpit-presentation release built directly from v0.1.4.6.1.1 after the physical iPhone cockpit screenshot showed that the live renderer/performance/debug telemetry was visually useful but looked detached when spread across the top of the canopy.
+
+Ship view now adds a fourth live camera-attached CanvasTexture display: a right-side **SYSTEM DIAGNOSTICS** MFD mounted into the procedural cockpit with a slim physical rail and a translucent/holographic presentation. It mirrors the existing live renderer backend, FPS, physics/render timings, ship speed, simulation time, seed, major/test counts, draw calls, prediction timing, experiment particle count and experiment timing. The display owns no simulation state; every value still comes from the existing app/renderer telemetry path.
+
+While the 3D cockpit is active, the duplicated top renderer/stat cards and seed/debug strip are hidden so the forward canopy is cleaner. The normal top HUD telemetry remains available whenever the cockpit is deliberately hidden. The compact target ribbon remains visible. Tapping the diagnostics MFD opens the existing **Flight / System** drawer, reusing the same control path rather than creating a second settings/debug state machine.
+
+The change is deliberately mobile-safe: one additional low-frequency CanvasTexture refresh (same 180 ms cockpit cadence), basic/emissive materials only, no new dynamic lights, no external cockpit asset, no physics/save/observer/landing/backend change, and save schema remains 1.
 
 ## v0.1.4.6.1.1 cockpit ergonomics / lighting polish
 

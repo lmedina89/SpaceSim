@@ -72,8 +72,94 @@ function drawLine(ctx, label, value, y, width, accent = '#eefaff') {
   ctx.fillText(String(value), Math.max(18, width - 18 - measured), y);
 }
 
-function makeScreenMaterial(texture) {
-  return new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, transparent: false });
+
+function drawDiagnosticsScreen(entry, t) {
+  const { canvas, ctx, texture } = entry;
+  const { width, height } = canvas;
+  ctx.clearRect(0, 0, width, height);
+
+  const bg = ctx.createLinearGradient(0, 0, width, height);
+  bg.addColorStop(0, 'rgba(4,19,28,.92)');
+  bg.addColorStop(0.55, 'rgba(2,11,18,.86)');
+  bg.addColorStop(1, 'rgba(1,7,12,.78)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = 'rgba(105,232,255,.78)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(7, 7, width - 14, height - 14);
+  ctx.strokeStyle = 'rgba(105,232,255,.18)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(14, 14, width - 28, height - 28);
+
+  ctx.fillStyle = '#8beaff';
+  ctx.font = '800 25px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillText('SYSTEM DIAGNOSTICS', 24, 42);
+  ctx.fillStyle = '#507b8d';
+  ctx.font = '600 13px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillText('LIVE · PILOT DEBUG BUS', 24, 63);
+  ctx.fillStyle = 'rgba(105,232,255,.32)';
+  ctx.fillRect(24, 75, width - 48, 2);
+
+  const row = (label, value, y, accent = '#eefaff') => {
+    ctx.fillStyle = '#7096a9';
+    ctx.font = '700 15px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText(label, 26, y);
+    ctx.fillStyle = accent;
+    ctx.font = '800 25px ui-monospace, SFMono-Regular, Menlo, monospace';
+    const text = String(value ?? '—');
+    const measured = ctx.measureText(text).width;
+    ctx.fillText(text, Math.max(26, width - 26 - measured), y);
+  };
+
+  row('RENDERER', t.rendererBackend || 'INIT', 111, '#bff6ff');
+  row('FPS', Number.isFinite(t.fps) ? `${Math.round(t.fps)}` : '—', 151);
+  row('PHYSICS', Number.isFinite(t.physicsMs) ? `${fmt(t.physicsMs, 2)} ms` : '—', 191);
+  row('RENDER', Number.isFinite(t.renderMs) ? `${fmt(t.renderMs, 2)} ms` : '—', 231);
+  row('SHIP', formatSpeed(t.shipSpeedMps), 271, '#ffffff');
+  row('SIM TIME', `${fmt((t.elapsedSimSeconds ?? 0) / 86400, 3)} d`, 311);
+
+  ctx.fillStyle = 'rgba(105,232,255,.24)';
+  ctx.fillRect(24, 333, width - 48, 2);
+
+  const compact = (label, value, y, accent = '#d9f7ff') => {
+    ctx.fillStyle = '#628697';
+    ctx.font = '700 14px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText(label, 26, y);
+    ctx.fillStyle = accent;
+    ctx.font = '800 20px ui-monospace, SFMono-Regular, Menlo, monospace';
+    const text = String(value ?? '—');
+    const measured = ctx.measureText(text).width;
+    ctx.fillText(text, Math.max(26, width - 26 - measured), y);
+  };
+
+  compact('SEED', t.seed || 'ORIGIN-001', 370, '#bfeeff');
+  compact('MAJOR', Number.isFinite(t.bodyCount) ? String(t.bodyCount) : '—', 404);
+  compact('TEST', Number.isFinite(t.minorCount) ? Number(t.minorCount).toLocaleString() : '—', 438);
+  compact('DRAW', Number.isFinite(t.drawCalls) ? String(t.drawCalls) : '—', 472);
+  compact('PRED', Number.isFinite(t.predictionMs) ? `${fmt(t.predictionMs, 2)} ms` : '—', 506);
+  compact('EXP', Number.isFinite(t.experimentParticles) ? Number(t.experimentParticles).toLocaleString() : '0', 540, '#b7ffd7');
+  compact('LAB', Number.isFinite(t.experimentMs) ? `${fmt(t.experimentMs, 2)} ms` : '0 ms', 574, '#b7ffd7');
+
+  ctx.fillStyle = 'rgba(105,232,255,.18)';
+  ctx.fillRect(24, 602, width - 48, 2);
+  ctx.fillStyle = '#6fbfd3';
+  ctx.font = '700 13px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('TOUCH → FLIGHT / SYSTEM', width / 2, 632);
+  ctx.textAlign = 'start';
+  ctx.fillStyle = 'rgba(105,232,255,.06)';
+  for (let y = 90; y < 600; y += 28) ctx.fillRect(18, y, width - 36, 1);
+  texture.needsUpdate = true;
+}
+
+function makeScreenMaterial(texture, { holographic = false } = {}) {
+  return new THREE.MeshBasicMaterial({
+    map: texture,
+    toneMapped: false,
+    transparent: holographic,
+    opacity: holographic ? 0.94 : 1,
+    depthWrite: !holographic,
+  });
 }
 
 function makeButtonLabel(text, accent = '#c8eeff') {
@@ -196,11 +282,18 @@ export class CockpitView {
 
     // Compact glare shield remains behind the MFD faces so it no longer visually slices through them.
     g.add(makePanelBox([1.24, 0.040, 0.12], [0, -0.250, -0.985], [-0.14, 0, 0], this.shellMaterial));
+
+    // Right-side engineering display mount. The actual live pane sits slightly inboard of this
+    // physical rail so it reads as a ship-installed holo/MFD rather than a windshield HUD card.
+    g.add(makePanelBox([0.080, 0.55, 0.10], [0.925, 0.150, -0.735], [0, -0.26, -0.015], this.shellMaterial));
+    g.add(makePanelBox([0.036, 0.53, 0.110], [0.888, 0.150, -0.765], [0, -0.26, -0.015], this.trimMaterial));
+    g.add(makePanelBox([0.026, 0.47, 0.018], [0.865, 0.150, -0.790], [0, -0.26, -0.015], this.glowStripMaterial));
+    g.add(makeBeam([0.86, -0.12, -0.79], [0.76, -0.31, -0.88], 0.012, this.trimMaterial));
   }
 
-  addScreen({ id, title, position, rotation, width, height, action, accent }) {
-    const buffer = canvasTexture(448, 280);
-    const material = makeScreenMaterial(buffer.texture);
+  addScreen({ id, title, position, rotation, width, height, action, accent, bufferWidth = 448, bufferHeight = 280, holographic = false }) {
+    const buffer = canvasTexture(bufferWidth, bufferHeight);
+    const material = makeScreenMaterial(buffer.texture, { holographic });
     const bezel = new THREE.Mesh(new THREE.BoxGeometry(width + 0.038, height + 0.038, 0.026), this.trimMaterial);
     bezel.position.set(position[0], position[1], position[2] - 0.018);
     bezel.rotation.set(...rotation);
@@ -272,6 +365,11 @@ export class CockpitView {
     this.addScreen({
       id: 'science', title: 'SCIENCE', action: 'science-screen', accent: '#91ffcf',
       position: [0.45, -0.245, -0.895], rotation: [-0.075, -0.095, -0.012], width: 0.39, height: 0.235,
+    });
+    this.addScreen({
+      id: 'diagnostics', title: 'SYSTEM DIAGNOSTICS', action: 'diagnostics-screen', accent: '#73e8ff',
+      position: [0.755, 0.150, -0.815], rotation: [-0.018, -0.26, -0.015], width: 0.250, height: 0.500,
+      bufferWidth: 330, bufferHeight: 660, holographic: true,
     });
 
     // Real status lamps: POWER, TARGET, NAV, PROPULSION and CAUTION.
@@ -347,6 +445,9 @@ export class CockpitView {
     drawLine(science.ctx, 'OVERLAYS', t.overlaysEnabled ? 'ACTIVE' : 'STANDBY', 204, science.canvas.width, t.overlaysEnabled ? '#9effcf' : '#9db4c0');
     science.ctx.fillStyle = '#7ee8b7'; science.ctx.font = '600 16px ui-monospace, monospace'; science.ctx.fillText('TOUCH SCREEN → SCIENCE', 18, 250);
     science.texture.needsUpdate = true;
+
+    const diagnostics = this.screenEntries.get('diagnostics');
+    if (diagnostics) drawDiagnosticsScreen(diagnostics, t);
   }
 
   updateButtonStates(t, now) {

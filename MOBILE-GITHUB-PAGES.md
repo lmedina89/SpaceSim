@@ -1,8 +1,8 @@
-# Universe Lab v0.1.4.6.1.1 — iPhone Cockpit Polish Physical Gate
+# Universe Lab v0.1.4.6.1.2 — Integrated Cockpit Diagnostics iPhone Gate
 
 Before accepting this release on physical iPhone Safari:
 
-1. Confirm HUD version **v0.1.4.6.1.1**, build marker **COCKPIT-14611**, and renderer **WebGL2 iOS**.
+1. Confirm HUD version **v0.1.4.6.1.2**, build marker **DIAGMFD-14612**, and the right-side diagnostics MFD reports renderer **WebGL2 iOS**.
 2. In SHIP VIEW, verify the overall wide-canopy cockpit composition still matches the accepted v0.1.4.6.1 feel and that the outside universe remains dominant.
 3. Inspect the three MFDs carefully: **NAVIGATION, FLIGHT, SCIENCE must now read in front of the horizontal glare-shield/dash bar**, with no bar slicing through the screen faces.
 4. Tap each MFD: NAV opens System Map, FLIGHT opens Flight/System, SCIENCE opens Science.
@@ -18,7 +18,19 @@ This release is intentionally presentation/UI-only. Physical acceptance is requi
 
 ---
 
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.6.1.1
+
+## v0.1.4.6.1.2 cockpit diagnostics acceptance
+
+1. In normal SHIP VIEW, confirm the large top renderer/FPS/physics/render/ship/sim stat cards and the SEED/MAJOR/TEST/DRAW/PRED/EXP/LAB strip are no longer floating across the canopy.
+2. Confirm **UNIVERSE LAB v0.1.4.6.1.2** remains visible and the compact target ribbon still updates normally.
+3. Confirm the new right-side **SYSTEM DIAGNOSTICS** screen is fully visible, appears mounted to the cockpit, and does not visually collide with the SCIENCE MFD or THRUST/REV/BRAKE controls.
+4. Verify the monitor updates **WebGL2 iOS**, FPS, PHYSICS, RENDER, SHIP, SIM TIME, SEED, MAJOR, TEST, DRAW, PRED, EXP and LAB values while flying.
+5. Tap the diagnostics MFD and confirm the existing **FLIGHT / SYSTEM** drawer opens.
+6. Toggle **COCKPIT OFF** and confirm the ordinary top diagnostics return; restore the cockpit and confirm they move back off the canopy.
+7. Regress NAVIGATION / FLIGHT / SCIENCE MFDs, all nine physical keys, LAB/TARGET/SCAN/APPROACH/WARP, LOOK and THRUST/REV/BRAKE.
+8. Run several minutes in iPhone landscape and watch for sustained FPS/thermal regression, transparent-screen sorting artifacts, clipping, or touch-pick misses on the diagnostics panel.
+
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.6.1.2
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -36,8 +48,8 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 
 After upload/reload verify:
 
-- title/HUD says **v0.1.4.6.1.1**,
-- Flight/System help shows **COCKPIT-14611**,
+- title/HUD says **v0.1.4.6.1.2**,
+- Flight/System help shows **DIAGMFD-14612**,
 - renderer telemetry reads **WebGL2 iOS** on iPhone/iPad WebKit,
 - bottom MORE launcher is absent while FLIGHT MFD still opens Flight/System,
 - FPS/physics/render telemetry populate in orbit,

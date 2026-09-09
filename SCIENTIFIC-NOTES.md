@@ -1,4 +1,6 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.6.1.1
+# Scientific / Model Notes — Universe Lab v0.1.4.6.1.2
+
+**v0.1.4.6.1.2 note:** the new ship-mounted SYSTEM DIAGNOSTICS MFD and cockpit-mode top-HUD cleanup are presentation/input-only. Renderer/FPS/timing/count values are mirrored from existing runtime state; no diagnostic value feeds gravity, integration, navigation, observation, landing, weather or save authority. The v0.1.4.6 scientific model below is unchanged.
 
 **v0.1.4.6.1.1 note:** cockpit MFD placement, menu cleanup, and emissive/status lighting are presentation/input-only; the v0.1.4.6 scientific model below is unchanged.
 

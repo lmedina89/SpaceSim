@@ -1,5 +1,16 @@
 # Changelog
 
+
+## v0.1.4.6.1.2 — Integrated Cockpit Diagnostics MFD
+
+- Added a fourth live Three.js/CanvasTexture cockpit screen on the right side: **SYSTEM DIAGNOSTICS**.
+- Added a slim procedural ship-side mount/rail and translucent holo-style MFD presentation without external assets or dynamic cockpit lights.
+- Moved live renderer/backend, FPS, physics/render timing, ship speed, simulation time, seed, body/test counts, draw calls, prediction timing and experiment telemetry into the cockpit display.
+- Hid the duplicated top stat cards and seed/debug strip only while the 3D cockpit is active; cockpit-hidden/ordinary HUD fallback remains intact.
+- Kept the compact target ribbon visible and shifted it upward into the newly cleared top area.
+- Diagnostics MFD touch routes to the existing Flight/System drawer; no duplicate system state or controls were created.
+- Preserved save schema 1, Three.js 0.185.0, iPhone/iPad forced-WebGL2 backend policy, `ShipDynamics` authority, astronomical observer/sky continuity, landing lifecycle and all physics model boundaries.
+
 ## v0.1.4.6.1.1 — Cockpit Ergonomics, Lighting & Menu Cleanup Polish
 
 - Built directly from v0.1.4.6.1 after physical iPhone feedback approved the cockpit concept but showed the MFD bank visually behind the horizontal glare-shield bar.
