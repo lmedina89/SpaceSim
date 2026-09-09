@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.1.1
+# Architecture — Universe Lab v0.1.4.1.2
 
 ## Core invariant
 
@@ -94,3 +94,23 @@ No landing architecture is introduced in this release.
 - Local strong-gravity adaptive substeps and the 0.1c Newtonian ship-velocity model limit remain active because TRANSIT does not modify local velocity.
 - Mobile drawers remain scrollable and all new controls use the existing safe-area/VisualViewport shell.
 - Direct app `this.method()` calls, unique HTML IDs and literal app `#id` selectors are now statically audited.
+
+## Stellar presentation pipeline — v0.1.4.1.2
+
+Stellar rendering remains isolated from authoritative physics.
+
+- `render/celestialFactory.js` owns the layered star visual: photosphere, seeded procedural surface texture, limb-darkening overlay, additive corona, prominence filaments, active regions and rare visual flare sites.
+- `render/stellarPerception.js` is a pure presentation-policy module. It converts apparent angular radius into surface-detail, micro-corona, macro-visibility, background and exposure factors. It contains no Three.js objects and changes no body/ship state.
+- `render/threeRenderer.js` measures apparent star size from the live camera, applies the perceptual profile, adapts ACES exposure/background intensity and adjusts the camera near plane for close finite-radius surfaces.
+- `render/starfield.js` exposes role/base-opacity metadata so deep-space stars, the galactic band and nebula proxies can be attenuated near a bright stellar disk without destroying their baseline authored values.
+- `render/spaceWeatherVisuals.js` keeps active CME macro fronts renderable at long range rather than using the former hard distance cutoff.
+
+The key policy is **perceptual LOD, not disappearance LOD**: expensive micro-detail may simplify as it becomes sub-pixel, while visually important macro phenomena are preserved. This keeps distant stellar events legible without running unnecessary tiny particles.
+
+Generated per-star surface textures are explicitly marked for disposal when their owning visual is destroyed. Shared textures remain shared. This avoids accumulating generated canvas textures when systems are regenerated.
+
+## Close-approach and transit presentation isolation
+
+Dynamic camera near-plane adjustment and stellar exposure are renderer-only operations. They do not change collision radii, safety envelopes, gravitational sources, integration step sizes or navigation decisions.
+
+Similarly, `transitVisualFactor` now decays for a short period after TRANSIT exits. That decay is render-only and intentionally preserves the authoritative Newtonian position/velocity handoff. The normal transit drive still owns coordinate translation and AUTO CAPTURE still returns control to bounded local propulsion.

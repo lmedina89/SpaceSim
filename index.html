@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.1.1</title>
+  <title>Universe Lab v0.1.4.1.2</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.1.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.1.2</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -89,7 +89,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>NAVLIFE-1411</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>STELLAR-1412</b>.</p>
     </aside>
 
     <aside id="transitPanel" class="drawer science-panel" hidden>
@@ -123,7 +123,7 @@
         <label>Artificial local strength (m/s²)<input id="particleStrength" type="number" inputmode="decimal" value="20" min="0" max="250" step="1"></label>
         <label class="inline-check"><input id="particleMajorGravity" type="checkbox" checked><span>Also feel all major-body Newtonian gravity</span></label>
         <div class="button-row"><button id="randomizeParticleRules" type="button">RANDOMIZE RULE PARAMS</button><button id="spawnParticleField" class="void" type="button">SPAWN + OBSERVE</button></div>
-        <p id="particleStatus" class="prediction">No particle experiments. Fields are session-local in v0.1.4.1.1.</p>
+        <p id="particleStatus" class="prediction">No particle experiments. Fields are session-local in v0.1.4.1.2.</p>
         <h3>OBSERVATION / RENDEZVOUS</h3>
         <p class="help">OBSERVE/FRAME/TRACK/ORBIT move only a massless scientific camera. RENDEZVOUS returns to SHIP VIEW and moves the physical spacecraft with bounded thrust and braking.</p>
         <label>Selected experiment<select id="experimentSelect"><option value="">No active experiment</option></select></label>
@@ -264,7 +264,7 @@
         <p><strong>Trajectory path:</strong> an N-body forward integration of the current massive system plus the ship/projectile. Future thrust and minor-particle gravity are excluded.</p>
         <p><strong>Scanner orbit:</strong> osculating two-body elements around the selected target. Other-body perturbations are intentionally ignored in those displayed elements.</p>
         <p><strong>Minor field:</strong> 1k–20k typed-array background test particles feel major gravity but intentionally contribute no gravity.</p>
-        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields are session-local in v0.1.4.1.1 and cap warp at 60× only while live particles remain; completed fields preserve a final frame and release the cap automatically. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
+        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields are session-local in v0.1.4.1.2 and cap warp at 60× only while live particles remain; completed fields preserve a final frame and release the cap automatically. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
         <p><strong>Ship:</strong> FLIGHT thrust is 20 m/s²; CRUISE thrust is 120 m/s²; BOOST is an explicitly speculative 5,000 m/s² propulsion mode for rapid local velocity-vector changes. BRAKE applies bounded thrust opposite inertial velocity. APPROACH uses a propulsion-safe stand-off and persistent HOLD; STOP RELATIVE matches target velocity; TURN &amp; BURN cancels lateral velocity toward the captured nose direction. PROGRADE/RETROGRADE change attitude only.</p>
         <p><strong>Transit drive:</strong> explicitly fictional reference-frame travel for convenient exploration. Transit position translation is kept separate from Newtonian velocity, steps down near the destination, and can hand off to BOOST + the physical APPROACH controller. It is blocked around unsafe local conditions and live fine-step particle experiments. It is not an Alcubierre/GR simulation.</p>
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>

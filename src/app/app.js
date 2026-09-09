@@ -195,7 +195,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.1.1 online. Transit navigation, vector assists, and experiment lifecycle recovery active. Build NAVLIFE-1411.');
+    this.hud.notify('v0.1.4.1.2 online. Stellar rendering, perceptual LOD, close-approach exposure, and smooth transit arrival visuals active. Build STELLAR-1412.');
   }
 
   newSystem(seed) {
@@ -421,6 +421,7 @@ export class UniverseLabApp {
       status: null,
     };
     this.ship.transitVisualFactor = Math.min(1, Math.log10(Math.max(1, multipleC)) / 3);
+    this.ship.transitVisualRelease = false;
     this.ship.transitDirection = new Float64Array(3);
     this.root.querySelector('#warpQuick').textContent = 'TRANSIT';
     this.hud.toggleTransit(false);
@@ -434,8 +435,13 @@ export class UniverseLabApp {
     const previous = this.transitState.previousTimeScale;
     this.transitState.active = false;
     this.transitState.status = null;
-    this.ship.transitVisualFactor = 0;
-    this.ship.transitDirection = null;
+    // Keep the purely visual streak/FOV state for a short exponential release instead of
+    // snapping it off on the arrival frame. Newtonian position/velocity remain untouched.
+    this.ship.transitVisualRelease = (Number(this.ship.transitVisualFactor) || 0) > 0.001;
+    if (!this.ship.transitVisualRelease) {
+      this.ship.transitVisualFactor = 0;
+      this.ship.transitDirection = null;
+    }
     if (restoreWarp && this.navigationMode === 'manual' && !this.particleExperiments.hasActive) {
       this.clock.setTimeScale(previous || 1);
       const select = this.root.querySelector('#timeScale');
@@ -1157,7 +1163,7 @@ export class UniverseLabApp {
     }
     const summaries = this.particleExperiments.summaries();
     if (!summaries.length) {
-      element.textContent = 'No particle experiments. Fields are session-local in v0.1.4.1.1 and are intentionally not written into schema-1 saves.';
+      element.textContent = 'No particle experiments. Fields are session-local in v0.1.4.1.2 and are intentionally not written into schema-1 saves.';
       if (this.cameraMode === 'observe' && this.observationSource === 'experiment') this.returnToShipView(false);
       return;
     }
@@ -1265,6 +1271,14 @@ export class UniverseLabApp {
   frame(now) {
     const realDt = Math.min(SIMULATION.maxFrameDeltaSeconds, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
+    if (!this.transitState.active && this.ship.transitVisualRelease) {
+      this.ship.transitVisualFactor = Math.max(0, (Number(this.ship.transitVisualFactor) || 0) * Math.exp(-realDt * 2.65));
+      if (this.ship.transitVisualFactor < 0.008) {
+        this.ship.transitVisualFactor = 0;
+        this.ship.transitVisualRelease = false;
+        this.ship.transitDirection = null;
+      }
+    }
     const physicsStart = performance.now();
     this.experimentMs = 0;
     if (this.running) this.updateTransit(realDt);

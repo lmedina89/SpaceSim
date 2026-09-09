@@ -53,18 +53,20 @@ export function createStarfield(seed, count = 18_000) {
   const points = new THREE.Points(geometry, material);
   points.frustumCulled = false;
   points.name = 'deep-space-stars';
+  points.userData.role = 'deep-space-stars';
+  material.userData.baseOpacity = 0.9;
   group.add(points);
 
   // A faint seeded galactic band gives the sky structure without claiming that the shell
   // is a local gas simulation. It is deliberately camera-scale visual background only.
-  const bandCount = 7_000;
+  const bandCount = 5_500;
   const bandPositions = new Float32Array(bandCount * 3);
   const bandColors = new Float32Array(bandCount * 3);
   const bandPalette = [0x6f82b8, 0x9b75bd, 0x5e9eb4, 0xb07a86];
   for (let i = 0; i < bandCount; i += 1) {
     const radius = rng.range(60_000, 88_000);
     const theta = rng.range(0, Math.PI * 2);
-    const latitude = rng.range(-0.09, 0.09) + Math.sin(theta * 2.0) * 0.025;
+    const latitude = rng.range(-0.16, 0.16) + Math.sin(theta * 2.0 + Math.sin(theta * 0.7) * 0.8) * 0.055;
     const horizontal = Math.cos(latitude);
     const k = i * 3;
     bandPositions[k] = Math.cos(theta) * horizontal * radius;
@@ -78,14 +80,16 @@ export function createStarfield(seed, count = 18_000) {
   bandGeometry.setAttribute('position', new THREE.BufferAttribute(bandPositions, 3));
   bandGeometry.setAttribute('color', new THREE.BufferAttribute(bandColors, 3));
   const band = new THREE.Points(bandGeometry, new THREE.PointsMaterial({
-    size: 7.5,
+    size: 5.8,
     vertexColors: true,
     transparent: true,
-    opacity: 0.18,
+    opacity: 0.12,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   }));
   band.frustumCulled = false;
+  band.userData.role = 'galactic-band';
+  band.material.userData.baseOpacity = 0.12;
   group.add(band);
 
   nebulaTexture ??= makeNebulaTexture();
@@ -107,6 +111,8 @@ export function createStarfield(seed, count = 18_000) {
     const scale = rng.range(18_000, 34_000);
     sprite.scale.set(scale * rng.range(1.2, 2.1), scale, 1);
     sprite.material.rotation = rng.range(0, Math.PI * 2);
+    sprite.userData.role = 'background-nebula';
+    sprite.material.userData.baseOpacity = sprite.material.opacity;
     group.add(sprite);
   }
 

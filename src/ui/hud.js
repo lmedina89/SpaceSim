@@ -31,6 +31,14 @@ function acceleration(value) {
   return value >= 0.01 ? `${fmt(value, 4)} m/s²` : `${value.toExponential(3)} m/s²`;
 }
 
+function stellarProximity(body, metrics) {
+  if (body?.kind !== 'star' || !Number.isFinite(body.radius) || body.radius <= 0 || !Number.isFinite(metrics?.distanceMeters)) return null;
+  const radii = metrics.distanceMeters / body.radius;
+  if (radii > 25) return null;
+  const zone = radii <= 1.08 ? 'PHOTOSPHERE' : radii <= 2 ? 'LOW CORONA' : radii <= 8 ? 'INNER CORONA' : 'STELLAR VICINITY';
+  return { zone, radii, temperatureK: Number(body.temperatureK) || null };
+}
+
 export class Hud {
   constructor(root) {
     this.root = root;
@@ -109,9 +117,14 @@ export class Hud {
       return;
     }
     this.targetChip.hidden = false;
-    this.targetChip.textContent = `TARGET ${body.name} · ${distance(metrics.distanceMeters)} · Δv ${speed(metrics.relativeSpeedMps)}`;
+    const stellar = stellarProximity(body, metrics);
+    this.targetChip.textContent = stellar
+      ? `${stellar.zone} ${body.name} · ${fmt(stellar.radii, 2)} R★ · Δv ${speed(metrics.relativeSpeedMps)}`
+      : `TARGET ${body.name} · ${distance(metrics.distanceMeters)} · Δv ${speed(metrics.relativeSpeedMps)}`;
     this.targetName.textContent = body.name;
-    this.targetKind.textContent = `${body.kind}${body.planetType ? ` · ${body.planetType}` : ''}`;
+    this.targetKind.textContent = body.kind === 'star'
+      ? `${body.kind}${body.spectralClass ? ` · ${body.spectralClass}` : ''}${Number.isFinite(body.temperatureK) ? ` · ${fmt(body.temperatureK, 0)} K` : ''}`
+      : `${body.kind}${body.planetType ? ` · ${body.planetType}` : ''}`;
     this.targetDistance.textContent = distance(metrics.distanceMeters);
     this.targetAltitude.textContent = distance(metrics.altitudeMeters);
     this.targetRelativeSpeed.textContent = speed(metrics.relativeSpeedMps);
@@ -147,9 +160,9 @@ export class Hud {
     this.cameraChip.hidden = false;
     if (state?.activeCount != null) {
       const active = Number(state.activeCount).toLocaleString();
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD NAVLIFE-1411`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD STELLAR-1412`;
     } else {
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD NAVLIFE-1411`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD STELLAR-1412`;
     }
     this.cameraChip.classList.add('observing');
   }

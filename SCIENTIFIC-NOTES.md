@@ -1,4 +1,4 @@
-# Scientific Notes — Universe Lab v0.1.4.1.1
+# Scientific Notes — Universe Lab v0.1.4.1.2
 
 ## Newtonian state remains authoritative locally
 
@@ -60,3 +60,25 @@ Particle Life remains an artificial Conway-inspired system, not a physical law. 
 - Black-hole graphics: accretion/photon-ring/jet/pseudo-lensing visual proxy; live gravity remains Newtonian outside guard.
 - Neutron-star/magnetar graphics: field/beam visual proxy; compact mass remains Newtonian outside guard.
 - Belts/rings/remnants/nebulae: GPU visual populations rather than thousands of gravity sources.
+
+## Stellar rendering and perceptual LOD
+
+The v0.1.4.1.2 stellar pass is a **presentation model**, not a stellar-atmosphere solver. It improves scientific readability and scale cues without claiming magnetohydrodynamic or radiative-transfer fidelity.
+
+The star is rendered as several visual layers: photosphere, animated procedural granulation, view-facing limb darkening, additive corona, thin prominence filaments, active regions and rare flare proxies. These layers are seeded from the generated body identity so a regenerated system remains visually stable for the same seed.
+
+Distance handling follows a **perceptual preservation** rule rather than a simple FX cutoff. Tiny/sub-pixel surface detail can fade or simplify, while large luminous phenomena such as prominences, active regions, flares and CME fronts remain available at long range when they are visually significant. The goal is to avoid both aliasing noise and the unscientific impression that large stellar structures suddenly cease to exist when the camera moves away.
+
+Close to a star, camera exposure and deep-space background intensity adapt gradually to the star's apparent angular size. This is a visual camera response only; it does not alter luminosity, temperatures, forces, or any simulated body state.
+
+Prominences and flare sites are visual proxies. Their geometry, timing and motion are not derived from a magnetic-field or plasma simulation. CME fronts likewise remain the existing kinematic space-weather approximation; this release only preserves their macro visibility across a wider range of viewing scales.
+
+## Close stellar approach cues
+
+When a selected star is within 25 stellar radii, the target HUD can report the camera/ship position in stellar radii (R★) and label broad presentation zones such as STELLAR VICINITY, INNER CORONA, LOW CORONA and PHOTOSPHERE. These labels are navigation/visualization aids rather than a calculation of a real star's dynamically varying atmospheric boundaries.
+
+The renderer also adapts the camera near clipping plane close to finite-radius body surfaces. This reduces rendering intersections during extreme approaches; it does not relax collision, model-limit, or strong-gravity safety rules.
+
+## Transit arrival presentation
+
+The TRANSIT streak/FOV cue now releases smoothly after coordinate transit ends instead of visually snapping to zero on the capture frame. This decay changes render-only state. The spacecraft's Newtonian position and velocity handoff remain governed by the same transit arrival envelope and BOOST-powered physical APPROACH logic described above.

@@ -1,17 +1,23 @@
 import * as THREE from 'three/webgpu';
 import { createStarfield } from './starfield.js';
-import { createCelestialVisual, updateCelestialVisual } from './celestialFactory.js';
+import { createCelestialVisual, updateCelestialVisual, applyStellarPerceptualProfile } from './celestialFactory.js';
 import { createCosmicPhenomenonVisual, updateCosmicPhenomenonVisual } from './cosmicPhenomena.js';
 import { syncSpaceWeatherVisuals } from './spaceWeatherVisuals.js';
 import { updateScientificOverlayVisual } from './scientificOverlayVisuals.js';
 import { BODY_KIND, SIMULATION } from '../core/constants.js';
 import { computeObservationCameraPose } from './observationCamera.js';
+import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPerception.js';
 
 function disposeObject(root) {
+  const disposeMaterial = (material) => {
+    if (!material) return;
+    if (material.userData?.disposeMap) material.map?.dispose?.();
+    material.dispose?.();
+  };
   root.traverse?.((node) => {
     node.geometry?.dispose?.();
-    if (Array.isArray(node.material)) node.material.forEach((m) => m?.dispose?.());
-    else node.material?.dispose?.();
+    if (Array.isArray(node.material)) node.material.forEach(disposeMaterial);
+    else disposeMaterial(node.material);
   });
 }
 
@@ -64,6 +70,9 @@ export class UniverseRenderer {
     this.camera = new THREE.PerspectiveCamera(66, 1, 0.02, 480_000);
     this.renderer = new THREE.WebGPURenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
+    this._stellarExposure = 1.0;
     this.container.appendChild(this.renderer.domElement);
     this.bodyVisuals = new Map();
     this.experimentVisuals = new Map();
@@ -578,6 +587,53 @@ export class UniverseRenderer {
     }
   }
 
+  updateCameraClipPlane() {
+    let nearestSurface = Infinity;
+    for (const visual of this.bodyVisuals.values()) {
+      const radius = Math.max(0, Number(visual.userData?.renderRadius) || 0);
+      if (radius <= 0) continue;
+      const centerDistance = visual.position.distanceTo(this.camera.position);
+      nearestSurface = Math.min(nearestSurface, Math.max(0, centerDistance - radius));
+    }
+    const targetNear = Number.isFinite(nearestSurface)
+      ? Math.max(0.002, Math.min(0.02, nearestSurface * 0.12))
+      : 0.02;
+    if (Math.abs(targetNear - this.camera.near) > Math.max(0.00025, this.camera.near * 0.08)) {
+      this.camera.near = targetNear;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  updateStellarPerception() {
+    let exposureTarget = 1;
+    let backgroundFactor = 1;
+    let galacticBandFactor = 1;
+    for (const visual of this.bodyVisuals.values()) {
+      if (visual.userData?.bodyKind !== BODY_KIND.STAR) continue;
+      const radius = Math.max(0.01, Number(visual.userData.renderRadius) || 0.01);
+      const distance = Math.max(0.001, visual.position.distanceTo(this.camera.position));
+      const profile = stellarPerceptualProfile(apparentAngularRadius(radius, distance));
+      applyStellarPerceptualProfile(visual, profile);
+      exposureTarget = Math.min(exposureTarget, profile.exposure);
+      backgroundFactor = Math.min(backgroundFactor, profile.backgroundFactor);
+      galacticBandFactor = Math.min(galacticBandFactor, profile.galacticBandFactor);
+    }
+
+    // Exposure adaptation is deliberately gentle and only engages when a star occupies a
+    // significant apparent angle. Macro stellar phenomena are not culled at long range.
+    this._stellarExposure += (exposureTarget - this._stellarExposure) * 0.085;
+    this.renderer.toneMappingExposure = this._stellarExposure;
+
+    const backdrop = this.scene.getObjectByName('visual-starfield');
+    backdrop?.traverse?.((node) => {
+      const base = node.material?.userData?.baseOpacity;
+      if (base == null) return;
+      if (node.userData?.role === 'deep-space-stars') node.material.opacity = base * backgroundFactor;
+      else if (node.userData?.role === 'galactic-band') node.material.opacity = base * galacticBandFactor;
+      else if (node.userData?.role === 'background-nebula') node.material.opacity = base * Math.max(0.22, backgroundFactor);
+    });
+  }
+
   renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0 }) {
     // Keep the normal flight path deliberately identical to the physically tested v0.1.3.1 path.
     // Observation support must never alter this code path when cameraMode === 'ship'.
@@ -593,6 +649,8 @@ export class UniverseRenderer {
     const basis = ship.basis();
     this.camera.up.set(basis.up[0], basis.up[1], basis.up[2]);
     this.camera.lookAt(basis.forward[0] * 100, basis.forward[1] * 100, basis.forward[2] * 100);
+    this.updateCameraClipPlane();
+    this.updateStellarPerception();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -615,6 +673,8 @@ export class UniverseRenderer {
     this.camera.position.set(pose.position[0], pose.position[1], pose.position[2]);
     this.camera.up.set(pose.up[0], pose.up[1], pose.up[2]);
     this.camera.lookAt(pose.lookAt[0], pose.lookAt[1], pose.lookAt[2]);
+    this.updateCameraClipPlane();
+    this.updateStellarPerception();
     this.renderer.render(this.scene, this.camera);
   }
 

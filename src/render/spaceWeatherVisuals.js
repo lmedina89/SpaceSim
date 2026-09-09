@@ -24,5 +24,5 @@ export function syncSpaceWeatherVisuals(scene,map,states,referenceFrame,seed='CO
   const ids=new Set(states.map((s)=>s.id));
   for(const [id,visual] of map){if(!ids.has(id)){scene.remove(visual);dispose(visual);map.delete(id);}}
   const temp=new THREE.Vector3();
-  for(const state of states){let visual=map.get(state.id);if(!visual){visual=createCmeVisual(state,seed);map.set(state.id,visual);scene.add(visual);}referenceFrame.toRender(state.center,temp);visual.position.copy(temp);const scale=Math.max(.02,state.radiusMeters/SIMULATION.metersPerRenderUnit);visual.scale.setScalar(scale);visual.visible=scale<250000;}
+  for(const state of states){let visual=map.get(state.id);if(!visual){visual=createCmeVisual(state,seed);map.set(state.id,visual);scene.add(visual);}referenceFrame.toRender(state.center,temp);visual.position.copy(temp);const scale=Math.max(.02,state.radiusMeters/SIMULATION.metersPerRenderUnit);visual.scale.setScalar(scale);visual.visible=true;visual.userData.perceptualMacroPreserved=true;}
 }

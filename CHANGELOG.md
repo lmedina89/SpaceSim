@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.1.4.1.2 — Stellar Rendering & Approach Polish
+
+Built directly from v0.1.4.1.1 Navigation & Experiment Lifecycle Polish. Save schema remains 1 and Three.js remains pinned to 0.185.0.
+
+### Stellar rendering
+
+- Replaced the flat close-range star presentation with layered seeded photosphere/granulation detail.
+- Increased stellar sphere tessellation for smoother close approaches.
+- Added a view-facing limb-darkening proxy so the photosphere reads as a luminous sphere rather than a flat disk.
+- Replaced the dense cotton-like corona shell with smooth additive halo layers plus a sparse filamentary micro-corona.
+- Replaced thick torus/ribbon prominences with seeded curved tube filaments using bright cores and softer halos.
+- Added seeded active-region glows and rare visual flare proxies.
+- Added explicit visual-science metadata clarifying that convection/MHD/radiative transfer are not solved.
+
+### Perceptual stellar LOD
+
+- Added `stellarPerception.js` with apparent-angular-size visual profiling.
+- Macro stellar phenomena are preserved/optionally emphasized at long range rather than distance-culled.
+- Only micro/noisy detail is reduced at range.
+- Added smooth surface-detail and micro-corona transitions with no hard stellar LOD pop.
+- Removed the old CME renderer-scale visibility cutoff so active macro space-weather visuals remain available.
+
+### Exposure / background polish
+
+- Added gentle ACES tone mapping and apparent-angle exposure adaptation for close-star views.
+- Deep-space stars, nebulae and especially the galactic band dim smoothly only when a star dominates the view.
+- Broadened and de-regularized the seeded galactic band, reduced its opacity/point size, and lowered the chance that it reads as an accretion disk behind a star.
+
+### Approach / navigation presentation
+
+- Added dynamic near-clip adjustment near finite-radius bodies to reduce close-surface clipping.
+- Stellar targets now report STELLAR VICINITY / INNER CORONA / LOW CORONA / PHOTOSPHERE proximity zones and distance in R★.
+- Stellar scanner/type text includes spectral class and temperature when available.
+- TRANSIT streak/FOV cues now decay smoothly after arrival/disengage rather than snapping off on one frame. Newtonian position and velocity logic are unchanged.
+
+### QA hardening
+
+- Added pure unit coverage for stellar perceptual LOD behavior and apparent angular radius.
+- Added static guards for layered stellar rendering roles, removal of legacy thick-torus prominences, close-star exposure/background adaptation, camera near-clip logic, CME macro preservation and transit visual release.
+- Added per-star procedural texture disposal tagging so system regeneration does not leave generated photosphere textures undisposed.
+
+### Unchanged
+
+- Save schema remains 1.
+- Three.js remains pinned to 0.185.0.
+- Newtonian physics, TRANSIT coordinate translation, BOOST acceleration, flight-computer behavior and particle experiment lifecycle semantics are unchanged.
+- No `.github/workflows/*` files and no landing code were added.
+
 ## v0.1.4.1.1 — Navigation & Experiment Lifecycle Polish
 
 Built from v0.1.4.1 Extreme Objects, Space Weather & Scientific Overlays.

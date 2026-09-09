@@ -1,99 +1,75 @@
-# Universe Lab v0.1.4.1.1 — QA Report
+# Universe Lab v0.1.4.1.2 — Stellar Rendering & Approach Polish QA Report
 
 ## Release identity
 
-- Version: **0.1.4.1.1**
-- Release: **Navigation & Experiment Lifecycle Polish**
-- Build marker: **NAVLIFE-1411**
-- Save schema: **1**
-- Three.js: **0.185.0**
+- Version: **0.1.4.1.2**
+- Release: **Stellar Rendering & Approach Polish**
+- Build marker: **STELLAR-1412**
+- Immediate baseline: **v0.1.4.1.1 — Navigation & Experiment Lifecycle Polish**
+- Save schema: **1** (unchanged)
+- Three.js: **0.185.0** (unchanged)
 - Deployment: GitHub Pages `main` → `/(root)`
 - `.github/workflows/*`: intentionally absent from the mobile distributable
 
-## Automated QA result
+## Current automated QA result
 
-Final `npm run qa` result: **85/85 tests PASS**, plus static structure checks and `node --check` on all JS/MJS source/test files.
+Final working-tree `npm run qa` result: **91/91 tests PASS**, plus the static structure audit and `node --check` on all JavaScript/MJS source and test files.
 
-New navigation/lifecycle coverage includes:
+New v0.1.4.1.2 coverage verifies:
 
-- speculative BOOST produces exactly the declared bounded 5,000 m/s² acceleration,
-- TURN & BURN stays acceleration-bounded and removes lateral velocity rather than rotating velocity by fiat,
-- TURN & BURN recognizes an already-aligned inertial vector,
-- TRANSIT tier normalization / coordinate-rate calculation,
-- TRANSIT arrival envelope reserves enough real BOOST braking room for preserved local Δv,
-- automatic transit tier step-down near destination,
-- transit position integration cannot overshoot its arrival envelope,
-- swept transit clearance catches a massive body crossed between real frames,
-- transit engagement clearance blocks unsafe local starts,
-- completed particle fields release the 60× manager warp cap without being deleted,
-- completed fields retain the last live observation bounds,
-- fields that go extinct before first observation derive a final frame from retained final particle positions rather than snapping to their spawn origin,
-- deterministic REPLAY reconstructs the original active field state.
+- perceptual stellar LOD reduces only distant micro-detail while preserving macro stellar phenomena,
+- close stellar views progressively reveal surface detail rather than collapsing to a flat disk,
+- stellar apparent angular radius grows smoothly with approach,
+- layered stellar presentation includes photosphere/granulation, corona, thin prominence filaments, active regions and flare proxies,
+- the old thick TorusGeometry prominence treatment is absent,
+- renderer exposure and deep-space-background adaptation are tied to apparent stellar size,
+- active CME macro visuals are no longer hard distance-culled,
+- dynamic near-plane handling is present for close finite-radius approaches,
+- TRANSIT visual release decays smoothly after arrival,
+- the TRANSIT visual release does not modify authoritative Newtonian velocity.
 
-All prior gravity/orbit/impact/compact-object/cosmic/space-weather/overlay/particle/observation/runtime-fault regressions remain enabled.
+All pre-existing navigation, gravity, orbit, impact, compact-object, cosmic-phenomenon, space-weather, scientific-overlay, particle-experiment, observation, save/runtime and model-limit regression tests remain enabled in the same 91-test run.
 
-## App method / DOM integrity
+## Static structure / integration checks
 
-Static audit of `UniverseLabApp`:
+The static suite requires the v0.1.4.1.2 shell identity and `STELLAR-1412` marker, plus the new `src/render/stellarPerception.js` module and its renderer/celestial/space-weather integration points.
 
-- **66** class method definitions,
-- **63** unique direct `this.method()` call names,
-- **0 unresolved direct method calls**.
-
-HTML / app selector audit:
-
-- **165** HTML IDs,
-- **165 unique**,
-- **0 duplicates**,
-- **116** direct app selector IDs,
-- **0 missing selectors**.
-
-The static suite explicitly requires the new velocity marker, PROGRADE, RETROGRADE, TURN & BURN, TRANSIT controls/drawer, REPLAY FIELD, `transitDrive.js`, v0.1.4.1.1 shell version and `NAVLIFE-1411` marker.
-
-## Long-run seeded-system stress
-
-Eight independently generated systems (`NAVLIFE-A` … `NAVLIFE-H`) were integrated for **30 simulated days each** with 900 s major-body steps using the live direct Newtonian gravity solver + velocity-Verlet integrator + swept finite-radius collision monitor.
-
-Result:
-
-- spontaneous finite-radius collisions: **0**,
-- non-finite position/velocity states: **0**,
-- largest sampled physical body count: **25**,
-- rogue planets across sample: **5**.
-
-This is a numerical regression/stability check, not a claim of long-term astrophysical formation stability.
-
-## Static HTTP smoke
-
-An in-process local static HTTP server returned **200** for:
-
-- `index.html`
-- `styles.css`
-- `src/main.js`
-- `src/app/app.js`
-- `src/physics/transitDrive.js`
-- `src/experiments/particles/particleExperimentManager.js`
-- `src/render/threeRenderer.js`
-- `src/ui/hud.js`
+The current source tree passes the existing application method-resolution audit, unique DOM-ID / app-selector checks and required-file structure guard. This release does not add a save migration or alter the existing GitHub Pages root layout.
 
 ## Scientific separation checked
 
-- FLIGHT / CRUISE / BOOST are bounded local accelerations applied to the real spacecraft state. BOOST is explicitly labeled speculative.
-- PROGRADE / RETROGRADE change attitude only.
-- TURN & BURN uses bounded acceleration to change the actual velocity vector.
-- TRANSIT is explicitly fictional reference-frame translation; its displayed 1–1,000 c coordinate rate is **not** added to Newtonian spacecraft velocity and is not represented as GR/Alcubierre physics.
-- AUTO CAPTURE hands transit arrival off to BOOST + the existing physical APPROACH/BRAKING/CAPTURE/HOLD controller.
-- Particle warp safety is now tied to live particle work, not retained completed-field objects.
+- Stellar granulation, limb darkening, corona, prominences, active regions and rare flare sites are **visual proxies**, not MHD, radiative-transfer or convection solvers.
+- Perceptual LOD changes presentation only; it does not alter stellar radius, luminosity, mass, gravity or event state.
+- Close-star exposure/background adaptation is a renderer/camera response only.
+- CME fronts retain the existing directional kinematic space-weather model; this release changes their visual-distance treatment, not their propagation physics.
+- Camera near-plane adjustment changes rendering only; finite-radius collision and scientific model guards remain intact.
+- FLIGHT / CRUISE / BOOST remain bounded local accelerations; BOOST remains explicitly speculative.
+- TRANSIT remains fictional coordinate translation and never adds its displayed 1–1,000 c rate to local Newtonian velocity.
+- The new post-arrival transit visual decay is render-only.
 
-## Physical iPhone release gate
+## Baseline numerical regression retained
 
-Container QA cannot prove iPhone WebGPU rendering, Safari pointer behavior, thermals or perceived navigation feel. Recommended device sequence:
+The v0.1.4.1.1 baseline previously exercised eight seeded systems (`NAVLIFE-A` … `NAVLIFE-H`) for 30 simulated days each using the live direct Newtonian gravity solver, velocity-Verlet integration and swept finite-radius collision monitor. That baseline reported no spontaneous finite-radius collisions or non-finite body states. v0.1.4.1.2 does not modify the major-body gravity/integration path.
 
-1. Confirm **v0.1.4.1.1 / NAVLIFE-1411**, no runtime ERR, and normal HUD/sim time advances.
-2. Cycle FLIGHT → CRUISE → BOOST. Manual BOOST should set warp to 1× and show THRUST 5,000.
-3. Point away from the cyan velocity marker, press TURN & BURN, and confirm the marker moves toward the reticle while velocity changes over time rather than snapping.
-4. Test PROGRADE and RETROGRADE.
-5. Select a distant body, open TRANSIT, start at 100 c, and confirm local SHIP speed does not become 100 c.
-6. Verify transit steps down near destination and AUTO CAPTURE hands off to BOOST + APPROACH without overshooting.
-7. Request 3,600×, spawn Particle Life, confirm live field caps at 60×; after extinction confirm the final frame remains useful and 3,600× restores automatically. Test REPLAY FIELD.
-8. Regress COSMOS, CME/overlays, black hole/compact objects, one impact and one physical comet.
+This inherited stress result is useful regression provenance, not a claim that v0.1.4.1.2 adds astrophysical formation/stability modeling.
+
+## Physical iPhone / Safari release gate
+
+Automated/container QA cannot prove the actual WebGPU appearance, mobile GPU thermals, Safari compositing, perceived brightness or touch behavior. The user screenshots that motivated this release make physical visual acceptance especially important.
+
+Recommended device sequence:
+
+1. Confirm **v0.1.4.1.2 / STELLAR-1412**, no runtime ERR, normal HUD updates and stable 60-FPS behavior where the device permits it.
+2. Observe the primary star from long range. It should read as a compact luminous star with a smooth halo; it should no longer resemble a dense cotton-ball particle shell.
+3. Approach through medium range. Major prominences/flare/CME spectacle should remain visible when visually significant; there should be no obvious FX pop-out just because distance changes.
+4. Move into close stellar range. Surface granulation/active-region detail should emerge smoothly and the photosphere should not become a flat uniform cream disk.
+5. Inspect prominences. They should read as thin luminous plasma filaments/arcs rather than thick opaque brown ribbons.
+6. Check the galactic band behind the star from several angles. It should remain a background structure and be less likely to masquerade as an accretion disk.
+7. Move extremely close without intentionally crossing the finite stellar surface. Confirm no obvious near-plane clipping through corona/photosphere layers and verify the target HUD shows the appropriate R★ proximity cue.
+8. Approach/leave the star and watch exposure recovery. The star should increasingly dominate the camera when close while the deep-space background recovers smoothly as apparent stellar size shrinks.
+9. Use TRANSIT to the star and verify the arrival streak/FOV presentation eases out instead of snapping off, while local ship velocity remains physically continuous.
+10. Regress one CME, compact object, particle experiment, impact and ordinary planet approach to ensure this visual release did not disturb unrelated systems.
+
+## Acceptance caveat
+
+**91/91 automated tests passing is not a claim that the new stellar art direction is visually approved on iPhone.** The final acceptance criterion is the physical Safari pass above, especially the photosphere, prominence thickness, exposure curve and long-range preservation of dramatic stellar phenomena.

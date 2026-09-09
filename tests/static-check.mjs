@@ -7,16 +7,16 @@ const required = [
   'src/physics/trajectoryPredictor.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
   'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
-  'src/render/threeRenderer.js','src/render/observationCamera.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
+  'src/render/threeRenderer.js','src/render/observationCamera.js','src/render/stellarPerception.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
 ];
 for (const file of required) await access(new URL(`../${file}`, import.meta.url), constants.R_OK);
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.1.1')) throw new Error('Shell version is not v0.1.4.1.1.');
-if (!html.includes('NAVLIFE-1411')) throw new Error('NAVLIFE-1411 build marker missing.');
-if (pkg.version !== '0.1.4.1.1') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.4.1.2')) throw new Error('Shell version is not v0.1.4.1.2.');
+if (!html.includes('STELLAR-1412')) throw new Error('STELLAR-1412 build marker missing.');
+if (pkg.version !== '0.1.4.1.2') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Secondary mobile control drawer missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -54,6 +54,7 @@ if (!html.includes('data-preset="chicxulub"')) throw new Error('Impact preset co
 const factory = await readFile(new URL('../src/render/celestialFactory.js', import.meta.url), 'utf8');
 if (!factory.includes('Exposure-floor shell')) throw new Error('WebGPU body-color exposure floor missing.');
 for (const token of ['accretion-disk','photon-rings','relativistic-jets-visual','pseudo-lensing-halo','pulsar-beam-pivot','comet-tail']) if (!factory.includes(token)) throw new Error(`Cosmic celestial visual token missing: ${token}`);
+for (const token of ['stellar-photosphere','stellar-granulation','stellar-limb-darkening','stellar-corona-micro','stellar-prominence-core','stellar-active-regions','stellar-flare-sites']) if (!factory.includes(token)) throw new Error(`Stellar rendering token missing: ${token}`);
 const impactResolver = await readFile(new URL('../src/physics/impactResolver.js', import.meta.url), 'utf8');
 if (!impactResolver.includes('resolveImpact')) throw new Error('Impact resolver missing.');
 const flightComputer = await readFile(new URL('../src/physics/flightComputer.js', import.meta.url), 'utf8');
@@ -74,6 +75,7 @@ if (!classMethodDefinitions.has('enforceParticleWarpSafety')) throw new Error('P
 for (const token of ['enterObservation','currentCameraView','rendezvousExperiment','experimentNavigationTarget','particleFieldParams','updateParticleLabStatus','replaySelectedExperiment','engageTransit','updateTransit','requestTimeScale','updateVelocityMarker','phenomenonState','selectPhenomenon','scanPhenomenon','updateCosmosPanel','enterCosmicObservation','rendezvousPhenomenon']) if (!app.includes(token)) throw new Error(`Observation/navigation app function missing: ${token}`);
 const renderer = await readFile(new URL('../src/render/threeRenderer.js', import.meta.url), 'utf8');
 for (const token of ['experimentVisuals','syncParticleExperiments','cosmicVisuals','syncCosmicPhenomena','PointsMaterial','particleExperiments = []','cosmicPhenomena = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(ship.position)']) if (!renderer.includes(token)) throw new Error(`Renderer integration token missing: ${token}`);
+for (const token of ['updateStellarPerception','toneMappingExposure','updateCameraClipPlane','galacticBandFactor']) if (!renderer.includes(token)) throw new Error(`Stellar renderer integration token missing: ${token}`);
 const constantsSource = await readFile(new URL('../src/core/constants.js', import.meta.url), 'utf8');
 for (const token of ['NEUTRON_STAR','WHITE_DWARF','BROWN_DWARF','ROGUE_PLANET','COMET']) if (!constantsSource.includes(token)) throw new Error(`Cosmic body kind missing: ${token}`);
 const phenomenonGenerator = await readFile(new URL('../src/cosmic/phenomenonGenerator.js', import.meta.url), 'utf8');
@@ -82,6 +84,8 @@ const phenomenonRenderer = await readFile(new URL('../src/render/cosmicPhenomena
 if (!phenomenonRenderer.includes('THREE.Points') || !phenomenonRenderer.includes('supernova-remnant') || !phenomenonRenderer.includes('updateCosmicPhenomenonVisual')) throw new Error('Cosmic phenomenon GPU proxy renderer missing.');
 const spaceWeather = await readFile(new URL('../src/cosmic/spaceWeather.js', import.meta.url), 'utf8');
 for (const token of ['SpaceWeatherManager','triggerCme','ship-hit','nextAutoEventSeconds']) if (!spaceWeather.includes(token)) throw new Error(`Space weather token missing: ${token}`);
+const stellarPerception = await readFile(new URL('../src/render/stellarPerception.js', import.meta.url), 'utf8');
+for (const token of ['stellarPerceptualProfile','distantMacroBoost','galacticBandFactor','apparentAngularRadius']) if (!stellarPerception.includes(token)) throw new Error(`Stellar perceptual LOD token missing: ${token}`);
 const overlayMath = await readFile(new URL('../src/cosmic/scientificOverlays.js', import.meta.url), 'utf8');
 for (const token of ['hillRadiusMeters','rocheLimitMeters','lagrangePointEstimates','gravityVectorSamples','orbitalPlaneBasis']) if (!overlayMath.includes(token)) throw new Error(`Scientific overlay math token missing: ${token}`);
 for (const token of ['triggerSpaceWeather','updateSpaceWeatherPanel','setOverlaySetting','updateOverlayPanel','spawn-extreme-star']) if (!app.includes(token)) throw new Error(`Extreme-space app integration missing: ${token}`);
