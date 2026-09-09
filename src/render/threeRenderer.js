@@ -62,6 +62,7 @@ export class UniverseRenderer {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
     this.container.appendChild(this.renderer.domElement);
     this.bodyVisuals = new Map();
+    this.experimentVisuals = new Map();
     this.minorPoints = null;
     this.minorGeometry = null;
     this.systemSeed = null;
@@ -144,6 +145,8 @@ export class UniverseRenderer {
     if (oldStars) { this.scene.remove(oldStars); disposeObject(oldStars); }
     for (const fx of this.impactEffects) this.impactEffectGroup.remove(fx.group);
     this.impactEffects.length = 0;
+    for (const visual of this.experimentVisuals.values()) { this.scene.remove(visual.points); visual.geometry.dispose(); visual.material.dispose(); }
+    this.experimentVisuals.clear();
     const stars = createStarfield(seed);
     stars.name = 'visual-starfield';
     this.scene.add(stars);
@@ -203,6 +206,59 @@ export class UniverseRenderer {
       out[k + 2] = (source[k + 2] - origin[2]) * scale;
     }
     if (this.minorGeometry) this.minorGeometry.attributes.position.needsUpdate = true;
+  }
+
+
+  syncParticleExperiments(fields, referenceFrame) {
+    const activeIds = new Set(fields.map((field) => field.id));
+    for (const [id, visual] of this.experimentVisuals) {
+      if (!activeIds.has(id)) {
+        this.scene.remove(visual.points);
+        visual.geometry.dispose();
+        visual.material.dispose();
+        this.experimentVisuals.delete(id);
+      }
+    }
+    for (const field of fields) {
+      let visual = this.experimentVisuals.get(field.id);
+      if (!visual) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(field.renderPosition, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(field.color, 3));
+        const pointSize = field.mode === 'gravity' ? 1.55 : field.mode === 'gun' ? 2.1 : 2.35;
+        const material = new THREE.PointsMaterial({
+          size: pointSize,
+          sizeAttenuation: true,
+          vertexColors: true,
+          transparent: true,
+          opacity: field.mode === 'gravity' ? 0.78 : 0.9,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const points = new THREE.Points(geometry, material);
+        points.frustumCulled = false;
+        points.renderOrder = 12;
+        this.scene.add(points);
+        visual = { geometry, material, points };
+        this.experimentVisuals.set(field.id, visual);
+      }
+      const out = field.renderPosition;
+      const source = field.position;
+      const active = field.active;
+      const origin = referenceFrame.origin;
+      const scale = referenceFrame.scale;
+      for (let i = 0; i < field.count; i += 1) {
+        const k = i * 3;
+        if (!active[i]) {
+          out[k] = 1e9; out[k + 1] = 1e9; out[k + 2] = 1e9;
+          continue;
+        }
+        out[k] = (source[k] - origin[0]) * scale;
+        out[k + 1] = (source[k + 1] - origin[1]) * scale;
+        out[k + 2] = (source[k + 2] - origin[2]) * scale;
+      }
+      visual.geometry.attributes.position.needsUpdate = true;
+    }
   }
 
   setTarget(bodyId) {
@@ -421,7 +477,7 @@ export class UniverseRenderer {
     };
   }
 
-  render({ bodies, ship, referenceFrame, minorField }) {
+  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [] }) {
     referenceFrame.centerOn(ship.position);
     this.syncBodies(bodies);
     for (const body of bodies) {
@@ -435,6 +491,7 @@ export class UniverseRenderer {
       visual.rotation.y += body.kind === BODY_KIND.PLANET ? 0.0008 : 0.0002;
     }
     if (minorField) this.updateMinorField(minorField, referenceFrame);
+    this.syncParticleExperiments(particleExperiments, referenceFrame);
     this.updateTrajectories(referenceFrame);
     this.updateImpactEffects(referenceFrame);
 
@@ -463,6 +520,8 @@ export class UniverseRenderer {
   dispose() {
     this._resizeObserver.disconnect();
     for (const id of [...this.trajectories.keys()]) this.clearTrajectory(id);
+    for (const visual of this.experimentVisuals.values()) { this.scene.remove(visual.points); visual.geometry.dispose(); visual.material.dispose(); }
+    this.experimentVisuals.clear();
     this._motionGeometry.dispose();
     this._motionMaterial.dispose();
     this.renderer.dispose();

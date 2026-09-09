@@ -1,117 +1,131 @@
-# Architecture — Universe Lab v0.1.2.1
+# Architecture — Universe Lab v0.1.3
 
 ## Core rule
 
-The renderer never owns the universe.
+**The renderer never owns the universe or experiment state.**
 
-Authoritative simulation state remains in data/physics modules using SI Float64 coordinates. Three.js receives transformed local render coordinates through a floating reference frame.
+Authoritative celestial, spacecraft, and experiment coordinates remain in simulation modules. Three.js receives local floating-origin render buffers only.
 
 ## Runtime layers
 
 ```text
-Universe seed / data
+Seeded universe data
         ↓
 Entity registry
         ↓
-Simulation clock + scheduler
-        ↓
-Flight computer (bounded propulsion commands)
-        ↓
-Direct Newtonian gravity
-        ↓
-Velocity-Verlet integration
-        ↓
-Swept finite-radius collision monitor
-        ↓
-Impact analysis / resolver
-        ├─ bounce
-        ├─ merge / absorb
-        ├─ fragmentation
-        └─ crater record
-        ↓
-Authoritative bodies + damage records
-        ↓
-Floating reference frame
-        ↓
-Three.js WebGPU/WebGL2 renderer
-        ├─ body meshes
-        ├─ trajectory paths
-        ├─ motion cues
-        └─ visual-only impact FX
+Simulation clock
+        ├──────────── Flight computer
+        │                  ↓
+        ├──────────── ShipDynamics
+        │
+        ├──────────── Direct major-body Newtonian gravity
+        │                  ↓
+        │             Velocity-Verlet
+        │                  ↓
+        │             swept collisions
+        │                  ↓
+        │             impact resolver
+        │
+        └──────────── Particle Experiment Manager
+                           ↓
+               typed-array ParticleExperiment
+                  ├─ Gravity Cloud
+                  ├─ Particle Life
+                  ├─ Species Forces
+                  └─ Particle Gun
+                           ↓
+                typed spatial hash grid
+                           ↓
+Floating reference frame → Three.js/WebGPU renderer
 ```
 
-## Impact modularity
+## Particle data layout
 
-`collisionMonitor.js` answers only whether/where a finite-radius contact occurred during the step.
+Each `ParticleExperiment` owns SoA-style contiguous arrays rather than per-particle objects:
 
-`impactModel.js` contains pure calculations/approximations:
+- `Float64Array position[count*3]`
+- `Float64Array velocity[count*3]`
+- `Float32Array renderPosition[count*3]`
+- `Float32Array color[count*3]`
+- `Uint8Array active[count]`
+- `Uint8Array species[count]`
+- `Float32Array age[count]`
 
-- reduced mass,
-- impact energy,
-- material profiles,
-- impact angle,
-- response classification,
-- crater scaling,
-- fragment initial-state generation.
+This minimizes garbage collection and gives later WASM/WebGPU kernels a straightforward memory model.
 
-`impactResolver.js` mutates authoritative bodies based on the model result:
+## Spatial hash
 
-- momentum-conserving bounce,
-- merge/absorb,
-- target accretion,
-- fragment creation,
-- persistent target damage record.
+`SpatialHashGrid` is a typed-array open-addressed uniform grid. It uses:
 
-`threeRenderer.js` receives only a presentation event and draws the flash/ring/ejecta. FX never feed forces back into the simulation.
+- integer cell coordinates,
+- multiplicative integer hashing,
+- a power-of-two table,
+- generation stamps to avoid clearing the full hash table every build,
+- linked particle indices within populated cells,
+- aggregate cell counts and 3-species counts.
 
-This separation is deliberate so later hydrocode-derived/cratering/fragmentation models can replace only the scientific response layer.
+Particle Life sums occupancy across adjacent cells. Species Forces interacts with aggregate species populations at neighboring cell centers rather than every individual particle. This deliberately trades microscopic pair detail for bounded local work and mobile scalability.
 
-## Gravity budget
+## Particle scientific modes
 
-Direct mutual gravity remains capped at 128 sources. Impact fragments have a stricter sub-budget: at most 2 resolved fragments from a primary event and at most 16 active impact-fragment gravity sources globally. Secondary resolved-fragment impacts create no new gravity fragments, and same-family representative fragments are collision-filtered to prevent artificial recursive breakup cascades. High-count ejecta remains visual/unresolved until a faster gravity backend exists.
+### Gravity Cloud
 
-## Collision continuity
+Semi-implicit particle integration under all active major gravity sources. Experiment particles have no authoritative mass contribution and therefore do not appear in the direct gravity source array.
 
-The major-body integrator can take large simulated-time substeps under time warp. Endpoint overlap alone could tunnel through planets. v0.1.2 snapshots source positions before each substep and checks the relative swept segment of every body pair after integration.
+### Particle Life
 
-This is efficient at the current small direct-source count and preserves the future option to move to broad-phase spatial indexing/continuous solvers when source counts rise.
+An artificial continuous-particle cellular automaton. Alive/dead transition rules operate on spatial-cell neighborhoods. This is separate from the physics namespace because the rules are mathematical experiments, not claims of physical law.
 
+### Species Forces
 
-## Scientific flight computer
+Artificial local non-reciprocal attraction/repulsion. Species forces are evaluated against spatial-cell aggregates and bounded to a declared maximum local acceleration.
 
-`flightComputer.js` is pure navigation math. It computes bounded acceleration commands; it does not directly mutate positions or velocities. `ShipDynamics` integrates those accelerations through the same velocity-Verlet spacecraft step used by manual thrust.
+### Particle Gun
 
-- BRAKE commands acceleration opposite inertial velocity.
-- MATCH commands acceleration against target-relative velocity.
-- APPROACH sets a target-relative desired-velocity envelope approximately proportional to `sqrt(2 a s)` so available stopping distance falls as the ship nears the target.
-- Guidance acceleration is capped by the currently selected declared engine mode (20 m/s² FLIGHT or 120 m/s² CRUISE).
-- Navigation auto-warp changes simulation time scale only and chooses 600× / 60× / 1× based on proximity/closing conditions. Guidance completion/manual takeover returns the clock to 1×.
+Ballistic test-particle burst. Same major-gravity path as Gravity Cloud, finite-radius absorption, bounded active lifetime.
 
-The propulsion itself is an experimental/fictitious technology parameter; the acceleration, delta-v, travel, and braking are numerically integrated rather than teleported.
+## Simulation-time contract
+
+Particle fields cap global warp to 60× while active. Fine modes subdivide simulation intervals to <=1 s reference steps; simple ballistic/gravity fields permit larger internal steps but still inherit the same warp cap for predictable mobile cost.
+
+If an experiment ever cannot consume the full requested interval within its substep budget, it records dropped experiment seconds rather than silently claiming exact integration. Under the enforced 60× normal frame cap this should not happen during healthy rendering.
+
+## Render contract
+
+Every experiment field is a single `THREE.Points` object with shared position/color buffers. Inactive slots are moved outside the visible region instead of creating/destroying Three objects. Clearing an experiment disposes its geometry/material.
+
+Current body/impact rendering remains independent from particle fields.
+
+## Budgets
+
+- direct major gravity sources: 128
+- resolved impact fragments: 16
+- background minor test particles: 20,000
+- active particle-experiment slots: 40,000 total
+- active particle fields: 4
+- Gravity Cloud: 30,000 per field
+- Particle Life: 6,000 per field
+- Species Forces: 4,000 per field
+- Particle Gun: 5,000 per burst
+
+These are **current mobile-first safety budgets**, not theoretical engine ceilings.
 
 ## Persistence
 
-Save schema remains 1. Body snapshots preserve `damageRecords`, `visualVersion`, impact-fragment family/depth/grace metadata, and spacecraft engine mode. This is additive and JSON-compatible with the existing envelope. Navigation autopilot mode is deliberately restored as MANUAL on load so a stale save cannot unexpectedly fire guidance thrust.
+Save schema remains 1. Particle experiment state is deliberately session-local. System/body/ship saves are unchanged. A future experiment persistence module can store deterministic configuration plus optional binary snapshots without forcing large JSON arrays into localStorage.
 
-Procedural untouched bodies are still seed-derived; the current save continues to snapshot major-body state because experiments can substantially alter the system.
+## Existing impact/flight boundaries
 
-## Rendering visibility contract
+Impact resolution and flight-computer modules remain isolated from particle experiments. Impact visual ejecta is still presentation-only and is not automatically converted into ParticleExperiment bodies in v0.1.3. That can be added later through an explicit adapter without contaminating impact mass accounting.
 
-Non-stellar bodies use a shaded surface plus a faint renderer-independent color exposure floor. The floor is presentation-only and exists because real-device WebGPU testing showed that relying on a point light alone could produce featureless black bodies despite valid generated colors.
+## Future backend path
 
-## Mobile control contract
+The particle interfaces are designed to allow:
 
-Continuous controls remain pointer-capture driven and selection/callout suppressed. UI inputs/selects remain editable. Layout remains visualViewport-height synchronized for iOS browser chrome.
+1. CPU typed-array reference solver (v0.1.3),
+2. worker/WASM kernels,
+3. WebGPU storage buffers/compute,
+4. Barnes-Hut/FMM long-range gravity,
+5. local fluid/SPH/PBF solvers,
 
-## Future scaling
-
-The interfaces remain compatible with later:
-
-- Barnes-Hut/FMM gravity,
-- Rust/WASM scientific kernels,
-- WebGPU compute particle solvers,
-- local rigid-body physics,
-- terrain quadtrees/cube-sphere worlds,
-- SPH/PBF/FLIP-style local fluids,
-- atmospheric solvers,
-- relativistic modules.
+without making Three.js the authoritative simulator.

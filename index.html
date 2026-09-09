@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.2.1</title>
+  <title>Universe Lab v0.1.3</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.2.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.3</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -30,7 +30,7 @@
       <div class="stat primary-stat"><b id="simTimeValue">0 d</b><small>sim time</small></div>
     </div>
 
-    <div class="seed-chip">SEED <b id="seedValue">ORIGIN-001</b> · MAJOR <b id="bodyCountValue">—</b> · TEST <b id="minorCountValue">—</b> · DRAW <b id="drawCallsValue">—</b> · PRED <b id="predictionMsValue">—</b></div>
+    <div class="seed-chip">SEED <b id="seedValue">ORIGIN-001</b> · MAJOR <b id="bodyCountValue">—</b> · TEST <b id="minorCountValue">—</b> · DRAW <b id="drawCallsValue">—</b> · PRED <b id="predictionMsValue">—</b> · EXP <b id="experimentParticleCountValue">0</b> · LAB <b id="experimentMsValue">0 ms</b></div>
     <div id="targetChip" class="target-chip" hidden>NO TARGET</div>
     <div id="navChip" class="nav-chip" hidden>NAV MANUAL</div>
     <div class="reticle" aria-hidden="true"><span></span><i></i></div>
@@ -93,6 +93,25 @@
         <label>Trajectory horizon<select id="trajectoryHorizon"><option value="3600">1 hour</option><option value="21600">6 hours</option><option value="86400" selected>1 day</option><option value="604800">7 days</option><option value="2592000">30 days</option></select></label>
         <label>Minor test bodies<select id="minorCount"><option value="1000">1,000</option><option value="4000" selected>4,000</option><option value="10000">10,000</option><option value="20000">20,000</option></select></label>
         <hr>
+        <h3>PARTICLE EXPERIMENTS</h3>
+        <p id="particleModeHelp" class="help">Loading particle-mode description…</p>
+        <label>Experiment mode<select id="particleMode"><option value="gravity" selected>Gravity Cloud — physical test particles</option><option value="life">Particle Life — Conway-inspired</option><option value="species">Species Forces — attraction/repulsion</option></select></label>
+        <label>Particle slots<input id="particleCount" type="number" inputmode="numeric" value="5000" min="100" max="30000" step="100"></label>
+        <label>Field radius (km)<input id="particleRadiusKm" type="number" inputmode="decimal" value="20000" min="1000" max="200000" step="1000"></label>
+        <label>Neighbor radius (km)<input id="particleNeighborKm" type="number" inputmode="decimal" value="1000" min="100" max="200000" step="100"></label>
+        <label>Initial random speed (m/s)<input id="particleSpeed" type="number" inputmode="decimal" value="1500" min="0" max="200000" step="100"></label>
+        <label>Artificial local strength (m/s²)<input id="particleStrength" type="number" inputmode="decimal" value="20" min="0" max="250" step="1"></label>
+        <label class="inline-check"><input id="particleMajorGravity" type="checkbox" checked><span>Also feel all major-body Newtonian gravity</span></label>
+        <div class="button-row"><button id="randomizeParticleRules" type="button">RANDOMIZE RULE PARAMS</button><button id="spawnParticleField" class="void" type="button">SPAWN FIELD</button></div>
+        <p id="particleStatus" class="prediction">No active particle experiments. Fields are session-local in v0.1.3.</p>
+        <h3>PARTICLE GUN</h3>
+        <p class="help">Ballistic luminous test particles inherit ship velocity, receive major-body Newtonian gravity, and disappear when they contact a finite-radius major body.</p>
+        <label>Gun particles<input id="particleGunCount" type="number" inputmode="numeric" value="750" min="10" max="5000" step="10"></label>
+        <label>Gun speed (m/s)<input id="particleGunSpeed" type="number" inputmode="decimal" value="25000" min="0" max="1000000" step="1000"></label>
+        <label>Spread (degrees)<input id="particleGunSpread" type="number" inputmode="decimal" value="4" min="0" max="60" step="1"></label>
+        <div class="button-row"><button id="fireParticleGun" type="button">FIRE PARTICLE GUN</button><button id="clearParticleExperiments" type="button">CLEAR PARTICLES</button></div>
+        <p class="warning">Particle experiments currently cap global time warp at 60× while active so local numerical integration remains resolved. Gravity Cloud particles do not source gravity; full self-gravity is reserved for the Barnes–Hut/WebGPU scaling phase.</p>
+        <hr>
         <h3>MASS LAUNCHER</h3>
         <p class="help">Projectile radius is derived from mass and bulk density. The preview integrates the projectile and all major gravity sources mutually under the same Newtonian model used live.</p>
         <div class="preset-grid" aria-label="Impact presets">
@@ -152,7 +171,8 @@
         <p><strong>Seeded systems:</strong> deterministic near-Keplerian eccentric planet and moon initial conditions, shifted into a barycentric rest frame. They are plausible sandbox systems, not claims of astrophysical formation history.</p>
         <p><strong>Trajectory path:</strong> an N-body forward integration of the current massive system plus the ship/projectile. Future thrust and minor-particle gravity are excluded.</p>
         <p><strong>Scanner orbit:</strong> osculating two-body elements around the selected target. Other-body perturbations are intentionally ignored in those displayed elements.</p>
-        <p><strong>Minor field:</strong> 1k–20k typed-array test particles feel major gravity but intentionally contribute no gravity.</p>
+        <p><strong>Minor field:</strong> 1k–20k typed-array background test particles feel major gravity but intentionally contribute no gravity.</p>
+        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields are session-local in v0.1.3 and cap warp at 60× for numerical resolution.</p>
         <p><strong>Ship:</strong> FLIGHT thrust is 20 m/s²; CRUISE thrust is 120 m/s² experimental propulsion. BRAKE applies bounded physical thrust opposite inertial velocity. APPROACH/MATCH are target-relative guidance controllers that command the same bounded propulsion; they do not teleport or delete velocity.</p>
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Black holes:</strong> Schwarzschild radius metadata + visualization, but Newtonian trajectories only. GR/lensing is future work.</p>

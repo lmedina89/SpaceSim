@@ -45,6 +45,8 @@ export class Hud {
     this.renderMs = root.querySelector('#renderMsValue');
     this.drawCalls = root.querySelector('#drawCallsValue');
     this.predictionMs = root.querySelector('#predictionMsValue');
+    this.experimentParticles = root.querySelector('#experimentParticleCountValue');
+    this.experimentMs = root.querySelector('#experimentMsValue');
     this.message = root.querySelector('#message');
     this.lab = root.querySelector('#labPanel');
     this.science = root.querySelector('#sciencePanel');
@@ -150,7 +152,7 @@ export class Hud {
     this.impactReadout.textContent = `${a.impactor.name} → ${a.target.name}: ${a.centerOfMassEnergyJ.toExponential(4)} J · ${(a.tntMegatons).toExponential(3)} Mt TNT eq. · ${speed(a.relativeSpeedMps)} · angle ${fmt(a.impactAngleDegrees, 1)}° · Qᴿ ${a.specificImpactEnergyJkg.toExponential(3)} J/kg · response ${resolution.classification.mode}${craterText}${fragmentText}`;
   }
 
-  update({ fps, elapsedSeconds, shipSpeed, bodyCount, minorCount, physicsMs, renderMs, predictionMs, drawCalls }) {
+  update({ fps, elapsedSeconds, shipSpeed, bodyCount, minorCount, physicsMs, renderMs, predictionMs, drawCalls, experimentParticles = 0, experimentMs = 0 }) {
     this.fps.textContent = `${Math.round(fps)}`;
     this.simTime.textContent = `${fmt(elapsedSeconds / PHYSICS.DAY, 3)} d`;
     this.speed.textContent = speed(shipSpeed);
@@ -160,5 +162,7 @@ export class Hud {
     this.renderMs.textContent = `${fmt(renderMs, 2)} ms`;
     this.predictionMs.textContent = `${fmt(predictionMs, 2)} ms`;
     this.drawCalls.textContent = drawCalls == null ? '—' : String(drawCalls);
+    if (this.experimentParticles) this.experimentParticles.textContent = Number(experimentParticles).toLocaleString();
+    if (this.experimentMs) this.experimentMs.textContent = `${fmt(experimentMs, 2)} ms`;
   }
 }

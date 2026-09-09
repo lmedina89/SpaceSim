@@ -1,194 +1,145 @@
-# Universe Lab v0.1.2.1 — Impact Stability & Scientific Flight Navigation Polish
+# Universe Lab v0.1.3 — Particle Experiment Framework
 
-Universe Lab is a mobile-first scientific sandbox built for GitHub Pages. The current design simulates one deterministic seeded solar system at a time while rendering an effectively unbounded deep-space backdrop. The spacecraft is the observer and experiment platform.
+Universe Lab is a mobile-first scientific/experimental solar-system sandbox built for static GitHub Pages. One deterministic seeded system is simulated at a time; the spacecraft is both observer and laboratory platform.
 
-## v0.1.2.1 headline
+v0.1.3 builds directly on the physically tested v0.1.2.1 flight/impact baseline and introduces a reusable high-count particle experiment layer without changing save schema 1, Three.js 0.185.0, the SI major-body physics model, or the phone-safe GitHub Pages workflow.
 
-Physical iPhone testing of v0.1.2 showed two concrete problems: resolved impact fragments could cascade until the direct-gravity budget was nearly saturated, and manual travel forced the pilot to choose between very slow 1× flight and overshooting targets under high time warp.
+## What is new
 
-v0.1.2.1 therefore tightens the impact representation and adds a target-relative flight computer without changing the underlying Newtonian universe model.
+### Reusable particle engine
 
-### Flight/navigation changes
+Particle experiments are not implemented as thousands of Three.js objects. Each field owns contiguous typed-array state:
 
-- **FLIGHT engine:** 20 m/s² declared experimental main acceleration.
-- **CRUISE engine:** 120 m/s² declared experimental main acceleration for practical interplanetary travel.
-- **BRAKE:** applies bounded physical acceleration opposite the ship's current inertial velocity. It no longer deletes velocity with fictional damping.
-- **MATCH VELOCITY:** commands bounded acceleration to reduce target-relative velocity toward zero.
-- **APPROACH:** commands a braking-safe target-relative velocity envelope derived from remaining distance and available acceleration.
-- **Navigation auto-warp:** APPROACH/MATCH automatically choose 600×, 60×, or 1× simulation-time compression based on target distance/closing conditions and step down before braking becomes sensitive. Time still advances normally inside the simulation; this is not teleportation or a spatial speed multiplier.
-- A dedicated navigation HUD reports approach phase, remaining distance, closing speed, and estimated stopping distance.
+- Float64 position and velocity,
+- Uint8 active/dead state,
+- Uint8 species state,
+- Float32 render positions/colors,
+- a single Points draw call per field.
 
-### Impact-stability changes
+The renderer never owns experiment physics. It only receives transformed floating-origin coordinates.
 
-- Primary impacts can promote at most **2** large resolved gravity fragments instead of 6.
-- Planet/moon impacts allocate at most about **8% of the impactor mass** to resolved fragments; most material remains unresolved ejecta/accreted represented mass.
-- A separate global budget caps active resolved impact fragments at **16**, below the 128-source direct-gravity ceiling.
-- Secondary impacts from already-resolved impact fragments generate **zero additional gravity fragments**.
-- Fragments from the same representative breakup family do not recursively collide with one another.
-- Newly created impact fragments receive a short collision grace interval.
-- Resolved impact-fragment visual minimum size was reduced sharply so a few representative chunks no longer dominate the screen.
-- Simultaneous impact FX are bounded and the additive flash is less aggressive while retaining the energy-scaled ejecta effect.
+### Gravity Cloud
 
-## v0.1.2 foundation retained
+A Gravity Cloud contains physical **test particles** in SI coordinates. They:
 
-This release turns finite-radius contacts between massive simulation bodies into an explicit response pipeline:
+- inherit the spacecraft's velocity when spawned,
+- feel every active major Newtonian gravity source,
+- are absorbed on finite-radius contact with a star/planet/moon/black hole,
+- do **not** source gravity themselves.
 
-1. swept contact detection,
-2. impact-frame analysis,
-3. material-response classification,
-4. bounce / merge / absorb / fragment response,
-5. crater estimate for rocky/icy planets and moons,
-6. persistent impact records,
-7. a small set of real gravitational fragments,
-8. visual impact flash / shock ring / ejecta,
-9. scientific impact telemetry.
+That last constraint is explicit. Full particle self-gravity would require a Barnes-Hut/FMM/GPU gravity backend rather than pretending a local neighbor approximation is equivalent to long-range Newtonian gravity.
 
-It also replaces the failed v0.1.1.3 planet-lighting-only attempt with a renderer-independent body-color exposure floor. Seeded planet colors must remain visible on iOS WebGPU even when renderer light units or viewing geometry make the stellar contribution very dark.
+Current mobile-first Gravity Cloud limit: **30,000 particle slots**.
 
-## Scientific core retained
+### Particle Life
 
-- SI meters, kilograms, and seconds are authoritative.
-- Authoritative positions/velocities use Float64.
-- Major gravity sources mutually interact with Newtonian gravity.
-- Velocity-Verlet integrates major-body motion.
-- Ship flight remains separate from the renderer.
-- Trajectory previews clone the current major system and integrate forward.
-- High-count minor test particles feel major gravity but do not source gravity.
-- Floating-origin rendering prevents astronomical coordinates from being passed directly to Three.js.
-- Save schema remains **1**.
+Particle Life is a deliberately artificial continuous-3D cellular-automaton experiment. Particles move through space, but alive/dead transitions are based on occupancy of neighboring spatial-hash cells. The current rules are Conway-inspired rather than canonical Conway Life:
 
-## Impact response
+- low/crowded populations can die,
+- selected neighborhood populations can survive,
+- dead particle slots can reactivate under birth conditions.
 
-### Contact detection
+Major-body gravity can be enabled or disabled independently.
 
-v0.1.2 adds swept relative-motion contact checking. A fast projectile that crosses an entire body between two integration samples can still be detected instead of tunneling through because only endpoint overlap was checked.
+Current mobile-first Particle Life limit: **6,000 slots**.
 
-### Impact energy
+### Species Forces
 
-The event uses reduced-mass center-of-mass kinetic energy:
+Species Forces assigns each active particle one of three species. A short-range attraction/repulsion matrix produces artificial emergent motion. This is **not** a model of real matter.
 
-`E = 1/2 μ v_rel²`
+For performance, forces are evaluated against neighboring **cell populations** instead of every particle pair. A typed-array spatial hash makes the work scale with particles and populated neighboring cells rather than naïve O(N²) all-pairs comparisons.
 
-with
+Current mobile-first Species Forces limit: **4,000 slots**.
 
-`μ = m1 m2 / (m1 + m2)`.
+### Particle Gun
 
-The scanner/report also exposes reduced-mass relative momentum and `Q_R = E / (m1 + m2)`.
+The LAB can fire 10–5,000 ballistic luminous test particles from the spacecraft. They inherit ship velocity, receive a configurable launch velocity/spread, feel major-body Newtonian gravity, and disappear on finite-radius body contact.
 
-### Material response
+This gives the ship its first true high-count experiment tool without creating thousands of major gravity sources.
 
-Current material profiles are deliberately compact approximations for porous rock, water ice, basalt, iron-rich bodies, rocky/icy planetary crust, gas giants, stars, and black holes.
+## Spatial-neighbor architecture
 
-Low-speed asteroid contacts can bounce with a material restitution coefficient. Bound low-energy encounters can merge. High-speed projectile impacts can fragment. Stars/black holes are currently absorbing sinks in the response layer.
+`src/experiments/particles/spatialHashGrid.js` uses open-addressed typed-array storage:
 
-This is not a fracture-mechanics solver.
+- integer cell coordinates,
+- hash table stamps instead of allocating/clearing Maps each step,
+- linked particle indices per populated cell,
+- per-cell population counts,
+- per-species cell counts.
 
-### Crater estimate
+Neighbor modes only inspect the 27 cells surrounding a particle. Species Forces aggregates cell populations, avoiding dense particle-pair loops. This is the CPU reference implementation that a later WebGPU compute backend can replace behind the same experiment interfaces.
 
-For solid planets/moons, the transient crater uses the gravity-regime scaling relation associated with Collins, Melosh & Marcus (2005):
+## Time integration / warp
 
-`D_tc = 1.161 (rho_i/rho_t)^(1/3) L^0.78 v^0.44 g^-0.22 sin(theta)^(1/3)`
+Particle experiments are local high-resolution simulations. While any experiment is active, global warp is capped at **60×**. At the app's maximum real-frame delta, that keeps a normal frame to roughly three simulated seconds or less and allows the particle solver to subdivide fine-rule modes into bounded steps.
 
-The final simple crater is `1.25 D_tc`. For complex craters, the project applies the published power-law form using an approximate gravity-scaled simple/complex transition diameter. Depth and excavated mass are intentionally coarser approximations and are explicitly identified as such in the scientific notes.
+This is intentionally conservative. The simulator does not silently skip minutes of Particle Life evolution just to preserve a high warp number.
 
-### Fragments
+APPROACH/MATCH remain usable with experiments active, but their usual 600× cruise recommendation is clamped to the particle-safe 60× ceiling until the fields are cleared.
 
-The resolver keeps only a very small number of large representative fragments as full Newtonian gravity sources. v0.1.2.1 caps a primary event at two and prevents secondary resolved fragments from recursively spawning more gravity fragments. This is a performance architecture decision, not a claim that real impacts make only a handful of fragments. Unresolved material is retained in the surviving target's represented mass while dense visual ejecta remains non-authoritative.
+## Session-local experiment state
 
-This lets a surviving fragment actually leave, fall back, enter another trajectory, or hit something later without turning one impact into hundreds of expensive gravity sources.
+Save schema remains **1**. High-count particle fields are **session-local in v0.1.3** and are cleared by new-system generation or save restore.
 
-## Impact visuals
+This is deliberate: blindly serializing tens of thousands of Float64 particle states into localStorage would be a bad mobile persistence design. The experiment manager already separates deterministic configuration/state so a future snapshot/replay format can be introduced intentionally rather than bloating schema 1.
 
-Impact visuals are presentation driven by the calculated energy and impact normal:
+## Existing scientific flight foundation retained
 
-- additive flash,
-- expanding shock/ejecta ring,
-- directional ejecta points,
-- material-colored glow.
+- FLIGHT engine: 20 m/s² declared experimental propulsion.
+- CRUISE engine: 120 m/s².
+- BRAKE uses bounded physical acceleration opposite inertial velocity.
+- MATCH VELOCITY reduces target-relative velocity with bounded thrust.
+- APPROACH follows a braking-safe target-relative velocity envelope.
+- Flight auto-warp uses simulation-time compression rather than teleportation.
+- Manual takeover returns navigation to 1×.
 
-They do **not** add forces or mass and therefore cannot contaminate the physics state.
+## Existing impact foundation retained
 
-## Persistent damage records
+- swept finite-radius collision detection,
+- reduced-mass impact energy and Q_R,
+- material response classification,
+- approximate Collins/Melosh/Marcus-style crater scaling,
+- persistent damage records,
+- at most two resolved fragments from a primary impact,
+- 16 total active resolved impact-fragment sources,
+- cascade suppression and collision grace,
+- energy-driven visual flash/ejecta effects.
 
-Solid target bodies can now carry `damageRecords` containing:
+## Scientific core
 
-- simulation time,
-- impactor identity/mass/density,
-- relative velocity,
-- impact angle,
-- impact energy and `Q_R`,
-- crater estimate,
-- impact location/normal,
-- largest resolved fragment,
-- estimated ejecta escape fraction,
-- model disclosure string.
-
-The scanner displays the number of recorded impacts. Future landable terrain can consume the same records to materialize craters on the surface.
-
-## Impact presets
-
-The LAB includes editable starting presets:
-
-- Small Meteor
-- Tunguska-ish
-- Chicxulub-class
-- Moonlet
-
-They only populate mass/density/speed fields. The user can change every value before previewing or launching.
-
-## Planet visibility repair
-
-The `ORIGIN-001` home world **Caelum-4361 d** is generated as a tan desert world (`#c58a50`). It was still nearly black on the user's real iPhone WebGPU path in v0.1.1.3.
-
-v0.1.2 therefore uses two visual layers for non-stellar bodies:
-
-- a normally lit StandardMaterial for directional stellar shading/terminator,
-- a faint color-matched exposure shell plus low emissive floor.
-
-The second layer is intentionally visual-only. It prevents generated color from disappearing because of renderer/light-unit behavior while preserving strong day/night contrast.
-
-## Mobile input
-
-The v0.1.1.2 iOS hold-control hardening remains, and v0.1.2.1 adds the target-relative flight computer described above:
-
-- `touch-action:none` on continuous controls,
-- pointer capture,
-- document-level pointer release fallback,
-- lost-pointer/visibility/blur cleanup,
-- selection/callout suppression on the simulation surface,
-- editable LAB controls exempted.
+- authoritative units: SI meters, kilograms, seconds,
+- authoritative positions/velocities: Float64,
+- major gravity: mutual Newtonian direct solver,
+- major integrator: velocity-Verlet,
+- high-count background minor field: test particles only,
+- floating-origin Three.js rendering,
+- deterministic system seeds,
+- save schema: 1.
 
 ## GitHub Pages / phone workflow
 
-The release ZIP is repository-root-ready. Do not create a wrapper directory.
+The release archive is repository-root-ready. Unzip/upload its contents directly into the repository root.
 
-Deploy with GitHub Pages:
+GitHub Pages:
 
 - Source: **Deploy from a branch**
 - Branch: **main**
 - Folder: **/(root)**
 
-The distributable intentionally contains no `.github/workflows/*` files so mobile OAuth clients do not require GitHub's workflow scope.
+The archive intentionally contains **no `.github/workflows/*`** files, so mobile OAuth clients do not require workflow scope.
 
-## Current model boundaries
+## Not implemented yet
 
-Not implemented yet:
-
-- hydrocodes or shock-physics continuum solvers,
-- arbitrary mesh fracture,
-- atmosphere entry/ablation,
-- spacecraft structural crash physics,
-- persistent visible terrain deformation,
+- long-range self-gravity between experiment particles,
+- Barnes-Hut/FMM/GPU gravity,
 - fluids,
-- Barnes-Hut/FMM gravity,
-- GR black-hole trajectories/lensing,
-- landable terrain.
+- double-slit/wave probability solver,
+- atmosphere/entry heating,
+- structural spacecraft crash physics,
+- landable terrain,
+- GR black-hole trajectories/lensing.
 
-Those should remain separate modules rather than being hidden inside this impact foundation.
-
-## Run
-
-No build step is required for GitHub Pages. Serve the repository root over HTTP(S); ES modules cannot reliably be tested by opening `index.html` directly from `file://`.
+Those remain separate modules rather than being faked inside the particle framework.
 
 ## QA
 
@@ -198,4 +149,4 @@ Run:
 npm run qa
 ```
 
-See `QA-REPORT.md` for the exact automated checks and remaining physical-device gate.
+See `QA-REPORT.md` for automated tests, indicative CPU timings, and the remaining physical-iPhone release gates.

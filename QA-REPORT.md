@@ -1,119 +1,100 @@
-# Universe Lab v0.1.2.1 — QA Report
+# Universe Lab v0.1.3 — QA Report
 
-## Release
-
-**Impact Stability & Scientific Flight Navigation Polish**
-
-This build is derived directly from the physically tested v0.1.2 baseline. It is a focused repair/polish release for (1) runaway resolved-fragment cascades/performance and (2) impractical manual travel/time-warp control.
+Release: **Particle Experiment Framework**
 
 ## Automated result
 
-`npm run qa` — **PASS**
+`npm run qa` passes completely.
 
-- static repository structure check: PASS
-- all JavaScript/MJS `node --check`: PASS
-- Node numerical/unit tests: **34/34 PASS**
+- Static structure check: PASS
+- JavaScript / MJS syntax checks: PASS
+- Node test suite: **43 / 43 PASS**
+- HTML ID / JavaScript selector audit: **0 missing references, 0 duplicate IDs**
+- Static HTTP resource smoke: PASS (HTTP 200 for shell, CSS, main app, all three new particle modules, renderer)
+- Generated-system long-run regression: PASS (8 seeds × 30 simulated days at 900 s steps; 0 spontaneous major-body swept collisions; max generated major-body count 18 in this sample)
 
-### New v0.1.2.1 regression coverage
+## New v0.1.3 particle coverage
 
-- stopping distance uses `v²/(2a)`
-- MATCH VELOCITY acceleration is target-relative and capped
-- far APPROACH accelerates toward target within the selected engine cap
-- high-speed near-target APPROACH commands braking
-- BRAKE produces bounded acceleration opposite inertial velocity rather than deleting velocity
-- auto-warp recommendation collapses near precision-sensitive target states
-- simplified 1 Gm APPROACH regression reaches the configured stand-off without target crossing in ~32 real-time-equivalent seconds using automatic 600×/60× guidance warp
-- CRUISE engine integrates the declared 120 m/s² acceleration
-- setting the BRAKE flag alone no longer damps velocity inside ShipDynamics
-- same-family impact fragments are collision-filtered
-- fresh impact fragments honor collision grace
-- secondary resolved-fragment impacts can be resolved with zero new gravity fragments
-- primary planet-impact resolved fragment mass remains <= about 8% of impactor mass and <= 2 bodies
+Tests now verify:
 
-### Retained science regressions
+- typed spatial-hash cell insertion/retrieval,
+- Gravity Cloud acceleration toward a major body under SI Newtonian gravity,
+- experiment particles remain non-gravity-source test particles,
+- Particle Life can birth an inactive slot from a valid neighboring population,
+- sparse Species Forces neighbor work remains far below naïve N² pair counts,
+- global particle-slot budget enforcement,
+- 60× particle-active warp recommendation,
+- Particle Gun inheritance of spacecraft velocity and forward launch direction,
+- finite-radius major-body absorption of test particles,
+- mode-specific mobile limits (including Species Forces clamp),
+- fine particle modes consume a full three-second particle-safe frame interval without dropping simulation time.
 
-Gravity, velocity-Verlet orbit boundedness, seeded determinism/barycentric initialization, ship basis, impact energy/Q_R, impact angle, crater sanity range, mass conservation, low-speed bounce momentum conservation, trajectory prediction, swept trajectory contact, renderer body-color exposure floor, and launcher radius tests all remain passing.
+## Retained regression coverage
 
-## Generated-system stress
+The suite also retains the v0.1.2.1 baseline tests for:
 
-Eight deterministic generated systems were each integrated for **30 simulated days** with 900 s major-body steps and swept collision monitoring.
+- Newtonian gravity,
+- velocity-Verlet orbital stability,
+- deterministic/barycentric system generation,
+- target orbital metrics and trajectory prediction,
+- swept high-speed major-body collision detection,
+- impact energy / angle / crater sanity / momentum conservation,
+- bounded fragment generation and cascade suppression,
+- body-color exposure-floor regression,
+- ship basis/thrust/cruise integration,
+- physical BRAKE behavior (no hidden damping),
+- target-relative APPROACH/MATCH guidance,
+- stopping-distance math and navigation warp safety.
 
-Result:
+## Indicative Node-side particle timings
 
-- systems: 8
-- simulated days/system: 30
-- spontaneous major-body collisions: **0**
-- maximum generated gravity-source count observed: **23**
+These are development-machine/JIT timings only and are **not claims about iPhone performance**. Median of three warmed runs from the final code path:
 
-This is a numerical stress check, not evidence of long-term astrophysical stability.
+| Mode | Slots | Simulated step | Indicative median |
+|---|---:|---:|---:|
+| Gravity Cloud | 5,000 | 1.0 s | ~0.62 ms |
+| Gravity Cloud | 30,000 | 1.0 s | ~3.65 ms |
+| Particle Life | 2,000 | 0.5 s | ~2.50 ms |
+| Particle Life | 6,000 | 0.5 s | ~3.17 ms |
+| Species Forces | 2,000 | 0.5 s | ~3.00 ms |
+| Species Forces | 4,000 | 0.5 s | ~3.81 ms |
 
-## Static browser-resource smoke
+The mobile-first mode ceilings are intentionally below the 40,000 global slot budget for the more expensive artificial neighbor modes.
 
-Local HTTP serving returned **200** for:
+## Scientific integrity checks
 
-- `index.html`
-- `styles.css`
-- `src/main.js`
-- `src/app/app.js`
-- `src/physics/flightComputer.js`
-- `src/physics/impactResolver.js`
-- `src/render/threeRenderer.js`
+v0.1.3 does not silently convert artificial rules into physical claims:
 
-HTML/control audit:
+- Gravity Cloud / Particle Gun = physical test-particle trajectories under existing major Newtonian gravity.
+- Particle Life = explicitly artificial continuous-3D cellular-automaton-inspired rules.
+- Species Forces = explicitly artificial local attraction/repulsion using coarse spatial-cell aggregates.
+- Experiment particles do not source long-range gravity.
+- Global warp is capped to 60× while experiment fields exist so local simulation intervals remain resolved.
+- High-count fields are session-local and intentionally excluded from schema-1 localStorage saves.
 
-- unique HTML IDs: PASS
-- JavaScript `#id` references missing from shell: **0**
+## Packaging/deployment checks required before release archive
 
-## Impact-stability architecture checks
+The final ZIP must pass:
 
-- per-primary-event resolved fragment cap: **2**
-- active resolved impact-fragment sub-budget: **16**
-- secondary impact fragment generation: **0 new gravity fragments**
-- same breakup-family recursive collision suppression: active
-- fresh-fragment collision grace: active
-- planet/moon resolved fragment mass share: approximately <= 8% of projectile mass
-- unresolved mass remains represented through target accretion under the current approximation
-- resolved fragment minimum render size reduced substantially from v0.1.2
-- simultaneous impact presentation effects bounded to prevent additive flash accumulation
+- repository files at ZIP root (no wrapper directory),
+- ZIP integrity test,
+- no `.github/workflows/*`,
+- `index.html` / `package.json` / `VERSION.json` all report v0.1.3,
+- Three.js remains pinned to 0.185.0.
 
-## Scientific flight checks
+## Remaining physical-device release gate
 
-Declared propulsion:
+This environment cannot honestly substitute for the user's real iPhone Safari/WebGPU test. On-device validation should specifically check:
 
-- FLIGHT main acceleration: **20 m/s²**
-- CRUISE main acceleration: **120 m/s²**
-- FLIGHT reverse acceleration: **12 m/s²**
-- CRUISE reverse acceleration: **72 m/s²**
-- RCS: **6 m/s²**
+1. 5,000-particle Gravity Cloud visibility and FPS.
+2. 2,000 → 6,000 Particle Life progression.
+3. 2,000 → 4,000 Species Forces progression.
+4. Particle Gun direction/spread and visible motion.
+5. Particle fields remain in world space when the ship flies around/through them.
+6. Active fields cap warp to 60× and APPROACH remains usable.
+7. CLEAR PARTICLES removes fields and releases the particle warp cap.
+8. Existing flight controls still long-press correctly on iOS.
+9. Planet colors remain readable.
+10. v0.1.2.1 impact fragment stability remains intact.
 
-BRAKE, MATCH and APPROACH create bounded acceleration vectors that are integrated by the spacecraft velocity-Verlet step. They do not directly edit position/velocity.
-
-APPROACH uses a braking-safe target-relative desired-velocity envelope based on remaining distance and available acceleration. APPROACH/MATCH automatically select 600× / 60× / 1× simulated-time compression as appropriate and return control at 1× after guidance completes or is manually interrupted.
-
-The propulsion model remains explicitly experimental/fictitious technology. The numerical kinematics are integrated; the drive technology is not claimed to represent an existing spacecraft propulsion system.
-
-## Packaging/deployment checks
-
-Final distributable must satisfy:
-
-- GitHub repository files at ZIP root, no wrapper directory
-- no `.github/workflows/*`
-- Three.js pinned to `0.185.0`
-- save schema remains `1`
-- GitHub Pages mode remains `main` → `/(root)`
-
-## Physical-device gate
-
-Automated tests do **not** substitute for the user's real iPhone Safari/WebGPU test. The release gate remains physical verification of:
-
-1. no long-press selection regression,
-2. CRUISE/APPROACH feel practical,
-3. auto-warp steps down before target overshoot,
-4. manual takeover returns to 1×,
-5. BRAKE/MATCH visibly reduce velocity over simulated time rather than instantly,
-6. Chicxulub-class impact produces restrained large chunks rather than a fragment-body cascade,
-7. major-body count stays far below the direct 128-source ceiling after the impact settles,
-8. FPS recovers after impact effects expire,
-9. planet colors remain readable on iPhone WebGPU.
-
-No automated interactive 3D/browser playthrough is claimed for this release.
+Do not claim a real interactive iPhone pass until those are physically tested.

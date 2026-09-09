@@ -1,21 +1,9 @@
-# Third-Party / Scientific References — Universe Lab v0.1.2.1
+# Third-party components
 
-## Runtime library
+## Three.js
 
-- Three.js 0.185.0, loaded from jsDelivr as pinned ES modules.
-- Three.js license: MIT.
+Universe Lab pins Three.js **0.185.0** through browser ESM import maps in `index.html`.
 
-## Scientific references informing the v0.1.2 impact foundation
+Three.js provides the rendering/WebGPU-WebGL abstraction only. Universe Lab's authoritative universe, flight, impact, and particle-experiment numerical state lives outside Three.js.
 
-The project implements its own code and does not copy source code from these references. They are scientific/modeling references for equations, regimes, and interpretation.
-
-- Collins, G. S., Melosh, H. J., & Marcus, R. A. (2005), *Earth Impact Effects Program: A Web-based computer program for calculating the regional environmental consequences of a meteoroid impact on Earth*, Meteoritics & Planetary Science.
-- Holsapple/Schmidt impact-cratering scaling literature describing gravity/strength regimes and dimensional scaling.
-- Lunar and Planetary Institute educational/modeling resources on impact cratering, crater morphology, density/velocity/gravity dependence, and simple/complex craters.
-
-Useful public reference pages consulted during development:
-
-- https://www.lpi.usra.edu/exploration/training/resources/impact_cratering/index.shtml
-- https://www.lpi.usra.edu/education/explore/shaping_the_planets/impact-cratering/
-
-Crater estimates in Universe Lab remain approximations and are not a replacement for iSALE or other shock-physics hydrocodes.
+No additional runtime third-party libraries were added in v0.1.3. The spatial hash and particle experiment solvers are project code.

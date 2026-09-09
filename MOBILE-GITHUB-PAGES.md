@@ -1,38 +1,32 @@
-# Mobile GitHub Pages Setup — v0.1.2.1
+# Mobile GitHub Pages deployment — Universe Lab v0.1.3
 
-This ZIP is designed to unzip directly into the GitHub repository root.
+This archive is intentionally **repository-root-ready** and intentionally contains **no `.github/workflows/*` files**.
 
-## Phone workflow
+## Upload from iPhone
 
-1. Download the v0.1.2.1 ZIP.
-2. Extract it into the SpaceSim/Universe Lab repository root.
-3. Confirm `index.html`, `src/`, `tests/`, `package.json`, etc. are directly at repository root.
-4. Commit/push from the iPhone Git client.
-5. GitHub repository → Settings → Pages.
-6. Choose **Deploy from a branch**.
-7. Branch: **main**.
-8. Folder: **/(root)**.
-9. Save and wait for Pages to publish.
+1. Extract the ZIP.
+2. Copy/upload the extracted contents directly into the repository root. Do not create an extra `UniverseLab-v0.1.3/` wrapper in the repository.
+3. Push/commit normally from the mobile Git client.
+4. In GitHub repository Settings → Pages choose:
+   - Source: **Deploy from a branch**
+   - Branch: **main**
+   - Folder: **/(root)**
 
-There is intentionally no `.github/workflows/pages.yml`; the previous workflow file caused mobile OAuth clients without `workflow` scope to be rejected by GitHub.
+The absence of Actions workflow files avoids the mobile OAuth `workflow`-scope rejection encountered during v0.1.0 deployment.
 
-## Cache warning
+## iPhone release gate for v0.1.3
 
-After replacing files, Safari may retain an older module briefly. Check the HUD version. It must display **v0.1.2.1**. If it does not, reload/hard-refresh or close/reopen the tab.
+After deployment, verify:
 
-## First v0.1.2.1 device checks
+- HUD reports **v0.1.3** and WebGPU/WebGL2 backend,
+- existing LOOK / THRUST / REV / BRAKE long-press controls remain stable,
+- APPROACH/MATCH still work and particle fields cap navigation/time warp to 60× while active,
+- LAB → Particle Experiments → Gravity Cloud visibly creates one coherent 3D field ahead of the ship,
+- 5,000-particle Gravity Cloud remains responsive,
+- Particle Life at 2,000 then 5,000 slots evolves without UI lockup,
+- Species Forces at 2,000 then 4,000 slots remains usable,
+- Particle Gun launches a visible stream in the ship-forward direction,
+- CLEAR PARTICLES removes experiment render fields and restores unrestricted manual warp,
+- planet colors remain readable and impact/fragment behavior from v0.1.2.1 remains stable.
 
-1. Confirm the home planet still has visible seeded color.
-2. Hold THRUST 5–10 seconds; no text-selection handles/callouts should appear.
-3. MORE → ENGINE CRUISE. The main control should read **THRUST 120**.
-4. Select a planet and press **APPROACH**. Confirm the navigation chip appears and WARP changes automatically between safe levels rather than requiring manual high warp.
-5. Let APPROACH run long enough to see it transition toward braking as distance falls. It should not simply fly through the target.
-6. Cancel APPROACH with manual THRUST, then test **BRAKE**. Speed should decrease through modeled acceleration, not instantly disappear.
-7. MORE → **MATCH VELOCITY** with a selected target and verify target-relative Δv trends down.
-8. LAB → Chicxulub-class → AIM TARGET → PREVIEW → LAUNCH.
-9. Confirm the impact still produces flash/ring/ejecta, but no more than two large representative fragment bodies appear from the primary event.
-10. Keep the simulation running after impact: MAJOR should not climb toward the 128-source ceiling from recursive fragment breakups.
-11. Check FPS after impact settles and compare with v0.1.2.
-12. Save/load and confirm the target's recorded-impact count persists; navigation should restore in MANUAL for safety.
-
-Physical iPhone Safari remains the release gate for WebGPU body readability, impact-effect visibility, hold-control continuity, and real device performance.
+Use the HUD FPS / PHYSICS / LAB timing values when reporting limits. Physical iPhone performance is authoritative; Node-side timings in QA are only indicative development measurements.

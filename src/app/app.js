@@ -16,6 +16,7 @@ import { osculatingMetrics, angularAlignment } from '../physics/orbitalMetrics.j
 import { TrajectoryPredictor } from '../physics/trajectoryPredictor.js';
 import { ExperimentRegistry } from '../experiments/experimentRegistry.js';
 import { registerLabExperiments, MATERIALS, asteroidDefinitionFromParams, sphereRadiusFromMassDensity } from '../experiments/labSpawner.js';
+import { ParticleExperimentManager, PARTICLE_MODES } from '../experiments/particles/particleExperimentManager.js';
 import { UniverseRenderer } from '../render/threeRenderer.js';
 import { Hud } from '../ui/hud.js';
 
@@ -91,6 +92,7 @@ export class UniverseLabApp {
     this.trajectoryPredictor = new TrajectoryPredictor();
     this.experiments = new ExperimentRegistry();
     registerLabExperiments(this.experiments);
+    this.particleExperiments = new ParticleExperimentManager();
     this.renderer = new UniverseRenderer(root.querySelector('#viewport'));
     this.system = null;
     this.minorField = null;
@@ -111,6 +113,9 @@ export class UniverseLabApp {
     this.fpsFrames = 0;
     this.fps = 60;
     this.physicsMs = 0;
+    this.experimentMs = 0;
+    this._particleWarpNoticeAt = 0;
+    this._nextParticleStatusAt = 0;
     this._lookPointer = null;
     this._lookLast = [0, 0];
     this._viewportTap = null;
@@ -133,11 +138,12 @@ export class UniverseLabApp {
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
     this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.2.1 online. Stable impact fragments + physical approach/braking flight computer active.');
+    this.hud.notify('v0.1.3 online. Particle Experiment Framework active: gravity clouds, particle life, species forces, and particle gun.');
   }
 
   newSystem(seed) {
     this.cancelNavigation();
+    this.particleExperiments.clear();
     this.system = generateSystem(seed);
     this.registry.clear();
     for (const body of this.system.bodies) this.registry.create(body);
@@ -401,6 +407,44 @@ export class UniverseLabApp {
     }
   }
 
+  enforceParticleWarpSafety() {
+    const cap = this.particleExperiments.recommendedWarpCap;
+    if (!Number.isFinite(cap) || this.clock.timeScale <= cap) return;
+    this.clock.setTimeScale(cap);
+    const select = this.root.querySelector('#timeScale');
+    if (select) select.value = String(cap);
+    const button = this.root.querySelector('#warpQuick');
+    if (button) button.textContent = `LAB ${cap.toLocaleString()}×`;
+    const now = performance.now();
+    if (now - this._particleWarpNoticeAt > 1800) {
+      this.hud.notify(`Particle experiment active: global warp capped at ${cap.toLocaleString()}× so local neighbor/particle integration remains resolved.`);
+      this._particleWarpNoticeAt = now;
+    }
+  }
+
+  particleFieldParams() {
+    return {
+      mode: this.root.querySelector('#particleMode').value,
+      count: this.root.querySelector('#particleCount').value,
+      radiusMeters: safeNumber(this.root.querySelector('#particleRadiusKm').value, 20_000) * 1000,
+      neighborRadiusMeters: safeNumber(this.root.querySelector('#particleNeighborKm').value, 1_000) * 1000,
+      initialSpeedMps: this.root.querySelector('#particleSpeed').value,
+      localStrengthMps2: this.root.querySelector('#particleStrength').value,
+      majorGravity: this.root.querySelector('#particleMajorGravity').checked,
+    };
+  }
+
+  updateParticleLabStatus() {
+    const element = this.root.querySelector('#particleStatus');
+    if (!element) return;
+    const summaries = this.particleExperiments.summaries();
+    if (!summaries.length) {
+      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.3 and are intentionally not written into schema-1 saves.';
+      return;
+    }
+    element.textContent = summaries.map((s) => `${s.label}: ${s.activeCount.toLocaleString()}/${s.count.toLocaleString()} active${s.absorbedCount ? ` · ${s.absorbedCount.toLocaleString()} absorbed` : ''}${s.mode === 'life' ? ` · births ${s.births.toLocaleString()} · deaths ${s.deaths.toLocaleString()}` : ''}`).join(' | ');
+  }
+
   applyImpactResolution(event) {
     if (!this.registry.has(event.a.id) || !this.registry.has(event.b.id)) return;
     event.timeSeconds ??= this.clock.elapsedSimSeconds;
@@ -447,6 +491,9 @@ export class UniverseLabApp {
     this.updateNavigation(dt);
     this.ship.step(dt, sources);
     this.minorField?.step(dt, sources);
+    const experimentStart = performance.now();
+    this.particleExperiments.step(dt, sources);
+    this.experimentMs += performance.now() - experimentStart;
 
     const collisions = this.collisionMonitor.scan(sources, previousPositions, this.clock.elapsedSimSeconds + dt);
     for (const event of collisions) {
@@ -474,17 +521,20 @@ export class UniverseLabApp {
     const realDt = Math.min(SIMULATION.maxFrameDeltaSeconds, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
     const physicsStart = performance.now();
+    this.experimentMs = 0;
     this.enforceNavigationWarpSafety();
+    this.enforceParticleWarpSafety();
     if (this.running) this.clock.advance(realDt, (dt) => this.physicsStep(dt));
     this.physicsMs = performance.now() - physicsStart;
     if (this._rollDirection) { this.ship.rotateRoll(this._rollDirection * realDt * 1.4); this.invalidatePredictions(); }
 
     this.refreshPredictions(now);
     const renderStart = performance.now();
-    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField });
+    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values });
     this.renderMs = performance.now() - renderStart;
     this.updateTargetTelemetry();
     this.hud.setNavigation(this.navigationStatus, this.target, this.ship.engineMode, this.ship.currentMainAcceleration());
+    if (now >= this._nextParticleStatusAt) { this.updateParticleLabStatus(); this._nextParticleStatusAt = now + 500; }
 
     this.fpsFrames += 1;
     if (now - this.fpsClock >= 500) {
@@ -503,6 +553,8 @@ export class UniverseLabApp {
       renderMs: this.renderMs,
       predictionMs: this.predictionMs,
       drawCalls: renderStats.drawCalls,
+      experimentParticles: this.particleExperiments.activeParticles,
+      experimentMs: this.experimentMs,
     });
   }
 
@@ -529,6 +581,7 @@ export class UniverseLabApp {
       return;
     }
     this.system = generateSystem(payload.seed);
+    this.particleExperiments.clear();
     this.registry.clear();
     for (const raw of payload.bodies) this.registry.create(restoreBody(raw));
     this.rebuildBodyCaches();
@@ -567,7 +620,8 @@ export class UniverseLabApp {
     this.hud.setSeed(payload.seed);
     this.selectTarget(payload.targetId && this.registry.has(payload.targetId) ? payload.targetId : this.system.homeId);
     this.invalidatePredictions();
-    this.hud.notify('Save restored. High-count minor field was deterministically regenerated; major-body and spacecraft state were snapshot-restored.');
+    this.updateParticleLabStatus();
+    this.hud.notify('Save restored. High-count minor field was deterministically regenerated; major-body and spacecraft state were snapshot-restored. Session-local particle experiments were cleared.');
   }
 
   bindUi() {
@@ -614,6 +668,47 @@ export class UniverseLabApp {
       this.minorField.setCount(e.target.value);
       this.renderer.setMinorField(this.minorField);
       this.hud.notify(`Minor test-particle field rebuilt: ${this.minorField.count.toLocaleString()} bodies. They feel major gravity but do not source it.`);
+    });
+    const updateParticleModeHelp = () => {
+      const mode = PARTICLE_MODES[$('#particleMode').value] ?? PARTICLE_MODES.gravity;
+      const countInput = $('#particleCount');
+      countInput.max = String(mode.maxCount);
+      if (Number(countInput.value) > mode.maxCount) countInput.value = String(mode.maxCount);
+      $('#particleModeHelp').textContent = `${mode.scientificStatus} Current mobile-first mode limit: ${mode.maxCount.toLocaleString()} slots.`;
+    };
+    $('#particleMode').addEventListener('change', updateParticleModeHelp);
+    updateParticleModeHelp();
+    $('#randomizeParticleRules').addEventListener('click', () => {
+      const mode = $('#particleMode').value;
+      if (mode === 'gravity') { this.hud.notify('Gravity Cloud uses physical major-body gravity; there are no artificial neighbor rules to randomize.'); return; }
+      const randomized = this.particleExperiments.randomizeArtificialParams(`${this.system.seed}:${performance.now()}`);
+      $('#particleNeighborKm').value = String(Math.max(100, Math.round(safeNumber($('#particleRadiusKm').value, 20_000) * randomized.neighborRadiusFactor)));
+      $('#particleStrength').value = randomized.localStrengthMps2.toFixed(1);
+      $('#particleSpeed').value = randomized.initialSpeedMps.toFixed(0);
+      this.hud.notify('Artificial particle-rule parameters randomized. The rule family itself is unchanged and remains explicitly non-physical.');
+    });
+    $('#spawnParticleField').addEventListener('click', () => {
+      try {
+        const field = this.particleExperiments.spawnField(this, this.particleFieldParams());
+        this.clock.setTimeScale(Math.min(this.clock.timeScale, this.particleExperiments.recommendedWarpCap));
+        $('#timeScale').value = String(this.clock.timeScale); updateWarpButton();
+        this.updateParticleLabStatus();
+        this.hud.notify(`${field.label} spawned ahead of the ship: ${field.count.toLocaleString()} slots in a ${(field.radiusMeters / 1000).toLocaleString()} km region. ${field.scientificStatus}`, 7000);
+      } catch (error) { this.hud.notify(`Particle field rejected: ${error.message}`); }
+    });
+    $('#fireParticleGun').addEventListener('click', () => {
+      try {
+        const field = this.particleExperiments.fireGun(this, { count: $('#particleGunCount').value, speedMps: $('#particleGunSpeed').value, spreadDegrees: $('#particleGunSpread').value });
+        this.clock.setTimeScale(Math.min(this.clock.timeScale, this.particleExperiments.recommendedWarpCap));
+        $('#timeScale').value = String(this.clock.timeScale); updateWarpButton();
+        this.updateParticleLabStatus();
+        this.hud.notify(`${field.label} fired: ${field.count.toLocaleString()} ballistic test particles at ${Number($('#particleGunSpeed').value).toLocaleString()} m/s.`);
+      } catch (error) { this.hud.notify(`Particle gun rejected: ${error.message}`); }
+    });
+    $('#clearParticleExperiments').addEventListener('click', () => {
+      this.particleExperiments.clear();
+      this.updateParticleLabStatus();
+      this.hud.notify('All session-local particle experiments cleared.');
     });
     $('#pauseToggle').addEventListener('click', (e) => {
       this.hud.toggleMore(false);
