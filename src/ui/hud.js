@@ -136,9 +136,15 @@ export class Hud {
       this.navChip.textContent = `MATCH ${target.name} · Δv ${speed(status.relativeSpeedMps)} · ${engine} ${fmt(accelerationMps2, 0)} m/s²`;
       return;
     }
-    const remaining = Number.isFinite(status.remainingMeters) ? distance(Math.max(0, status.remainingMeters)) : '—';
+    const remaining = Number.isFinite(status.remainingMeters) ? distance(Math.abs(status.remainingMeters)) : '—';
     const closing = Number.isFinite(status.closingSpeedMps) ? speed(status.closingSpeedMps) : '—';
     const stop = Number.isFinite(status.stoppingDistanceMeters) ? distance(status.stoppingDistanceMeters) : '—';
+    if (status.phase === 'holding' || status.phase === 'capture') {
+      const rel = Number.isFinite(status.relativeSpeedMps) ? speed(status.relativeSpeedMps) : '—';
+      const gravity = Number.isFinite(status.targetGravityMps2) ? `${fmt(status.targetGravityMps2, 2)} m/s²` : '—';
+      this.navChip.textContent = `${status.phase.toUpperCase()} ${target.name} · offset ${remaining} · Δv ${rel} · g ${gravity}`;
+      return;
+    }
     this.navChip.textContent = `${String(status.phase || 'approach').toUpperCase()} ${target.name} · remaining ${remaining} · closing ${closing} · brake ${stop}`;
   }
 

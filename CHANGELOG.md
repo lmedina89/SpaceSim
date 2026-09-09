@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.1.3.1 — Navigation Arrival & Strong-Gravity Safety Hotfix
+
+Built from v0.1.3 after physical iPhone testing showed APPROACH could reach a black-hole target, release guidance with huge target-relative velocity, and then numerically run away under strong Newtonian gravity/time stepping.
+
+### Fixed
+
+- APPROACH now enters CAPTURE and then persistent thrust-powered HOLD instead of disabling guidance at distance-only arrival.
+- HOLD maintains target-relative position/velocity with bounded station-keeping acceleration and explicit target-gravity counter-thrust.
+- propulsion-safe stand-off derives an additional radius from `GM/r²` and selected engine acceleration; extreme-gravity targets are held far enough out for the drive to retain control authority.
+- navigation warp uses remaining distance to stand-off rather than physical target radius; CAPTURE max 60×, HOLD 1×.
+- strong gravity now lowers the physics substep ceiling dynamically.
+- Newtonian model validity guard pauses at 10% c or inside 100 Schwarzschild radii (minimum 100 km guard) instead of displaying runaway/superluminal motion as valid science.
+- APP navigation HUD exposes CAPTURE/HOLD, relative velocity, offset, and target gravity.
+- default auto-approach cruise-speed ceiling raised to 5,000 km/s, while actual acceleration remains bounded by the selected 20/120 m/s² experimental drive and braking envelope.
+
+### Retained
+
+- complete v0.1.3 Particle Experiment Framework and typed spatial hash,
+- v0.1.2.1 impact stability/fragment controls,
+- save schema 1 and Three.js 0.185.0,
+- no `.github/workflows/*`; GitHub Pages remains `main` → `/(root)`.
+
+
 ## v0.1.3 — Particle Experiment Framework
 
 Built directly from the physically tested v0.1.2.1 Impact Stability & Scientific Flight Navigation Polish baseline.

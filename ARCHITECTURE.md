@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.3
+# Architecture — Universe Lab v0.1.3.1
 
 ## Core rule
 
@@ -114,15 +114,22 @@ These are **current mobile-first safety budgets**, not theoretical engine ceilin
 
 Save schema remains 1. Particle experiment state is deliberately session-local. System/body/ship saves are unchanged. A future experiment persistence module can store deterministic configuration plus optional binary snapshots without forcing large JSON arrays into localStorage.
 
+
+## Navigation stability boundary
+
+The flight computer remains outside renderer ownership. APPROACH computes a braking-safe velocity envelope, a propulsion-safe stand-off, CAPTURE, and persistent HOLD. HOLD adds bounded counter-thrust for the selected target's local gravity plus target-relative position/velocity correction. Manual controls cancel guidance rather than competing with it.
+
+`navigationPhysicsStepLimitSeconds()` derives a smaller integration ceiling from local `sqrt(r/g)` gravitational dynamical time when necessary. `SimulationClock.advance()` accepts that ceiling and can stop its remaining substeps when the Newtonian validity guard requests a halt. The guard pauses rather than clamping state.
+
 ## Existing impact/flight boundaries
 
-Impact resolution and flight-computer modules remain isolated from particle experiments. Impact visual ejecta is still presentation-only and is not automatically converted into ParticleExperiment bodies in v0.1.3. That can be added later through an explicit adapter without contaminating impact mass accounting.
+Impact resolution and flight-computer modules remain isolated from particle experiments. Impact visual ejecta is still presentation-only and is not automatically converted into ParticleExperiment bodies in v0.1.3.1. That can be added later through an explicit adapter without contaminating impact mass accounting.
 
 ## Future backend path
 
 The particle interfaces are designed to allow:
 
-1. CPU typed-array reference solver (v0.1.3),
+1. CPU typed-array reference solver (v0.1.3.1),
 2. worker/WASM kernels,
 3. WebGPU storage buffers/compute,
 4. Barnes-Hut/FMM long-range gravity,

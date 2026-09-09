@@ -1,10 +1,20 @@
-# Universe Lab v0.1.3 — Particle Experiment Framework
+# Universe Lab v0.1.3.1 — Particle Framework + Navigation Arrival Safety Hotfix
 
 Universe Lab is a mobile-first scientific/experimental solar-system sandbox built for static GitHub Pages. One deterministic seeded system is simulated at a time; the spacecraft is both observer and laboratory platform.
 
-v0.1.3 builds directly on the physically tested v0.1.2.1 flight/impact baseline and introduces a reusable high-count particle experiment layer without changing save schema 1, Three.js 0.185.0, the SI major-body physics model, or the phone-safe GitHub Pages workflow.
+v0.1.3.1 keeps the full v0.1.3 Particle Experiment Framework and hotfixes the target-relative flight computer after physical iPhone testing exposed an unsafe arrival handoff around a spawned black hole. Save schema 1, Three.js 0.185.0, particle architecture, impact architecture, and the phone-safe GitHub Pages workflow remain unchanged.
 
 ## What is new
+
+## v0.1.3.1 navigation hotfix
+
+- APPROACH no longer switches off merely because stand-off distance was reached. It transitions through **CAPTURE** into persistent thrust-powered **HOLD**.
+- HOLD continuously matches target-relative velocity and counteracts the selected target's local gravity with bounded physical thrust. Manual THRUST/REV/BRAKE/RCS input releases HOLD and returns to 1×.
+- Stand-off distance now includes a propulsion-support constraint derived from `GM/r²`, reserving most engine authority for capture/correction. Black holes therefore cannot be approached to a tiny radius that the selected engine could never hover against.
+- Strong local gravity reduces the maximum physics substep dynamically instead of allowing the normal 300 s ceiling to destabilize close approaches.
+- APPROACH warp is based on distance/time to the **navigation stand-off**, not the target's physical surface alone. CAPTURE is limited to 60× and HOLD to 1×.
+- The Newtonian spacecraft model now has an explicit validity guard: if ship speed reaches 10% of c, or the ship enters the black-hole near-field guard, simulation pauses with a MODEL LIMIT warning instead of continuing into superluminal numerical runaway. No velocity is silently clamped.
+
 
 ### Reusable particle engine
 
@@ -79,7 +89,7 @@ APPROACH/MATCH remain usable with experiments active, but their usual 600× crui
 
 ## Session-local experiment state
 
-Save schema remains **1**. High-count particle fields are **session-local in v0.1.3** and are cleared by new-system generation or save restore.
+Save schema remains **1**. High-count particle fields are **session-local in v0.1.3.1** and are cleared by new-system generation or save restore.
 
 This is deliberate: blindly serializing tens of thousands of Float64 particle states into localStorage would be a bad mobile persistence design. The experiment manager already separates deterministic configuration/state so a future snapshot/replay format can be introduced intentionally rather than bloating schema 1.
 

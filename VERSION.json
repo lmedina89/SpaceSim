@@ -1,6 +1,6 @@
 {
-  "version": "0.1.3",
-  "name": "Particle Experiment Framework",
+  "version": "0.1.3.1",
+  "name": "Particle Framework + Navigation Arrival Safety Hotfix",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -9,7 +9,12 @@
   "majorIntegrator": "velocity-verlet",
   "particleExperimentIntegrator": "bounded semi-implicit Euler with mode-specific substeps",
   "particleNeighborAcceleration": "typed-array uniform spatial hash",
-  "particleModes": ["gravity-cloud", "particle-life", "species-forces", "particle-gun"],
+  "particleModes": [
+    "gravity-cloud",
+    "particle-life",
+    "species-forces",
+    "particle-gun"
+  ],
   "particleGlobalBudget": 40000,
   "particleWarpCap": 60,
   "trajectoryModel": "forward N-body velocity-verlet",
@@ -18,6 +23,7 @@
   "motionCue": "visual-only logarithmic inertial velocity reference",
   "deploymentMode": "github-pages-branch-root",
   "mobileInput": "pointer-capture + document-release fallback + selection/callout suppression",
-  "flightComputer": "target-relative approach + velocity match + physical inertial brake",
-  "fragmentPolicy": "max 2 primary resolved fragments, 16 total resolved impact fragments, family cascade suppression"
+  "flightComputer": "propulsion-safe target-relative approach + persistent station-keeping hold + velocity match + physical inertial brake",
+  "fragmentPolicy": "max 2 primary resolved fragments, 16 total resolved impact fragments, family cascade suppression",
+  "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard"
 }

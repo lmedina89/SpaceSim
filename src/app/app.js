@@ -9,7 +9,7 @@ import { VelocityVerletIntegrator } from '../physics/integrators/velocityVerlet.
 import { CollisionMonitor } from '../physics/collisionMonitor.js';
 import { TestParticleField } from '../physics/testParticleField.js';
 import { ShipDynamics } from '../physics/shipDynamics.js';
-import { computeApproachAcceleration, computeMatchVelocityAcceleration, computeAbsoluteBrakeAcceleration, recommendedWarpCap, targetRelativeState } from '../physics/flightComputer.js';
+import { computeApproachAcceleration, computeMatchVelocityAcceleration, computeAbsoluteBrakeAcceleration, recommendedWarpCap, targetRelativeState, navigationPhysicsStepLimitSeconds, newtonianModelLimit } from '../physics/flightComputer.js';
 import { formatEnergy } from '../physics/impactModel.js';
 import { resolveImpact } from '../physics/impactResolver.js';
 import { osculatingMetrics, angularAlignment } from '../physics/orbitalMetrics.js';
@@ -123,6 +123,8 @@ export class UniverseLabApp {
     this.navigationMode = 'manual';
     this.navigationStatus = null;
     this._lastWarpSafetyNotice = 0;
+    this._lastNavigationPhase = null;
+    this._modelLimitLatched = false;
   }
 
   get bodies() { return this.registry.values(); }
@@ -138,7 +140,7 @@ export class UniverseLabApp {
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
     this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.3 online. Particle Experiment Framework active: gravity clouds, particle life, species forces, and particle gun.');
+    this.hud.notify('v0.1.3.1 online. Particle framework + navigation arrival safety hotfix active.');
   }
 
   newSystem(seed) {
@@ -325,6 +327,7 @@ export class UniverseLabApp {
     const wasAutomatic = this.navigationMode !== 'manual';
     this.navigationMode = 'manual';
     this.navigationStatus = null;
+    this._lastNavigationPhase = null;
     this.ship.clearNavigationAcceleration();
     if (wasAutomatic) {
       this.clock.setTimeScale(1);
@@ -374,7 +377,7 @@ export class UniverseLabApp {
       return;
     }
     const target = this.target;
-    if (!target || this.navigationMode === 'manual') { this.navigationStatus = null; return; }
+    if (!target || this.navigationMode === 'manual') { this.navigationStatus = null; this._lastNavigationPhase = null; return; }
     if (this.navigationMode === 'match') {
       const command = computeMatchVelocityAcceleration(this.ship, target, maxAccel, dt);
       this.ship.setNavigationAcceleration(command.acceleration);
@@ -385,64 +388,70 @@ export class UniverseLabApp {
     const command = computeApproachAcceleration(this.ship, target, maxAccel, dt);
     this.ship.setNavigationAcceleration(command.acceleration);
     this.navigationStatus = { mode: 'approach', ...command, ...command.state };
-    if (command.phase === 'arrived') this.finishNavigation(`Approach complete near ${target.name}; relative velocity matched and navigation returned to 1×.`);
+    const approachButton = this.root.querySelector('#approachButton');
+    if (approachButton) approachButton.textContent = command.phase === 'holding' ? 'HOLDING' : command.phase === 'capture' ? 'CAPTURE' : 'APPROACH ON';
+    if (command.phase === 'holding' && this._lastNavigationPhase !== 'holding') {
+      this.clock.setTimeScale(1);
+      const select = this.root.querySelector('#timeScale');
+      if (select) select.value = '1';
+      const warpButton = this.root.querySelector('#warpQuick');
+      if (warpButton) warpButton.textContent = 'AUTO 1×';
+      this.hud.notify(`Station-keeping established near ${target.name}. APPROACH remains engaged and is using real thrust to hold target-relative position. Manual input releases HOLD.`);
+    }
+    this._lastNavigationPhase = command.phase;
   }
 
   enforceNavigationWarpSafety() {
     if (this.navigationMode === 'manual' || !this.target) return;
     const state = targetRelativeState(this.ship, this.target);
-    const desiredWarp = recommendedWarpCap({ mode: this.navigationMode, targetState: state, targetRadius: this.target.radius });
-    if (!Number.isFinite(desiredWarp) || this.clock.timeScale === desiredWarp) return;
-    this.clock.setTimeScale(desiredWarp);
+    const maxAccel = this.engineAcceleration();
+    const desiredWarp = recommendedWarpCap({
+      mode: this.navigationMode,
+      targetState: state,
+      targetRadius: this.target.radius,
+      standOffDistanceMeters: this.navigationStatus?.standOffDistance ?? null,
+      phase: this.navigationStatus?.phase ?? null,
+      targetGravityMps2: this.navigationStatus?.targetGravityMps2 ?? 0,
+      maxAccelerationMps2: maxAccel,
+    });
+    const particleCap = this.particleExperiments.activeCount ? this.particleExperiments.recommendedWarpCap : Infinity;
+    const finalWarp = Math.min(desiredWarp, particleCap);
+    if (!Number.isFinite(finalWarp) || this.clock.timeScale === finalWarp) return;
+    this.clock.setTimeScale(finalWarp);
     const select = this.root.querySelector('#timeScale');
-    if (![...select.options].some((option) => Number(option.value) === desiredWarp)) {
-      const option = document.createElement('option'); option.value = String(desiredWarp); option.textContent = `${desiredWarp.toLocaleString()}×`; select.appendChild(option);
+    if (![...select.options].some((option) => Number(option.value) === finalWarp)) {
+      const option = document.createElement('option'); option.value = String(finalWarp); option.textContent = `${finalWarp.toLocaleString()}×`; select.appendChild(option);
     }
-    select.value = String(desiredWarp);
-    this.root.querySelector('#warpQuick').textContent = `AUTO ${desiredWarp.toLocaleString()}×`;
+    select.value = String(finalWarp);
+    this.root.querySelector('#warpQuick').textContent = `AUTO ${finalWarp.toLocaleString()}×`;
     const now = performance.now();
     if (now - this._lastWarpSafetyNotice > 1500) {
-      this.hud.notify(`Navigation auto-warp ${desiredWarp.toLocaleString()}×. The flight computer will step it down as braking becomes sensitive.`);
+      this.hud.notify(`Navigation auto-warp ${finalWarp.toLocaleString()}×. Strong gravity, capture, and HOLD force smaller time steps instead of letting the trajectory numerically explode.`);
       this._lastWarpSafetyNotice = now;
     }
   }
 
-  enforceParticleWarpSafety() {
-    const cap = this.particleExperiments.recommendedWarpCap;
-    if (!Number.isFinite(cap) || this.clock.timeScale <= cap) return;
-    this.clock.setTimeScale(cap);
-    const select = this.root.querySelector('#timeScale');
-    if (select) select.value = String(cap);
-    const button = this.root.querySelector('#warpQuick');
-    if (button) button.textContent = `LAB ${cap.toLocaleString()}×`;
-    const now = performance.now();
-    if (now - this._particleWarpNoticeAt > 1800) {
-      this.hud.notify(`Particle experiment active: global warp capped at ${cap.toLocaleString()}× so local neighbor/particle integration remains resolved.`);
-      this._particleWarpNoticeAt = now;
+  checkNewtonianModelLimit() {
+    const limit = newtonianModelLimit(this.ship, this.massiveBodies, 0.1);
+    if (!limit) { this._modelLimitLatched = false; return false; }
+    if (!this._modelLimitLatched) {
+      this._modelLimitLatched = true;
+      this.running = false;
+      this.clock.setTimeScale(1);
+      this.cancelNavigation();
+      const pause = this.root.querySelector('#pauseToggle');
+      if (pause) pause.textContent = 'RESUME';
+      if (limit.reason === 'speed') {
+        this.hud.notify(`MODEL LIMIT: ship reached ${(limit.speedMps / 1000).toLocaleString(undefined,{maximumFractionDigits:0})} km/s (>10% c). Newtonian spacecraft integration is no longer scientifically adequate, so the simulation paused instead of allowing superluminal numerical runaway. Use HOME or reduce the state before resuming.`, 0);
+      } else {
+        this.hud.notify(`MODEL LIMIT: ${limit.body.name} is too close for this Newtonian black-hole model (${(limit.distanceMeters / Math.max(1, limit.body.radius)).toFixed(1)} Schwarzschild radii). Simulation paused before pretending this is valid GR.`, 0);
+      }
     }
+    return true;
   }
 
-  particleFieldParams() {
-    return {
-      mode: this.root.querySelector('#particleMode').value,
-      count: this.root.querySelector('#particleCount').value,
-      radiusMeters: safeNumber(this.root.querySelector('#particleRadiusKm').value, 20_000) * 1000,
-      neighborRadiusMeters: safeNumber(this.root.querySelector('#particleNeighborKm').value, 1_000) * 1000,
-      initialSpeedMps: this.root.querySelector('#particleSpeed').value,
-      localStrengthMps2: this.root.querySelector('#particleStrength').value,
-      majorGravity: this.root.querySelector('#particleMajorGravity').checked,
-    };
-  }
-
-  updateParticleLabStatus() {
-    const element = this.root.querySelector('#particleStatus');
-    if (!element) return;
-    const summaries = this.particleExperiments.summaries();
-    if (!summaries.length) {
-      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.3 and are intentionally not written into schema-1 saves.';
-      return;
-    }
-    element.textContent = summaries.map((s) => `${s.label}: ${s.activeCount.toLocaleString()}/${s.count.toLocaleString()} active${s.absorbedCount ? ` · ${s.absorbedCount.toLocaleString()} absorbed` : ''}${s.mode === 'life' ? ` · births ${s.births.toLocaleString()} · deaths ${s.deaths.toLocaleString()}` : ''}`).join(' | ');
+  currentPhysicsSubstepLimit() {
+    return navigationPhysicsStepLimitSeconds(this.ship, this.massiveBodies, SIMULATION.maxPhysicsSubstepSeconds);
   }
 
   applyImpactResolution(event) {
@@ -490,6 +499,7 @@ export class UniverseLabApp {
     this.integrator.step(sources, dt);
     this.updateNavigation(dt);
     this.ship.step(dt, sources);
+    if (this.checkNewtonianModelLimit()) return false;
     this.minorField?.step(dt, sources);
     const experimentStart = performance.now();
     this.particleExperiments.step(dt, sources);
@@ -515,6 +525,7 @@ export class UniverseLabApp {
         this.hud.notify(`SHIP CONTACT: ${currentContact.name} at ${Math.abs(metrics?.relativeSpeedMps ?? 0).toFixed(1)} m/s relative speed. Spacecraft structural crash response is a later local rigid-body module; v0.1.2 resolves celestial-body impacts only.`);
       }
     }
+    return true;
   }
 
   frame(now) {
@@ -524,7 +535,7 @@ export class UniverseLabApp {
     this.experimentMs = 0;
     this.enforceNavigationWarpSafety();
     this.enforceParticleWarpSafety();
-    if (this.running) this.clock.advance(realDt, (dt) => this.physicsStep(dt));
+    if (this.running) this.clock.advance(realDt, (dt) => this.physicsStep(dt), this.currentPhysicsSubstepLimit());
     this.physicsMs = performance.now() - physicsStart;
     if (this._rollDirection) { this.ship.rotateRoll(this._rollDirection * realDt * 1.4); this.invalidatePredictions(); }
 

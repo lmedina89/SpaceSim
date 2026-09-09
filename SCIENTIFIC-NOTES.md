@@ -1,4 +1,4 @@
-# Scientific Model Boundaries — Universe Lab v0.1.3
+# Scientific Model Boundaries — Universe Lab v0.1.3.1
 
 Universe Lab explicitly distinguishes physical models, approximations, visualization layers, and intentionally artificial experiments.
 
@@ -20,7 +20,7 @@ They do not source gravity. Therefore the cloud is valid for studying trajectori
 
 Particle integration currently uses bounded semi-implicit Euler substeps rather than the major-body velocity-Verlet kernel. This is a performance/architecture reference implementation; smaller local time steps and test-particle status make the tradeoff explicit.
 
-Finite-radius contact with a major body deactivates a test particle. Individual micro-impacts do not add mass, craters, heat, or ejecta to the target in v0.1.3.
+Finite-radius contact with a major body deactivates a test particle. Individual micro-impacts do not add mass, craters, heat, or ejecta to the target in v0.1.3.1.
 
 ## Particle Life
 
@@ -44,6 +44,15 @@ The uniform grid removes the need to inspect all N² particle pairs for local-ru
 
 While particle experiments exist, global time warp is capped at 60×. This is a numerical-resolution policy, not a physical law. It prevents the application from advancing high-resolution local rules by huge simulation intervals between visible frames.
 
+
+## Navigation / strong-gravity validity
+
+APPROACH is a bounded-thrust controller, not teleportation. The controller computes a propulsion-safe stand-off using the target's mass and the active engine's acceleration so local target gravity consumes only a reserved fraction of available thrust. On arrival it remains in station-keeping HOLD until the pilot manually takes over.
+
+The major/ship integrators remain Newtonian. Close strong-gravity flight therefore uses an adaptive substep ceiling derived from the local gravitational dynamical time. This improves numerical stability but does **not** turn the solver into general relativity.
+
+To avoid presenting obviously invalid behavior as science, the app pauses rather than continuing if spacecraft inertial speed reaches 10% of c or if the craft enters the black-hole near-field guard (100 Schwarzschild radii, with a 100 km minimum guard). These are model-validity boundaries, not physical walls, and no hidden speed clamp is applied.
+
 ## Major-body impacts retained
 
 The v0.1.2.1 impact model remains unchanged: swept finite-radius contact, physical impact-frame momentum/energy telemetry, approximate crater scaling, bounded representative fragments, and visual-only unresolved ejecta.
@@ -54,7 +63,7 @@ FLIGHT/CRUISE propulsion remains declared experimental technology. BRAKE, MATCH,
 
 ## Current limits
 
-v0.1.3 does not claim:
+v0.1.3.1 does not claim:
 
 - experiment-particle mutual Newtonian gravity,
 - fluid dynamics,
