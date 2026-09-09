@@ -1,23 +1,24 @@
-# Universe Lab v0.1.4.6.1 — iPhone Cockpit Physical Gate
+# Universe Lab v0.1.4.6.1.1 — iPhone Cockpit Polish Physical Gate
 
 Before accepting this release on physical iPhone Safari:
 
-1. Confirm HUD version **v0.1.4.6.1**, build marker **COCKPIT-1461**, and renderer **WebGL2 iOS**.
-2. In SHIP VIEW, confirm the real 3D cockpit appears with a wide unobstructed forward view; NAV/FLIGHT/SCIENCE MFD text should be legible enough to identify values.
-3. Tap each MFD: NAV must open System Map, FLIGHT must open Flight/System, SCIENCE must open Science.
-4. Tap every physical cockpit key at least once: MAP, TGT, APPR, ENG, PRO, RET, SCAN, SCI, OVR. Confirm each causes the corresponding real app action and no dead key remains.
-5. Verify celestial targeting still works when tapping the universe away from cockpit controls.
-6. Toggle COCKPIT OFF/ON; confirm the unobstructed view returns and the 3D cockpit comes back.
-7. Enter OBSERVE and return to SHIP VIEW; cockpit must hide/show correctly.
-8. LAND/DESCEND and BOARD/TAKEOFF; cockpit must stay absent on the surface and return after orbit handoff with no stale surface frame.
-9. Repeat the v0.1.4.6 sky-continuity orbit → descent → surface → ascent checks; cockpit work must not regress the accepted astronomical observer behavior.
-10. Watch sustained FPS/heat for several minutes in landscape. Report clipped dashboard, unreadable MFDs, touch misses, accidental body selection through a cockpit control, excessive canopy obstruction, or renderer errors.
+1. Confirm HUD version **v0.1.4.6.1.1**, build marker **COCKPIT-14611**, and renderer **WebGL2 iOS**.
+2. In SHIP VIEW, verify the overall wide-canopy cockpit composition still matches the accepted v0.1.4.6.1 feel and that the outside universe remains dominant.
+3. Inspect the three MFDs carefully: **NAVIGATION, FLIGHT, SCIENCE must now read in front of the horizontal glare-shield/dash bar**, with no bar slicing through the screen faces.
+4. Tap each MFD: NAV opens System Map, FLIGHT opens Flight/System, SCIENCE opens Science.
+5. Confirm the bottom primary strip now contains **LAB · TARGET · SCAN · APPROACH · WARP** only; the redundant **MORE** launcher must be absent.
+6. Open Flight/System from the center FLIGHT MFD and verify all existing controls still work. Do not expect duplicate replacement buttons for the removed MORE launcher.
+7. Observe the subtle cockpit illumination/status lamps. They should remain restrained and readable against dark space; TARGET/NAV/PROPULSION/CAUTION should respond to their real states. No arcade-like full-cabin glow should appear.
+8. Tap every existing physical cockpit key at least once: MAP, TGT, APPR, ENG, PRO, RET, SCAN, SCI, OVR. Verify no dead key and no accidental celestial selection through a control.
+9. Toggle COCKPIT OFF. Confirm a small **COCKPIT** restore failsafe appears; tap it and verify the 3D cockpit returns.
+10. Enter OBSERVE and return; then LAND/DESCEND → BOARD/TAKEOFF. Cockpit visibility, sky continuity and the accepted WebGL2 iOS ascent handoff must remain intact.
+11. Repeat LAND → TAKEOFF once without refresh and watch sustained FPS/heat for several minutes. Report MFD clipping, excessive screen size, unreadable telemetry, touch misses, stale surface frames, runtime errors, or a lighting-related FPS regression.
 
-The procedural shell is a visual foundation, not the final asset. Physical acceptance should focus on view proportion, touch usability, legibility, and regression safety before visual-detail expansion.
+This release is intentionally presentation/UI-only. Physical acceptance is required because automated QA cannot prove iPhone visual depth ordering, touch ergonomics, WebKit presentation, or thermal behavior.
 
 ---
 
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.6.1
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.6.1.1
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -35,9 +36,10 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 
 After upload/reload verify:
 
-- title/HUD says **v0.1.4.6.1**,
-- MORE help shows **COCKPIT-1461**,
+- title/HUD says **v0.1.4.6.1.1**,
+- Flight/System help shows **COCKPIT-14611**,
 - renderer telemetry reads **WebGL2 iOS** on iPhone/iPad WebKit,
+- bottom MORE launcher is absent while FLIGHT MFD still opens Flight/System,
 - FPS/physics/render telemetry populate in orbit,
 - no `RUNTIME ERROR` banner appears.
 

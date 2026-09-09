@@ -1,71 +1,92 @@
-# Universe Lab v0.1.4.6.1 — Interactive 3D Cockpit Visual Foundation QA Report
+# Universe Lab v0.1.4.6.1.1 — Cockpit Ergonomics, Lighting & Menu Cleanup QA Report
 
 ## Release identity
 
-- Version: **0.1.4.6.1**
-- Build marker: **COCKPIT-1461**
-- Baseline archive SHA-256: `2c150f00091dc07382ca4880d618aa3b6b20ee5c0ae10cd576ffce3e1fa71cdb`
-- Baseline identity: **v0.1.4.6 / SKYOBS-146**
+- Version: **0.1.4.6.1.1**
+- Build marker: **COCKPIT-14611**
+- Direct baseline: **v0.1.4.6.1 — Interactive 3D Cockpit Visual Foundation**
+- Baseline archive SHA-256: `a71bccccb1890b8cd82cee3b69f1fcad149fb498a34fc1c86cbf14683cb7e055`
 - Save schema: **1**, unchanged
-- Three.js: **0.185.0**, pinned
-- Deployment: GitHub Pages branch root; no workflows
-- Physical release gate: **iPhone/iPad Safari/WebKit**
+- Three.js: **0.185.0**, unchanged
+- Deployment target: GitHub Pages branch root
+- Physical release gate: iPhone Safari/WebKit
 
-## Scope implemented
+## Requested physical-feedback fixes
 
-- Added `src/render/cockpitView.js`, a camera-attached procedural Three.js cockpit shell.
-- Kept the forward astronomy window deliberately large: low glare shield/dashboard plus thin side/upper canopy structure instead of a view-blocking cockpit cave.
-- Added three live CanvasTexture MFDs: **NAVIGATION**, **FLIGHT**, **SCIENCE**.
-- NAV shows target, range, relative velocity, guidance mode and simulation warp.
-- FLIGHT shows inertial ship speed, engine mode, acceleration cap, active control state and simulation time/warp.
-- SCIENCE shows target class, physical radius, temperature, local target gravity and scientific-overlay state.
-- Every visible cockpit screen is touch-active: NAV opens System Map, FLIGHT opens Flight/System, SCIENCE opens Science.
-- Every visible physical cockpit key is functional: **MAP, TGT, APPR, ENG, PRO, RET, SCAN, SCI, OVR**.
-- Cockpit ray-picking runs before celestial-body picking so a real cockpit control cannot accidentally target a body behind it.
-- Existing UniverseLabApp systems remain authoritative. Cockpit inputs only route to existing navigation/engine/scanner/science/overlay actions.
-- Existing COCKPIT ON/OFF preference remains schema-1 compatible.
-- Cockpit auto-hides in OBSERVE and local surface modes and returns in SHIP VIEW.
-- Removed the old decorative CSS dashboard/struts from the visible shell; retained only subtle glass/reflection/status presentation above the 3D renderer.
-- No external cockpit model or texture asset is bundled, preserving a clean later path to replace the procedural shell with an optimized GLB.
+The v0.1.4.6.1 physical screenshot established that the cockpit concept and wide forward view were liked, but the horizontal glare-shield/dash geometry visually crossed the NAV/FLIGHT/SCIENCE MFD bank. This release is intentionally narrow:
 
-## Regression boundaries preserved
+- MFD faces/bezels are moved forward toward the pilot and raised enough to clear the dash top.
+- The glare shield is thinner and remains behind the MFD faces.
+- The redundant bottom **MORE** launcher is removed.
+- The center **FLIGHT** MFD remains the single intended Flight/System entry, preserving the existing controls without duplication.
+- A hidden-by-default **COCKPIT** restore failsafe appears only when the user deliberately disables the cockpit, preventing a persisted OFF preference from creating an inaccessible Flight/System path on phone.
+- Restrained emissive console accents are added.
+- Five small status lamps are live telemetry indicators rather than decoration: **POWER**, **TARGET**, **NAV**, **PROPULSION**, **CAUTION**.
+- Cockpit lighting adds no `PointLight` or `SpotLight`; it uses emissive/basic materials only to limit mobile GPU cost.
 
-The cockpit pass does not modify:
+## Functional cockpit contract preserved
 
-- direct Newtonian gravity,
-- velocity-Verlet integration,
-- `ShipDynamics` physics authority,
-- canonical astronomical observer math,
-- inertial star catalog / surface sky continuity,
-- landing/descent/ascent lifecycle or recovery,
-- magnetar Newtonian behavior,
-- BOOST/TRANSIT physics boundaries,
-- save schema,
-- Three.js version, or
-- the accepted iPhone/iPad WebKit forced-WebGL2 backend policy.
+- NAVIGATION MFD → System Map
+- FLIGHT MFD → Flight/System drawer
+- SCIENCE MFD → Science drawer
+- MAP / TGT / APPR / ENG / PRO / RET / SCAN / SCI / OVR physical keys remain real actions
+- Cockpit ray-picking still runs before celestial-body picking
+- OBSERVE and surface modes still hide the cockpit
+- Existing schema-1 `cockpitEnabled` preference remains backward-compatible
+- Cockpit UI owns no physics, navigation, target, experiment, or save authority
+
+## Protected systems / non-goals
+
+This pass does **not** redesign or alter:
+
+- direct Newtonian gravity
+- velocity-Verlet integration
+- `ShipDynamics` authority
+- canonical astronomical observer / inertial star catalog
+- fixed-time surface sky continuity
+- landing/descent/ascent state machine and recovery
+- accepted iPhone/iPad forced-WebGL2 renderer backend policy
+- BOOST / TRANSIT model boundaries
+- magnetar Newtonian behavior or placement
+- surface generation/weather/anomaly physics boundaries
+- save schema
 
 ## Automated verification
 
+Final source-tree verification before packaging:
+
 - `npm run check`: **PASS**
-- Static structure/import-token checks: **PASS**
-- Every JS/MJS file via `node --check`: **PASS**
-- `npm test`: **148/148 PASS**
-- Cockpit-specific automated tests: **5 new tests PASS**
-- Save schema: **1**
-- Three.js import map: **0.185.0**
-- iPhone/iPad renderer policy regression tests: **PASS**
-- Astronomical observer/sky-continuity regressions: **PASS**
-- Landing/ascent handoff regressions: **PASS**
-- Clean-unzip GitHub-root layout: **PASS**
+- static structure/import checks: **PASS**
+- all JS/MJS `node --check`: **PASS**
+- `npm test`: **151/151 PASS**
+- cockpit-specific regression coverage includes:
+  - MFD faces positioned in front of the glare shield
+  - emissive-only live status lighting
+  - absence of the bottom `moreToggle`
+  - FLIGHT MFD still opening `morePanel` / Flight-System
+  - cockpit restore failsafe present and bound
+  - all original cockpit MFD/key action routes preserved
+- iPhone/iPad backend-policy regression tests: **PASS**
+- astronomical observer / sky-continuity regression tests: **PASS**
+- landing/ascent handoff regression tests: **PASS**
+- local static HTTP resource checks for shell/CSS/main/app/renderer/cockpit/VERSION: **HTTP 200 PASS**
+- provisional clean-unzip repo-root QA: **151/151 PASS**
+- ZIP integrity (`unzip -t`): **PASS**
 - `.github/workflows/*`: **absent**
-- Local static HTTP resource checks for shell, CSS, main/app/renderer/cockpit modules and VERSION.json: **HTTP 200 PASS**
 
-## Performance design review
+## Physical iPhone gate
 
-Cockpit geometry is static and camera-attached. It uses shared materials, three bounded-resolution CanvasTextures, and a bounded ~180 ms screen refresh cadence instead of repainting MFD text on every render frame. Interaction uses ray-picking only on completed taps. No GLB loader, post-processing stack, dynamic reflection probe, or additional simulation loop was added.
+Automated checks cannot establish the final on-device visual depth relationship between dashboard geometry and MFDs, touch ergonomics, WebKit presentation, sustained thermals, or whether the subtle lighting is aesthetically balanced.
 
-## Physical iPhone release gate
+Do not call v0.1.4.6.1.1 physically accepted until the user verifies:
 
-Automated checks cannot establish final visual proportion, MFD legibility, touch hit accuracy, WebKit framebuffer behavior, sustained FPS, or thermal performance. Follow the first checklist in `MOBILE-GITHUB-PAGES.md` on the physical iPhone.
-
-Do not declare v0.1.4.6.1 physically accepted until the user confirms the cockpit view, all 12 cockpit touch surfaces (3 MFDs + 9 physical keys), normal sky targeting, COCKPIT OFF/ON, OBSERVE return, LAND/TAKEOFF return, and sky-continuity regression sequence.
+1. **WebGL2 iOS** remains active.
+2. all three MFD faces are fully readable with no horizontal cockpit bar slicing across them.
+3. bottom **MORE** is gone while FLIGHT MFD still opens Flight/System.
+4. the five primary bottom controls remain usable: LAB / TARGET / SCAN / APPROACH / WARP.
+5. all three MFDs and nine cockpit keys still respond correctly.
+6. cockpit status lights are subtle and state-responsive rather than distracting.
+7. COCKPIT OFF exposes the small restore failsafe and restore works.
+8. OBSERVE → SHIP VIEW remains correct.
+9. LAND → TAKEOFF returns to visible controllable orbit without the stale-surface regression.
+10. the wide astronomy view remains the dominant composition and FPS/thermal behavior stays acceptable.

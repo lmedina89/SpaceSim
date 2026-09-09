@@ -147,7 +147,9 @@ export class CockpitView {
     });
     this.softMaterial = new THREE.MeshStandardMaterial({ color: 0x0b0e11, metalness: 0.05, roughness: 0.86 });
     this.buttonBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x131c22, metalness: 0.55, roughness: 0.34 });
-    this.glowStripMaterial = new THREE.MeshBasicMaterial({ color: 0x58bde6, transparent: true, opacity: 0.58, toneMapped: false });
+    this.glowStripMaterial = new THREE.MeshBasicMaterial({ color: 0x58bde6, transparent: true, opacity: 0.52, toneMapped: false });
+    this.utilityGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xe3ad64, transparent: true, opacity: 0.20, toneMapped: false });
+    this.statusLights = new Map();
 
     this.buildShell();
     this.buildScreensAndControls();
@@ -186,10 +188,14 @@ export class CockpitView {
 
     // Small center console spine and tactile lip add physical depth without blocking the horizon.
     g.add(makePanelBox([0.14, 0.11, 0.52], [0, -0.48, -0.52], [-0.10, 0, 0], this.trimMaterial));
-    g.add(makePanelBox([1.25, 0.025, 0.025], [0, -0.30, -1.025], [0, 0, 0], this.glowStripMaterial));
 
-    // A compact glare shield above the MFD bank; deliberately shallow.
-    g.add(makePanelBox([1.28, 0.055, 0.17], [0, -0.245, -0.97], [-0.16, 0, 0], this.shellMaterial));
+    // Restrained instrument illumination: emissive geometry only (no extra dynamic lights on mobile).
+    g.add(makePanelBox([1.18, 0.014, 0.018], [0, -0.318, -0.905], [0, 0, 0], this.glowStripMaterial));
+    g.add(makePanelBox([0.28, 0.010, 0.018], [-0.82, -0.355, -0.845], [0, 0.17, 0], this.utilityGlowMaterial));
+    g.add(makePanelBox([0.28, 0.010, 0.018], [0.82, -0.355, -0.845], [0, -0.17, 0], this.utilityGlowMaterial));
+
+    // Compact glare shield remains behind the MFD faces so it no longer visually slices through them.
+    g.add(makePanelBox([1.24, 0.040, 0.12], [0, -0.250, -0.985], [-0.14, 0, 0], this.shellMaterial));
   }
 
   addScreen({ id, title, position, rotation, width, height, action, accent }) {
@@ -237,19 +243,46 @@ export class CockpitView {
     this.buttonEntries.set(action, { group: button, body, bodyMaterial, labelMaterial, labelTexture });
   }
 
+  addStatusLight({ id, position, activeColor, dimColor = 0x10191d }) {
+    const material = new THREE.MeshBasicMaterial({ color: dimColor, toneMapped: false });
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 12, 8), material);
+    lamp.position.set(...position);
+    lamp.renderOrder = 4550;
+    this.group.add(lamp);
+    this.statusLights.set(id, { lamp, material, activeColor, dimColor });
+    return lamp;
+  }
+
+  setStatusLight(id, active) {
+    const entry = this.statusLights.get(id);
+    if (!entry) return;
+    entry.material.color.setHex(active ? entry.activeColor : entry.dimColor);
+  }
+
   buildScreensAndControls() {
+    // MFD faces are deliberately forward of the glare shield/dash lip so text is never occluded.
     this.addScreen({
       id: 'nav', title: 'NAVIGATION', action: 'nav-screen', accent: '#6fe4ff',
-      position: [-0.45, -0.305, -1.025], rotation: [-0.10, 0.10, 0.015], width: 0.39, height: 0.235,
+      position: [-0.45, -0.245, -0.895], rotation: [-0.075, 0.095, 0.012], width: 0.39, height: 0.235,
     });
     this.addScreen({
       id: 'flight', title: 'FLIGHT', action: 'flight-screen', accent: '#b7f8ff',
-      position: [0, -0.292, -1.045], rotation: [-0.10, 0, 0], width: 0.36, height: 0.225,
+      position: [0, -0.235, -0.905], rotation: [-0.070, 0, 0], width: 0.36, height: 0.225,
     });
     this.addScreen({
       id: 'science', title: 'SCIENCE', action: 'science-screen', accent: '#91ffcf',
-      position: [0.45, -0.305, -1.025], rotation: [-0.10, -0.10, -0.015], width: 0.39, height: 0.235,
+      position: [0.45, -0.245, -0.895], rotation: [-0.075, -0.095, -0.012], width: 0.39, height: 0.235,
     });
+
+    // Real status lamps: POWER, TARGET, NAV, PROPULSION and CAUTION.
+    // These are indicators only, not fake buttons, and mirror live simulation state.
+    const lampY = -0.104;
+    const lampZ = -0.895;
+    this.addStatusLight({ id: 'power', position: [-0.10, lampY, lampZ], activeColor: 0x72e8ff });
+    this.addStatusLight({ id: 'target', position: [-0.05, lampY, lampZ], activeColor: 0x72e8ff });
+    this.addStatusLight({ id: 'nav', position: [0.00, lampY, lampZ], activeColor: 0xffc76e });
+    this.addStatusLight({ id: 'propulsion', position: [0.05, lampY, lampZ], activeColor: 0xffb15d });
+    this.addStatusLight({ id: 'caution', position: [0.10, lampY, lampZ], activeColor: 0xff6158 });
 
     const y = -0.455;
     const z = -1.005;
@@ -317,6 +350,12 @@ export class CockpitView {
   }
 
   updateButtonStates(t, now) {
+    this.setStatusLight('power', true);
+    this.setStatusLight('target', Boolean(t.targetName));
+    this.setStatusLight('nav', Boolean(t.navigationMode && t.navigationMode !== 'manual'));
+    this.setStatusLight('propulsion', t.engineMode === 'boost' || t.engineMode === 'cruise' || t.throttle > 0 || t.reverseThrottle > 0);
+    this.setStatusLight('caution', Boolean(t.braking));
+
     const active = new Set();
     if (t.navigationMode === 'approach') active.add('approach');
     if (t.overlaysEnabled) active.add('overlays');
@@ -372,6 +411,8 @@ export class CockpitView {
     this.softMaterial.dispose();
     this.buttonBodyMaterial.dispose();
     this.glowStripMaterial.dispose();
+    this.utilityGlowMaterial.dispose();
+    for (const entry of this.statusLights.values()) entry.material.dispose();
     this.camera.remove(this.group);
   }
 }

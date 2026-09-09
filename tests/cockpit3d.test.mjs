@@ -51,3 +51,35 @@ test('renderer owns only cockpit visibility telemetry and picking bridge', async
   assert.match(renderer, /updateCockpitTelemetry\(telemetry/);
   assert.match(renderer, /pickCockpitControl\(clientX, clientY\)/);
 });
+
+
+test('cockpit polish keeps MFD faces in front of the glare shield', async () => {
+  const src = await cockpitSource();
+  assert.match(src, /position: \[-0\.45, -0\.245, -0\.895\]/);
+  assert.match(src, /position: \[0, -0\.235, -0\.905\]/);
+  assert.match(src, /position: \[0\.45, -0\.245, -0\.895\]/);
+  assert.match(src, /\[0, -0\.250, -0\.985\]/);
+});
+
+test('cockpit lighting is emissive-only and driven by live status', async () => {
+  const src = await cockpitSource();
+  for (const id of ['power', 'target', 'nav', 'propulsion', 'caution']) {
+    assert.match(src, new RegExp(`id: '${id}'`));
+  }
+  assert.match(src, /setStatusLight\('target', Boolean\(t\.targetName\)\)/);
+  assert.match(src, /setStatusLight\('nav'/);
+  assert.match(src, /setStatusLight\('propulsion'/);
+  assert.match(src, /setStatusLight\('caution', Boolean\(t\.braking\)\)/);
+  assert.doesNotMatch(src, /new THREE\.PointLight/);
+  assert.doesNotMatch(src, /new THREE\.SpotLight/);
+});
+
+test('redundant MORE launcher is removed while FLIGHT MFD remains the system-menu entry', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const app = await appSource();
+  assert.doesNotMatch(html, /id="moreToggle"/);
+  assert.match(html, /id="morePanel"/);
+  assert.match(app, /case 'flight-screen':\s*this\.hud\.toggleMore\(true\)/s);
+  assert.match(html, /id="cockpitRestore"/);
+  assert.match(app, /#cockpitRestore.*toggleCockpit\(true\)/s);
+});

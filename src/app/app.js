@@ -243,7 +243,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.5.4 online. Renderer handoff isolation active: iPhone/iPad WebKit forces the WebGPURenderer WebGL2 backend while other devices retain automatic backend selection. Active backend: ${backend}. Build RENDER-1454.`);
+    this.hud.notify(`v0.1.4.6.1.1 online. Cockpit ergonomics/lighting polish active; renderer handoff isolation remains unchanged: iPhone/iPad WebKit forces the WebGPURenderer WebGL2 backend while other devices retain automatic backend selection. Active backend: ${backend}. Build COCKPIT-14611.`);
   }
 
   newSystem(seed) {
@@ -941,6 +941,8 @@ export class UniverseLabApp {
     const showCockpit = this.cockpitEnabled && this.cameraMode === 'ship' && !this.surfaceSession?.active;
     this.root.classList.toggle('ship-cockpit-enabled', showCockpit);
     this.root.classList.toggle('cockpit-hidden', !showCockpit);
+    const restore = this.root.querySelector('#cockpitRestore');
+    if (restore) restore.hidden = showCockpit || this.cameraMode === 'observe' || Boolean(this.surfaceSession?.active);
     this.renderer.setCockpitVisible(showCockpit);
   }
 
@@ -2267,7 +2269,6 @@ export class UniverseLabApp {
       transitTierSelect.value = '100';
     }
     $('#labToggle').addEventListener('click', () => this.hud.toggleLab());
-    $('#moreToggle').addEventListener('click', () => this.hud.toggleMore());
     $('#moreClose').addEventListener('click', () => this.hud.toggleMore(false));
     $('#transitToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateTransitPanel(); this.hud.toggleTransit(); });
     $('#transitClose').addEventListener('click', () => this.hud.toggleTransit(false));
@@ -2296,6 +2297,7 @@ export class UniverseLabApp {
     $('#cosmosClose').addEventListener('click', () => this.hud.toggleCosmos(false));
     $('#overlayToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateOverlayPanel(); this.hud.toggleOverlays(); });
     $('#cockpitToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.toggleCockpit(); });
+    $('#cockpitRestore').addEventListener('click', () => this.toggleCockpit(true));
     $('#overlayClose').addEventListener('click', () => this.hud.toggleOverlays(false));
     $('#overlayMaster').addEventListener('change', (event) => this.setOverlaySetting('enabled', event.target.checked));
     $('#overlayLagrange').addEventListener('change', (event) => this.setOverlaySetting('lagrange', event.target.checked));

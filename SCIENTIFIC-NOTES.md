@@ -1,6 +1,6 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.6.1
+# Scientific / Model Notes — Universe Lab v0.1.4.6.1.1
 
-**v0.1.4.6.1 note:** cockpit work is presentation/input-only; the v0.1.4.6 scientific model below is unchanged.
+**v0.1.4.6.1.1 note:** cockpit MFD placement, menu cleanup, and emissive/status lighting are presentation/input-only; the v0.1.4.6 scientific model below is unchanged.
 
 Universe Lab deliberately mixes physically motivated simulation with clearly labeled speculative/fictional presentation. The boundary matters more as planetary surfaces and anomalies are introduced.
 

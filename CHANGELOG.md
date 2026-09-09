@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.4.6.1.1 — Cockpit Ergonomics, Lighting & Menu Cleanup Polish
+
+- Built directly from v0.1.4.6.1 after physical iPhone feedback approved the cockpit concept but showed the MFD bank visually behind the horizontal glare-shield bar.
+- Pulled NAVIGATION / FLIGHT / SCIENCE MFD faces and bezels forward toward the pilot and slightly retuned their height/angle so the glare shield no longer slices through the displays.
+- Thinned/retuned the glare shield while preserving the wide forward astronomical view.
+- Removed the redundant bottom **MORE** launcher. The center FLIGHT MFD remains the authoritative entry to the existing Flight/System drawer and no controls were duplicated.
+- Added a small **COCKPIT** restore failsafe that appears only while the cockpit is deliberately hidden, preventing a persisted OFF preference from trapping a phone user.
+- Added restrained emissive console accents and five live cockpit status lamps: POWER, TARGET, NAV, PROPULSION and CAUTION. The lighting uses emissive/basic materials only; no new dynamic PointLight/SpotLight cost was introduced.
+- Preserved all nine real physical cockpit keys and all three live/touchable MFDs. No decorative dead button/screen was added.
+- Preserved save schema 1, Three.js 0.185.0, canonical astronomical observer, landing/ascent recovery, Newtonian physics, and the physically accepted iPhone/iPad forced-WebGL2 policy.
+
 ## v0.1.4.6.1 — Interactive 3D Cockpit Visual Foundation
 
 - Added a camera-attached procedural Three.js cockpit shell with a wide forward canopy, thin structural framing, low dashboard and restrained material/emissive treatment.

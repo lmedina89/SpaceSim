@@ -1,9 +1,9 @@
 {
   "name": "universe-lab",
-  "version": "0.1.4.6.1",
+  "version": "0.1.4.6.1.1",
   "private": true,
   "type": "module",
-  "description": "Scientific mobile-first seeded universe laboratory with canonical sky continuity plus a low-obstruction interactive 3D spacecraft cockpit with live NAV/FLIGHT/SCIENCE instrumentation.",
+  "description": "Scientific mobile-first seeded universe laboratory with canonical sky continuity plus a low-obstruction interactive 3D spacecraft cockpit with forward-mounted MFDs, live status lighting, and NAV/FLIGHT/SCIENCE instrumentation.",
   "scripts": {
     "check": "node ./tests/static-check.mjs && find src tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "test": "node --test tests/*.test.mjs",

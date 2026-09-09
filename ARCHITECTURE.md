@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.6.1
+# Architecture — Universe Lab v0.1.4.6.1.1
 
 ## Canonical astronomical observer
 
@@ -22,11 +22,13 @@ Normal spacecraft/major-body state remains SI/Float64. Major gravity remains dir
 
 ## Ship-view cockpit presentation
 
-v0.1.4.6.1 moves the cockpit structure into the Three.js scene while keeping it strictly presentation/input-side. `src/render/cockpitView.js` owns the camera-attached shell, three CanvasTexture MFDs, nine physical control meshes, touch ray-picking and transient button feedback. It does **not** own spacecraft state, navigation physics, target state, experiment state or save authority.
+v0.1.4.6.1 introduced the cockpit structure in the Three.js scene while keeping it strictly presentation/input-side. `src/render/cockpitView.js` owns the camera-attached shell, three CanvasTexture MFDs, nine physical control meshes, touch ray-picking and transient button feedback. It does **not** own spacecraft state, navigation physics, target state, experiment state or save authority.
 
 `UniverseLabApp` remains authoritative. It exposes a compact read-only `cockpitTelemetry()` snapshot and `handleCockpitAction()` routes cockpit interactions into the same existing app actions used by the normal UI. `UniverseRenderer` only forwards visibility, telemetry and picking to the cockpit module. This is intentional so a future GLB cockpit can replace the procedural shell without changing application or simulation boundaries.
 
 Every visible cockpit screen/button has a real function. The three MFDs are live and touch-active; MAP/TGT/APPR/ENG/PRO/RET/SCAN/SCI/OVR keys map to existing System Map, target cycling, approach guidance, engine mode, attitude aids, scanner, science and overlay controls. There are no decorative dead cockpit buttons.
+
+v0.1.4.6.1.1 keeps that input boundary intact but moves the MFD planes/bezels forward of the glare shield and adds emissive-only panel accents plus five telemetry-driven status indicators (POWER/TARGET/NAV/PROPULSION/CAUTION). The indicators own no simulation state and add no dynamic scene lights. The bottom MORE launcher is removed; the FLIGHT MFD remains the canonical Flight/System drawer entry. A cockpit-restore failsafe is DOM-side only and exists solely for recovery when `cockpitEnabled=false`.
 
 The cockpit remains excluded from OBSERVE and local surface views. `cockpitEnabled` remains an optional schema-1 preference. The cockpit is never inserted into `EntityRegistry`, never participates in gravity/collision/trajectory calculations, and never alters the canonical astronomical observer.
 

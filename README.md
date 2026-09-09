@@ -1,13 +1,23 @@
-# Universe Lab v0.1.4.6.1 — Interactive 3D Cockpit Visual Foundation
+# Universe Lab v0.1.4.6.1.1 — Cockpit Ergonomics, Lighting & Menu Cleanup Polish
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `COCKPIT-1461`  
-**Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)  
-**Three.js:** 0.185.0 (unchanged)  
-**Deployment:** GitHub Pages → `main` → `/(root)`  
+**Build marker:** `COCKPIT-14611`
+**Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)
+**Three.js:** 0.185.0 (unchanged)
+**Deployment:** GitHub Pages → `main` → `/(root)`
 **Release gate:** physical iPhone Safari
 
+
+## v0.1.4.6.1.1 cockpit ergonomics / lighting polish
+
+This is a deliberately narrow polish release built directly from v0.1.4.6.1 after physical iPhone testing showed the overall cockpit concept was liked but the three MFD faces appeared visually tucked behind the glare-shield bar. No astronomy, physics, landing, save-schema, or renderer-backend redesign is included.
+
+The **NAVIGATION / FLIGHT / SCIENCE** MFD faces and bezels are moved forward of the glare shield and slightly raised/retuned toward the pilot, while the shield itself is thinner and remains behind the displays. The intent is to improve legibility and physical mounting without sacrificing the wide forward astronomy window.
+
+The redundant bottom **MORE** launcher is removed. The existing **FLIGHT** MFD remains the intended entry to the same Flight/System drawer, so those controls are not duplicated. A tiny **COCKPIT** restore failsafe appears only when the user deliberately hides the cockpit, preventing an off-state save/load from trapping a phone user without a way to re-enable it.
+
+Cockpit illumination gains restrained, mobile-safe emissive accents and five live status lamps: **POWER, TARGET, NAV, PROPULSION, CAUTION**. They are indicators tied to real telemetry, not fake buttons, and no new dynamic PointLight/SpotLight cost is added. Every visible cockpit button and screen remains functional.
 
 ## v0.1.4.6.1 interactive 3D cockpit
 
