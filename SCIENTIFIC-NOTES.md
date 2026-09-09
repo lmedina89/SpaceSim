@@ -1,4 +1,4 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.5.3
+# Scientific / Model Notes — Universe Lab v0.1.4.5.4
 
 Universe Lab deliberately mixes physically motivated simulation with clearly labeled speculative/fictional presentation. The boundary matters more as planetary surfaces and anomalies are introduced.
 

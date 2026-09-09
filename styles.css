@@ -59,7 +59,7 @@ button.is-held{box-shadow:inset 0 0 0 2px rgba(255,255,255,.14),0 0 18px rgba(10
 
 .surface-move-pad.transition-locked{opacity:.38;filter:saturate(.45);pointer-events:none}.surface-hud button:disabled{opacity:.48;filter:saturate(.45);cursor:not-allowed}.surface-compact-metrics #surfaceShipCompact{color:#bfeeff}.surface-hud.compact .surface-compact-metrics span:last-child{border-color:rgba(103,217,255,.18)}
 
-/* v0.1.4.5.3 physical takeoff verification chip. Intentionally temporary/compact: it exists so
+/* v0.1.4.5.3+ physical takeoff verification chip. Intentionally temporary/compact: it exists so
    an iPhone screenshot can identify which side of the surface/orbit handoff is still authoritative. */
 .ascent-diagnostic{position:absolute;z-index:18;top:138px;left:50%;transform:translateX(-50%);max-width:min(88vw,860px);overflow:hidden;text-overflow:ellipsis;padding:5px 10px;border:1px solid rgba(116,255,186,.48);border-radius:999px;background:rgba(4,24,19,.88);box-shadow:0 0 18px rgba(87,255,186,.08);color:#bfffdc;font-size:8px;white-space:nowrap;pointer-events:none}.ascent-diagnostic[hidden]{display:none}
 @media (orientation:portrait){.ascent-diagnostic{top:128px;max-width:94vw;font-size:7px}}

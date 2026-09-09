@@ -8,6 +8,7 @@ import { BODY_KIND, SIMULATION } from '../core/constants.js';
 import { computeObservationCameraPose } from './observationCamera.js';
 import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPerception.js';
 import { SurfaceWorldVisual } from './surfaceWorld.js';
+import { rendererBackendPolicy } from './backendPolicy.js';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
@@ -69,7 +70,11 @@ export class UniverseRenderer {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x010207);
     this.camera = new THREE.PerspectiveCamera(66, 1, 0.02, 480_000);
-    this.renderer = new THREE.WebGPURenderer({ antialias: true });
+    this.backendPolicy = rendererBackendPolicy();
+    this.renderer = new THREE.WebGPURenderer({
+      antialias: true,
+      forceWebGL: this.backendPolicy.forceWebGL,
+    });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
@@ -138,6 +143,7 @@ export class UniverseRenderer {
 
   backendName() {
     if (this.renderer.backend?.isWebGPUBackend) return 'WebGPU';
+    if (this.backendPolicy.forceWebGL) return 'WebGL2 iOS';
     return 'WebGL2 fallback';
   }
 

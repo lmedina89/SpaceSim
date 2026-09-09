@@ -2,7 +2,7 @@
 
 ## Three.js
 
-Universe Lab v0.1.4.5.3 uses **Three.js 0.185.0**, imported from the pinned jsDelivr module URLs in `index.html` / the import map.
+Universe Lab v0.1.4.5.4 uses **Three.js 0.185.0**, imported from the pinned jsDelivr module URLs in `index.html` / the import map.
 
 Three.js is used for rendering, camera presentation and GPU-visible geometry. Universe Lab's authoritative gravity, orbital integration, collisions, local propulsion, navigation, impacts, cosmic state and particle-experiment state are implemented separately in this project.
 

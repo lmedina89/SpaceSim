@@ -219,7 +219,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.5.3 online. Takeoff flight-recovery hotfix active: ascent now returns to an unmistakable prograde orbital view, force-restores live flight/input, clears held controls, and verifies multiple orbital frames before success. Build SHIPLAND-1453.');
+    this.hud.notify(`v0.1.4.5.4 online. Renderer handoff isolation active: iPhone/iPad WebKit forces the WebGPURenderer WebGL2 backend while other devices retain automatic backend selection. Active backend: ${backend}. Build RENDER-1454.`);
   }
 
   newSystem(seed) {

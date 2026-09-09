@@ -1,46 +1,51 @@
-# Universe Lab v0.1.4.5.3 — Takeoff Flight Recovery Reliability Hotfix QA Report
+# Universe Lab v0.1.4.5.4 — WebKit Renderer Handoff Reliability Hotfix QA Report
 
 ## Release identity
 
-- Version: **0.1.4.5.3**
-- Build marker: **SHIPLAND-1453**
-- Base: exact v0.1.4.5.2 archive (`681dd816fa5b0779e37f1f679379f158f3f6bb5019dace1aaca646d9193b6a2f`)
+- Version: **0.1.4.5.4**
+- Build marker: **RENDER-1454**
+- Base: exact v0.1.4.5.3 archive (`a14c8749747fd076fb7ed553855203be0fc7f80dc9423a9c42554bbacc03ada1`)
 - Save schema: **1** unchanged
 - Three.js: **0.185.0** pinned
 - Deployment: GitHub Pages branch root
-- Physical release gate: **iPhone Safari**
+- Physical release gate: **iPhone/iPad WebKit**
 
-## Physically reported failure being targeted
+## Physically reported failure being isolated
 
-v0.1.4.5.2 still failed the iPhone release gate. The ascent presentation ran, but the returned cockpit view appeared to remain at/near the planetary surface and the session felt frozen/unresponsive. A screenshot showed logical orbital telemetry with the planet dominating the returned view. The physical report therefore overrides the automated success of v0.1.4.5.2.
+v0.1.4.5.3 reached the temporary diagnostic state `ORBIT VERIFIED · surface=OFF · render=SPACE · run=YES · input=YES`, yet the visible canvas still showed the brown local planetary surface. That result narrows the failure away from the CPU landing lifecycle and toward renderer/backend presentation on the physical iPhone path.
 
-## v0.1.4.5.3 corrective scope
+This release intentionally keeps the v0.1.4.5.3 ascent logic unchanged and changes one meaningful runtime variable: the renderer backend chosen at boot on Apple mobile WebKit.
 
-1. Return attitude is now body-relative **prograde**, not the steep planet-facing v0.1.4.5.2 camera pose.
-2. Successful takeoff force-restores **running=true** and **1×** flight.
-3. A registered hold-release mechanism force-clears WebKit pointer captures and neutralizes THRUST, REV, BRAKE, RCS, roll, LOOK and surface movement during the mode handoff.
-4. Orbital handoff validation now includes live-running and neutral-input invariants.
-5. `ASCENT COMPLETE` requires **three** successfully rendered orbital frames while simulation integration is held at zero dt for the verification window.
-6. A failed post-render invariant recovers to a known live 1× orbital state instead of throwing into the global animation-loop fault latch.
-7. A temporary on-screen diagnostic reports `surface`, `render`, `run`, `input` and verification-frame status for the physical iPhone test.
+## v0.1.4.5.4 corrective/isolation scope
+
+1. Added `src/render/backendPolicy.js` with deterministic Apple-mobile detection.
+2. iPhone/iPod user agents force `THREE.WebGPURenderer({ forceWebGL: true })`.
+3. iPadOS desktop-class UA mode is also detected through `platform === "MacIntel"` plus multi-touch capability.
+4. Desktop Mac, Android and other platforms retain automatic Three.js WebGPU/WebGL2 selection.
+5. Backend selection occurs only at renderer construction; there is no live GPU-backend hot swap.
+6. Top telemetry reports **WebGL2 iOS** when the forced physical-test path is active.
+7. Existing landing/ascent state machine, prograde return, input reset, 1× running restore and three-frame orbital verification remain unchanged.
+8. No astronomy, real-sky, cockpit redesign, physics, propulsion, surface generation, save-schema or Three.js-version changes.
 
 ## Automated verification
 
 - `npm run check`: **PASS**
 - Static structure check: **PASS**
 - JS/MJS `node --check`: **PASS**
-- `npm test`: **119/119 PASS**
-- New regression coverage verifies live-flight restoration, held-input clearing, prograde return-source logic, multi-frame verification and non-fatal handoff recovery.
+- `npm test`: **123/123 PASS**
+- Backend policy unit coverage: iPhone UA, iPad desktop UA, desktop Mac, non-Apple mobile.
+- Static verification confirms `forceWebGL: this.backendPolicy.forceWebGL` is wired into the existing `WebGPURenderer` construction and that the forced backend HUD label exists.
 
 ## Physical acceptance sequence
 
-The automated suite is not the release gate. On iPhone Safari test:
+Automated QA cannot prove that WebKit presents a fresh GPU frame after the surface → space scene switch. On the physical iPhone test:
 
-1. fresh load → land → board/takeoff;
-2. diagnostic must progress from ASCENT/HANDOFF to **ORBIT VERIFIED · surface=OFF · render=SPACE · run=YES · input=YES**;
-3. returned cockpit should face prograde/open space, not steeply down at surface terrain;
-4. immediately test LOOK, THRUST, REV and BRAKE;
-5. land again without refresh → takeoff again;
-6. save while landed → reload → takeoff.
+1. fresh load and confirm the top renderer HUD reads **WebGL2 iOS**;
+2. LAND / DESCEND → board → TAKEOFF;
+3. green diagnostic should reach **ORBIT VERIFIED · surface=OFF · render=SPACE · run=YES · input=YES**;
+4. the visible canvas must now show the actual orbital space scene rather than retaining local surface terrain;
+5. immediately verify LOOK, THRUST, REV and BRAKE responsiveness;
+6. LAND again without refresh → TAKEOFF again;
+7. if the canvas still retains the surface frame under **WebGL2 iOS**, the next investigation target is shared-renderer resource teardown/presentation timing rather than backend selection.
 
-Do not call the takeoff bug physically fixed until those tests pass on-device.
+Do not call the takeoff bug physically fixed until this passes on-device.

@@ -1,6 +1,6 @@
 {
-  "version": "0.1.4.5.3",
-  "name": "Takeoff Flight Recovery Reliability Hotfix",
+  "version": "0.1.4.5.4",
+  "name": "WebKit Renderer Handoff Reliability Hotfix",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,7 @@
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "SHIPLAND-1453",
+  "buildMarker": "RENDER-1454",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric approximate L1-L5 + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples",
   "transitDrive": "explicitly fictional 1c/10c/100c/500c/1000c reference-frame translation; local Newtonian spacecraft velocity is preserved; automatic tier step-down and optional BOOST+APPROACH physical capture",
@@ -75,5 +75,6 @@
   "landingLifecycle": "explicit ORBIT -> DESCENDING -> LANDED -> ASCENDING -> ORBIT state machine with transition locking, near-ship boarding requirement, scripted VTOL descent/ascent visuals, cleanup-before-ORBIT commit, forced live-flight restoration, prograde return attitude, held-input reset, multi-frame orbital render verification and recovery fallback instead of half-transitioned states",
   "landingRecovery": "surface entry/ascent failures clean up renderer/UI/session state and fall back to a valid orbital state; successful takeoff force-restores running 1x ship flight, neutral input state and prograde attitude, then requires multiple verified orbital render frames before success",
   "ascentHandoff": "surface renderer ownership detaches before disposal; ASCENDING cleanup commits ORBIT only after local state is gone; held pointer controls are force-released; the ship returns in body-relative prograde attitude; three orbital frames render at zero simulation dt before ASCENT COMPLETE is announced; invariant misses recover without tripping the animation-loop fault latch",
-  "takeoffPhysicalDiagnostics": "temporary compact ascent/orbit telemetry reports surface ownership, renderer mode, run state, input neutrality and orbital verification frame count for iPhone Safari release testing"
+  "takeoffPhysicalDiagnostics": "temporary compact ascent/orbit telemetry retained for iPhone Safari/WebKit release testing; top renderer HUD also makes the actual WebGPU vs forced iOS WebGL2 backend visible for physical isolation testing",
+  "rendererBackendPolicy": "WebGPURenderer remains the renderer family; iPhone/iPad-class WebKit forces its WebGL2 backend at boot for physical presentation-handoff isolation, while other platforms keep automatic WebGPU/WebGL2 selection; no live backend hot-swap"
 }

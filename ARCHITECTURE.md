@@ -1,4 +1,8 @@
-# Architecture — Universe Lab v0.1.4.5.3
+# Architecture — Universe Lab v0.1.4.5.4
+
+## Renderer backend policy (v0.1.4.5.4)
+
+`UniverseRenderer` remains based on `THREE.WebGPURenderer`. Backend selection is made once at construction time through `src/render/backendPolicy.js`; it is never hot-swapped. iPhone/iPad-class WebKit forces `forceWebGL: true` to isolate the native-WebGPU presentation path during physical landing/takeoff testing. iPadOS desktop-class UA mode is detected by `MacIntel` plus multi-touch capability. All other environments keep Three.js automatic WebGPU/WebGL2 selection. Simulation, scene graph, materials and landing lifecycle are shared across both backends.
 
 ## Core invariant
 
