@@ -1,10 +1,23 @@
-# Architecture — Universe Lab v0.1.4.3
+# Architecture — Universe Lab v0.1.4.3.1
 
 ## Core invariant
 
 **Rendering, local surface presentation and fictional TRANSIT never silently own or rewrite authoritative orbital physics.**
 
 Normal spacecraft/major-body state remains SI/Float64. Major gravity remains direct Newtonian and the major integrator remains velocity-Verlet. Three.js owns presentation only. TRANSIT remains an explicitly fictional coordinate-translation layer and never adds its coordinate rate to local Newtonian spacecraft velocity.
+
+## Ship-view cockpit presentation
+
+v0.1.4.3.1 adds a lightweight DOM/CSS cockpit presentation layer that sits above the renderer only during normal `SHIP VIEW`. It is intentionally not a 3D interior mesh and does not participate in physics, occlusion, collision or target selection.
+
+`UniverseLabApp` owns a `cockpitEnabled` preference, a `toggleCockpit()` action, and view-mode class synchronization. The shell uses those classes to:
+
+- show the cockpit only during ship view,
+- hide it automatically during OBSERVE camera modes,
+- hide it automatically during local surface sessions, and
+- preserve the user's cockpit preference through save/load without changing schema 1.
+
+This keeps the effect inexpensive on mobile while restoring a stronger sense of physical spacecraft presence.
 
 ## Surface-instance boundary
 

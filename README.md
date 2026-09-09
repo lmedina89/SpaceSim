@@ -1,14 +1,31 @@
-# Universe Lab v0.1.4.3 — Planetary Landing Foundation
+# Universe Lab v0.1.4.3.1 — Ship Cockpit View
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `SURFACE-143`  
-**Save schema:** 1 (unchanged; surface state is an optional backward-compatible payload)  
+**Build marker:** `COCKPIT-1431`  
+**Save schema:** 1 (unchanged; surface state and cockpit preference are optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
 
 v0.1.4.3 is built directly from v0.1.4.2 System Map + Discovery & Anomalies. It preserves System Map/discovery, persistent space weather, stellar rendering, Newtonian flight, BOOST, TRANSIT, impacts, experiments, compact objects and scientific overlays while introducing the first deliberately bounded planetary surface architecture.
+
+v0.1.4.3.1 is built directly from v0.1.4.3 Planetary Landing Foundation. It preserves the surface landing architecture and adds a **default-on, low-obstruction ship cockpit overlay** so SHIP VIEW feels like the player is inside an actual spacecraft without sacrificing the wide forward view.
+
+## Ship cockpit view
+
+SHIP VIEW now includes a restrained canopy presentation: a thin top arch, narrow side struts, subtle lower dashboard panels and faint canopy reflections. The center of the screen remains intentionally open so stars, planets and anomalies still dominate the view.
+
+The cockpit is:
+
+- visual only,
+- enabled by default,
+- automatically hidden while using OBSERVE camera modes,
+- automatically hidden during planetary surface sessions, and
+- user-toggleable from **MORE → COCKPIT ON/OFF**.
+
+The cockpit preference is optionally saved as `cockpitEnabled` without changing save schema `1`.
+
 
 ## First landable world
 
@@ -95,7 +112,7 @@ Older schema-1 saves remain valid. When loading an older save, deterministic lan
 
 ## Recommended first iPhone test
 
-1. Confirm **v0.1.4.3 / SURFACE-143** and no runtime `ERR`.
+1. Confirm **v0.1.4.3.1 / COCKPIT-1431** and no runtime `ERR`.
 2. On a fresh `ORIGIN-001` run, the home world should already be selected and the ship should begin in the landing envelope.
 3. Press **LAND / DESCEND**.
 4. Confirm Shatterfall Basin renders as actual ground/sky/terrain rather than a flat orbital sphere.

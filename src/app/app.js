@@ -168,6 +168,7 @@ export class UniverseLabApp {
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
     this._surfacePreviousRunning = true;
     this._surfacePreviousTimeScale = 1;
+    this.cockpitEnabled = true;
   }
 
   get bodies() { return this.registry.values(); }
@@ -189,6 +190,8 @@ export class UniverseLabApp {
     this.hud.setRenderer(backend);
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
+    this.updateCockpitUi();
+    this.syncViewClasses();
     this._runtimeFaulted = false;
     this.renderer.renderer.setAnimationLoop((time) => {
       if (this._runtimeFaulted) return;
@@ -208,7 +211,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.3 online. First planetary landing, Shatterfall Basin surface exploration, persistent surface discoveries, System Map and anomaly layers active. Build SURFACE-143.');
+    this.hud.notify('v0.1.4.3.1 online. Realistic low-obstruction cockpit overlay added to ship view, while planetary landing, Shatterfall Basin exploration, persistent surface discoveries, System Map and anomaly layers remain active. Build COCKPIT-1431.');
   }
 
   newSystem(seed) {
@@ -250,6 +253,8 @@ export class UniverseLabApp {
     this.hud.notify(`Generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class): ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons, ${this.system.metadata.cometCount ?? 0} comets, ${this.system.metadata.roguePlanetCount ?? 0} rogue planets, and ${this.system.metadata.anomalyCount ?? 0} seeded anomaly signals among ${this.system.metadata.phenomenonCount ?? 0} cosmic sources.`);
     this.updateSpaceWeatherPanel();
     this.updateOverlayPanel();
+    this.updateCockpitUi();
+    this.syncViewClasses();
   }
 
   placeShipNearHome() {
@@ -354,6 +359,7 @@ export class UniverseLabApp {
     const star = this.registry.get('star-0') ?? this.bodies.find((entry) => entry.kind === BODY_KIND.STAR) ?? null;
     this.renderer.enterSurface(this.surfaceRegion, body, star);
     this.root.classList.add('surface-active');
+    this.syncViewClasses();
     for (const id of ['morePanel','labPanel','scannerPanel','sciencePanel','cosmosPanel','overlayPanel','mapPanel','transitPanel']) {
       const panel = this.root.querySelector(`#${id}`); if (panel) panel.hidden = true;
     }
@@ -375,6 +381,7 @@ export class UniverseLabApp {
     this.surfaceRegion = null;
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
     this.root.classList.remove('surface-active');
+    this.syncViewClasses();
     const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = true;
     const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = true;
     if (returnToOrbit && body) {
@@ -492,6 +499,30 @@ export class UniverseLabApp {
     if (engineButton) engineButton.textContent = `ENGINE ${label}`;
     const thrustButton = this.root.querySelector('#thrustButton');
     if (thrustButton) thrustButton.textContent = `THRUST ${this.ship.currentMainAcceleration().toLocaleString()}`;
+  }
+
+  syncViewClasses() {
+    this.root.classList.toggle('observe-active', this.cameraMode === 'observe');
+    this.root.classList.toggle('surface-active', Boolean(this.surfaceSession?.active));
+    const showCockpit = this.cockpitEnabled && this.cameraMode === 'ship' && !this.surfaceSession?.active;
+    this.root.classList.toggle('ship-cockpit-enabled', showCockpit);
+    this.root.classList.toggle('cockpit-hidden', !showCockpit);
+  }
+
+  updateCockpitUi() {
+    const button = this.root.querySelector('#cockpitToggle');
+    if (button) button.textContent = `COCKPIT ${this.cockpitEnabled ? 'ON' : 'OFF'}`;
+    const status = this.root.querySelector('#cockpitStatus');
+    if (status) status.textContent = this.cameraMode === 'observe' ? 'OBSERVE' : (this.ship.engineMode === 'boost' ? 'BOOST' : this.ship.engineMode === 'cruise' ? 'CRUISE' : 'CLEAR');
+    this.syncViewClasses();
+  }
+
+  toggleCockpit(force = null) {
+    this.cockpitEnabled = typeof force === 'boolean' ? force : !this.cockpitEnabled;
+    this.updateCockpitUi();
+    this.hud.notify(this.cockpitEnabled
+      ? 'Cockpit canopy enabled. SHIP VIEW now shows a low-obstruction interior frame for scale and presence.'
+      : 'Cockpit canopy hidden. SHIP VIEW returned to the unobstructed camera view.');
   }
 
   alignVelocityAttitude(sign = 1) {
@@ -789,6 +820,7 @@ export class UniverseLabApp {
     this._nextObservationRefreshAt = 0;
     const state = this.refreshObservationState(performance.now(), true);
     this.hud.setCamera('observe', field.label, this.observationStyle, state);
+    this.updateCockpitUi();
     const quickReturn = this.root.querySelector('#approachButton');
     if (quickReturn) quickReturn.textContent = 'SHIP VIEW';
     this.hud.toggleLab(false);
@@ -801,6 +833,7 @@ export class UniverseLabApp {
     this.hud?.setCamera('ship', null, null, null);
     const approach = this.root?.querySelector?.('#approachButton');
     if (approach) approach.textContent = this.navigationMode === 'approach' ? (this.navigationStatus?.phase === 'holding' ? 'HOLDING' : 'APPROACH ON') : 'APPROACH';
+    this.updateCockpitUi();
     if (notify) this.hud.notify('SHIP VIEW restored. Observation camera never moved the spacecraft.');
   }
 
@@ -940,6 +973,7 @@ export class UniverseLabApp {
     this._nextObservationRefreshAt = 0;
     const state = this.refreshObservationState(performance.now(), true);
     this.hud.setCamera('observe', this.discoveredPhenomena.has(phenomenon.id) ? phenomenon.label : 'UNIDENTIFIED SOURCE', this.observationStyle, state);
+    this.updateCockpitUi();
     const quickReturn = this.root.querySelector('#approachButton');
     if (quickReturn) quickReturn.textContent = 'SHIP VIEW';
     this.hud.toggleCosmos(false);
@@ -1566,6 +1600,7 @@ export class UniverseLabApp {
       shipPathEnabled: this.shipPathEnabled,
       trajectoryHorizon: this.predictionHorizonSeconds(),
       navigationMode: this.navigationMode,
+      cockpitEnabled: this.cockpitEnabled,
       selectedPhenomenonId: this.selectedPhenomenonId,
       discoveredPhenomena: [...this.discoveredPhenomena],
       discoveryScanDepth: [...this.discoveryScanDepth.entries()],
@@ -1617,7 +1652,9 @@ export class UniverseLabApp {
     this.minorField = new TestParticleField(payload.seed, star, payload.minorCount ?? SIMULATION.defaultMinorBodyCount);
     this.renderer.setMinorField(this.minorField);
     this.ship.restore(payload.ship);
+    this.cockpitEnabled = payload.cockpitEnabled !== false;
     this.updateEngineUi();
+    this.updateCockpitUi();
     this.clock.elapsedSimSeconds = safeNumber(payload.elapsedSimSeconds, 0);
     const weatherRestored = this.spaceWeather.restore(payload.spaceWeather, this.system.seed, this.clock.elapsedSimSeconds);
     if (Array.isArray(payload.discoveredPhenomena)) for (const id of payload.discoveredPhenomena) if (this.cosmicPhenomena.has(id)) this.discoveredPhenomena.add(id);
@@ -1658,6 +1695,8 @@ export class UniverseLabApp {
     const savedSurface = payload.surfaceSession?.active ? payload.surfaceSession : null;
     const restoredSurfaceBody = savedSurface?.bodyId ? this.registry.get(savedSurface.bodyId) : null;
     const surfaceRestored = Boolean(savedSurface && restoredSurfaceBody && this.enterSurface(restoredSurfaceBody.id, { fromLoad: true, snapshot: savedSurface, notify: false }));
+    this.syncViewClasses();
+    this.updateCockpitUi();
     this.hud.notify(surfaceRestored
       ? `Save restored directly to ${this.surfaceRegion?.name ?? 'the surface'}. Orbital time remains held until TAKEOFF; surface discoveries and the ${weatherRestored ? 'saved' : 'new'} space-weather timeline are preserved.`
       : `Save restored. Major-body/ship state, discovery records and ${weatherRestored ? 'space-weather timeline' : 'a newly scheduled space-weather timeline'} are active. Session-local particle experiments were cleared.`);
@@ -1706,6 +1745,7 @@ export class UniverseLabApp {
     });
     $('#cosmosClose').addEventListener('click', () => this.hud.toggleCosmos(false));
     $('#overlayToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateOverlayPanel(); this.hud.toggleOverlays(); });
+    $('#cockpitToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.toggleCockpit(); });
     $('#overlayClose').addEventListener('click', () => this.hud.toggleOverlays(false));
     $('#overlayMaster').addEventListener('change', (event) => this.setOverlaySetting('enabled', event.target.checked));
     $('#overlayLagrange').addEventListener('change', (event) => this.setOverlaySetting('lagrange', event.target.checked));
@@ -1740,6 +1780,7 @@ export class UniverseLabApp {
       const next = this.ship.engineMode === 'flight' ? 'cruise' : this.ship.engineMode === 'cruise' ? 'boost' : 'flight';
       this.ship.engineMode = next;
       this.updateEngineUi();
+      this.updateCockpitUi();
       const status = next === 'boost' ? 'SPECULATIVE BOOST' : next.toUpperCase();
       if (next === 'boost' && this.navigationMode === 'manual' && !this.transitState.active && this.clock.timeScale > 1) this.requestTimeScale(1, false);
       this.hud.notify(`${status} propulsion selected: ${this.ship.currentMainAcceleration().toLocaleString()} m/s² maximum bounded main acceleration.${next === 'boost' ? ' BOOST is fictional and intended for rapid local vector changes; manual selection drops simulation warp to 1× for control.' : ''}`);

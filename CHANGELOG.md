@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.4.3.1 — Ship Cockpit View
+
+- Added a default-on **low-obstruction cockpit canopy overlay** for SHIP VIEW so the spacecraft now feels inhabited instead of being only a bare camera.
+- Added subtle canopy glass reflections, top arch, side struts and lower dashboard framing designed to preserve central visibility rather than hide the universe.
+- Added automatic cockpit hiding while in OBSERVE camera modes and while inside planetary surface sessions.
+- Added a **COCKPIT ON/OFF** toggle in the MORE panel for players who want a fully unobstructed view.
+- Added optional backward-compatible schema-1 persistence for the cockpit preference (`cockpitEnabled`).
+- Preserved all existing orbital physics, surface systems, System Map, anomalies and rendering behavior.
+- Automated QA: **100/100 tests passing** plus static/syntax checks.
+
 ## v0.1.4.3 — Planetary Landing Foundation
 
 - Added the first detailed landable generated home world with deterministic **Shatterfall Basin** surface region.
