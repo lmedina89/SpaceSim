@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.3.1</title>
+  <title>Universe Lab v0.1.4.4</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.3.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.4</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -88,8 +88,11 @@
       <div class="surface-stat-grid">
         <span>Gravity</span><b id="surfaceGravity">—</b><span>Temperature</span><b id="surfaceTemperature">—</b>
         <span>Atmosphere</span><b id="surfaceAtmosphere">—</b><span>Local X/Z</span><b id="surfaceCoords">—</b>
+        <span>Weather</span><b id="surfaceWeather">CLEAR</b><span>Wind</span><b id="surfaceWind">—</b>
+        <span>Ship</span><b id="surfaceShipDistance">—</b><span>Surface clock</span><b id="surfaceClock">0 s</b>
         <span>Discoveries</span><b id="surfaceDiscoveries">0/0</b><span>Nearest signal</span><b id="surfaceNearest">—</b>
       </div>
+      <p id="surfaceWeatherStatus" class="surface-weather-status">Local weather monitor initializing.</p>
       <p id="surfaceScanStatus" class="surface-scan-status">Surface scanner ready.</p>
       <div class="surface-action-grid">
         <button id="surfaceScanButton" class="surface-accent" type="button">SCAN NEAREST</button>
@@ -130,7 +133,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>COCKPIT-1431</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>ENVWX-144</b>.</p>
     </aside>
 
     <aside id="mapPanel" class="drawer system-map-panel" hidden>
@@ -314,6 +317,7 @@
         </div>
         <p class="help">Osculating values answer: “If this target were the only gravitating body from this instant onward, what conic orbit matches the current relative state?” The visible path prediction is different: it integrates all current major gravity sources.</p>
         <div class="prediction-box"><b>N-BODY PREDICTION</b><span id="predictedApproach">Prediction not active.</span></div>
+        <label id="surfaceRegionLabel">Landing region<select id="surfaceRegionSelect"><option value="shatterfall-basin">Shatterfall Basin</option></select></label>
         <div class="button-row"><button id="nextTarget" type="button">NEXT TARGET</button><button id="landTarget" class="surface-accent" type="button" disabled>LAND TARGET</button></div>
         <hr>
         <h3>LAST RESOLVED IMPACT</h3>
@@ -336,7 +340,7 @@
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Cosmic phenomena:</strong> physical comet nuclei are live Newtonian gravity sources on high-eccentricity orbits. Asteroid/debris belts and planetary rings use seeded GPU-friendly point-population proxies tied to physical anchor bodies; their individual visible points do not source gravity or collide. Distant colored nebular haze is explicitly visual background.</p>
         <p><strong>Space weather:</strong> CME fronts use seeded directional cones with explicit propagation speeds and geometric arrival/crossing detection. They are kinematic fronts, not magnetohydrodynamic or radiation-transport simulations.</p>
-        <p><strong>Planetary surface foundation:</strong> the seeded home world exposes one deterministic landable showcase region, Shatterfall Basin. Terrain height/color, local environmental zones, rocks and surface anomaly structures are procedural presentation at a fixed local region scale. Entering surface mode intentionally holds orbital N-body time; TAKEOFF returns the ship to a safe scripted orbit. Atmospheric entry/aerodynamics, global spherical terrain, ecosystems, fluid weather and anomaly physics are not yet simulated.</p>
+        <p><strong>Planetary environments:</strong> the seeded home world now exposes three deterministic landing regions with distinct terrain emphasis. Local weather uses a persistent seeded surface clock and includes ordinary dust/fog/frost/electrostatic events plus explicitly impossible anomaly weather. Weather alters presentation/visibility only; it does not apply aerodynamic forces, damage, erosion or thermodynamic simulation. A parked spacecraft exterior marks the landing site while orbital N-body time remains intentionally held.</p>
         <p><strong>Scientific overlays:</strong> gravity vectors are computed from the current Newtonian source set. Lagrange points, Hill spheres and Roche limits are labeled diagnostic approximations; orbital planes are derived from instantaneous target-relative position/velocity.</p>
         <p><strong>Compact objects:</strong> black holes use Schwarzschild-radius metadata plus live Newtonian gravity, with a dense real-time accretion-disk/photon-ring/jet visual proxy. Neutron stars/pulsars use live Newtonian mass/radius plus visual magnetosphere and sweep-beam proxies. APPROACH computes propulsion-safe stand-off, strong gravity reduces integration steps, and model guards pause before near-horizon/near-surface or &gt;10% c states are presented as adequate Newtonian science. Full GR ray tracing, radiation transport and plasma MHD remain future work.</p>
       </div>

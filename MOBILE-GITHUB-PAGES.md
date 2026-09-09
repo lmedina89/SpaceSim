@@ -1,4 +1,4 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.3.1
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.4
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -16,8 +16,8 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 
 After upload/reload verify:
 
-- title/HUD says **v0.1.4.3**,
-- MORE help shows **COCKPIT-1431**,
+- title/HUD says **v0.1.4.4**,
+- MORE help shows **ENVWX-144**,
 - FPS/physics/render telemetry populate in orbit,
 - no `RUNTIME ERROR` banner appears.
 
@@ -37,3 +37,12 @@ If an older marker appears, Safari/GitHub Pages is serving stale files.
 10. Regress TRANSIT, weather continuity, stellar close approach and the existing lab/COSMOS systems.
 
 Container/Node QA cannot prove physical iPhone WebGPU FPS, touch feel, browser thermal behavior or final visual taste. Physical Safari remains the release gate.
+
+## Surface-weather acceptance
+
+1. In FLIGHT SCANNER, verify the landing-region selector lists Shatterfall Basin, Glasswind Flats and Frostscar Rise.
+2. Land at Shatterfall and turn back toward the landing beacon; confirm the parked spacecraft exterior is visible and the HUD reports ship distance.
+3. Stay on the surface for roughly 20–40 seconds; confirm the Weather/Wind/Surface clock fields update and a seeded weather change eventually appears.
+4. Save during a non-clear event, reload, and confirm the same event resumes rather than rerolling.
+5. Test at least one second region and confirm terrain/environment emphasis changes without a runtime `ERR`.
+6. Check iPhone landscape thermals/FPS during dust/frost/lightning events; weather uses bounded point/line/sprite layers and must not cause sustained runaway draw cost.

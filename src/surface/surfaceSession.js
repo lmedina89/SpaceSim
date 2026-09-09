@@ -1,4 +1,5 @@
 import { surfaceHeightAt, surfacePois } from './surfaceGenerator.js';
+import { createSurfaceWeatherState, serializeSurfaceWeather } from './surfaceWeather.js';
 
 export function createSurfaceSession(region, snapshot = null) {
   const landing = region?.landing ?? { x: 0, z: 0, yaw: 0 };
@@ -16,6 +17,7 @@ export function createSurfaceSession(region, snapshot = null) {
     lastMoveSpeedMps: 0,
     scannedPoiIds: new Set(restoredIds),
     selectedPoiId: snapshot?.selectedPoiId ?? null,
+    weather: createSurfaceWeatherState(region, snapshot?.weather ?? null),
   };
 }
 
@@ -31,6 +33,7 @@ export function serializeSurfaceSession(session) {
     pitch: session.pitch,
     scannedPoiIds: [...session.scannedPoiIds],
     selectedPoiId: session.selectedPoiId ?? null,
+    weather: serializeSurfaceWeather(session.weather),
   };
 }
 

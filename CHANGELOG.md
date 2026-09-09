@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.4.4 — Planetary Environments & Surface Weather
+
+- Added **three deterministic landing regions** to the first landable home world: Shatterfall Basin, Glasswind Flats and Frostscar Rise.
+- Added a mobile-safe landing-region selector to the Flight Scanner while preserving Shatterfall as the default System Map landing destination.
+- Added persistent seeded **surface weather** on a local real-time clock that remains separate from held orbital N-body time.
+- Ordinary environment events: Dust Front, Low Fog Bank, Frost Squall and Electrostatic Storm.
+- Explicitly impossible anomaly-weather events: Upward Rain, Shadow Fog, Suspended Lightning and Sky Fracture.
+- Weather changes clouds, particles, fog, visibility, scene exposure and temperature readout presentation; it does **not** apply aerodynamic force, damage, erosion, wetness or hidden anomaly physics.
+- Added weather/wind/surface-clock readouts and save/load continuity for the exact local weather event/timer/RNG state.
+- Added a visible lightweight **parked spacecraft exterior** at every landing site with hull, canopy, wings, engine pods, landing legs, navigation lights and a landing beacon.
+- Added distance-to-ship readout; the parked surface model is visual only and does not replace authoritative orbital ship state.
+- Preserved v0.1.4.3.1 low-obstruction cockpit view, v0.1.4.3 surface/anomaly foundation, v0.1.4.2 discovery/weather continuity and all protected physics/navigation systems.
+- Automated QA: **104/104 tests passing** plus static/syntax checks.
+
 ## v0.1.4.3.1 — Ship Cockpit View
 
 - Added a default-on **low-obstruction cockpit canopy overlay** for SHIP VIEW so the spacecraft now feels inhabited instead of being only a bare camera.

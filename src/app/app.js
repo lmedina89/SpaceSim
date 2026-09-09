@@ -24,8 +24,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { UniverseRenderer } from '../render/threeRenderer.js';
 import { Hud } from '../ui/hud.js';
 import { SystemMapController } from '../ui/systemMap.js';
-import { generateSurfaceRegion, SURFACE_REALITY_LABELS, surfacePois } from '../surface/surfaceGenerator.js';
+import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
+import { stepSurfaceWeather, surfaceWeatherReading } from '../surface/surfaceWeather.js';
 
 function safeNumber(value, fallback) {
   const n = Number(value);
@@ -168,6 +169,7 @@ export class UniverseLabApp {
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
     this._surfacePreviousRunning = true;
     this._surfacePreviousTimeScale = 1;
+    this.selectedSurfaceRegionId = 'shatterfall-basin';
     this.cockpitEnabled = true;
   }
 
@@ -211,10 +213,11 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.3.1 online. Realistic low-obstruction cockpit overlay added to ship view, while planetary landing, Shatterfall Basin exploration, persistent surface discoveries, System Map and anomaly layers remain active. Build COCKPIT-1431.');
+    this.hud.notify('v0.1.4.4 online. Planetary environments, persistent local weather, anomalous weather, multiple seeded landing regions and a visible parked spacecraft are active. Build ENVWX-144.');
   }
 
   newSystem(seed) {
+    this.selectedSurfaceRegionId = 'shatterfall-basin';
     if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false });
     if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
     this._particleWarpRestoreScale = null;
@@ -298,14 +301,41 @@ export class UniverseLabApp {
     return { ok: true, body, altitudeMeters: altitude, relativeSpeedMps: relativeSpeed };
   }
 
+  updateSurfaceRegionUi(body = this.target) {
+    const select = this.root.querySelector('#surfaceRegionSelect');
+    const label = this.root.querySelector('#surfaceRegionLabel');
+    if (!select) return;
+    const bodyKey = body?.landable ? body.id : '';
+    if (select.dataset.bodyId === bodyKey && select.options.length) {
+      if ([...select.options].some((option) => option.value === this.selectedSurfaceRegionId)) select.value = this.selectedSurfaceRegionId;
+      return;
+    }
+    const regions = body?.landable ? availableSurfaceRegions(this.system, body) : [];
+    const previous = this.selectedSurfaceRegionId;
+    select.replaceChildren();
+    select.dataset.bodyId = bodyKey;
+    if (!regions.length) {
+      const option = document.createElement('option'); option.value = ''; option.textContent = 'No detailed surface regions'; select.appendChild(option);
+      select.disabled = true; if (label) label.style.opacity = '0.55';
+      return;
+    }
+    for (const region of regions) {
+      const option = document.createElement('option'); option.value = region.id; option.textContent = `${region.name} — ${region.subtitle}`; select.appendChild(option);
+    }
+    this.selectedSurfaceRegionId = regions.some((region) => region.id === previous) ? previous : regions[0].id;
+    select.value = this.selectedSurfaceRegionId;
+    select.disabled = false; if (label) label.style.opacity = '1';
+  }
+
   updateLandingUi() {
+    this.updateSurfaceRegionUi(this.target);
     const eligibility = this.landingEligibility(this.target);
     for (const selector of ['#landTarget', '#surfaceLandButton']) {
       const button = this.root.querySelector(selector);
       if (!button) continue;
       button.disabled = !eligibility.ok;
       button.textContent = eligibility.ok ? 'LAND / DESCEND' : (this.target?.landable ? 'LAND LOCKED' : 'LAND TARGET');
-      button.title = eligibility.ok ? 'Enter the seeded local surface region.' : eligibility.reason;
+      button.title = eligibility.ok ? `Enter ${this.selectedSurfaceRegionId || 'the selected seeded region'}.` : eligibility.reason;
     }
   }
 
@@ -353,7 +383,11 @@ export class UniverseLabApp {
     const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = 'SURFACE';
     this.running = false;
 
-    this.surfaceRegion = generateSurfaceRegion(this.system, body);
+    const savedRegionId = options.snapshot?.regionId;
+    const savedRegionKey = typeof savedRegionId === 'string' && savedRegionId.startsWith(`${body.id}:`) ? savedRegionId.slice(body.id.length + 1) : null;
+    const regionKey = options.regionId ?? savedRegionKey ?? this.selectedSurfaceRegionId ?? body.surfaceRegionId ?? 'shatterfall-basin';
+    this.surfaceRegion = generateSurfaceRegion(this.system, body, regionKey);
+    this.selectedSurfaceRegionId = this.surfaceRegion.regionKey ?? regionKey;
     this.surfaceSession = createSurfaceSession(this.surfaceRegion, options.snapshot ?? null);
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
     const star = this.registry.get('star-0') ?? this.bodies.find((entry) => entry.kind === BODY_KIND.STAR) ?? null;
@@ -368,7 +402,7 @@ export class UniverseLabApp {
     const velocity = this.root.querySelector('#velocityMarker'); if (velocity) velocity.hidden = true;
     this.selectTarget(body.id);
     this.updateSurfaceHud();
-    if (options.notify !== false) this.hud.notify(`LANDED: ${body.name} · ${this.surfaceRegion.name}. Orbital N-body time is intentionally held while this local surface foundation is active. LOOK + movement controls explore the region; SCAN identifies nearby geology and anomalies.`, 7600);
+    if (options.notify !== false) this.hud.notify(`LANDED: ${body.name} · ${this.surfaceRegion.name}. The parked spacecraft is behind/near the landing point. Orbital N-body time is held; local seeded weather now advances on its own persistent surface clock. LOOK + movement explore the region; SCAN identifies geology and anomalies.`, 7600);
     return true;
   }
 
@@ -400,6 +434,7 @@ export class UniverseLabApp {
   updateSurface(realDt) {
     if (!this.surfaceSession?.active || !this.surfaceRegion) return;
     stepSurfaceMovement(this.surfaceSession, this.surfaceRegion, this.surfaceInput, realDt);
+    stepSurfaceWeather(this.surfaceSession.weather, this.surfaceRegion, realDt);
     this.updateSurfaceHud();
   }
 
@@ -421,10 +456,24 @@ export class UniverseLabApp {
     set('#surfaceWorldName', `${region.bodyName} · ${region.name}`);
     set('#surfaceBiome', region.palette.name.toUpperCase());
     set('#surfaceGravity', `${region.gravityMps2.toFixed(2)} m/s²`);
-    set('#surfaceTemperature', `${(region.temperatureK - 273.15).toFixed(0)} °C`);
+    const weatherNow = surfaceWeatherReading(this.surfaceSession.weather);
+    set('#surfaceTemperature', `${(region.temperatureK - 273.15 + weatherNow.temperatureOffsetC).toFixed(0)} °C`);
     set('#surfaceAtmosphere', `${region.atmosphereAtmProxy.toFixed(2)} atm PROXY`);
     set('#surfaceCoords', `${this.surfaceSession.x.toFixed(0)}, ${this.surfaceSession.z.toFixed(0)} m`);
+    const weather = weatherNow;
+    set('#surfaceWeather', `${weather.label.toUpperCase()}${weather.realityClass === 'impossible' ? ' ⚠' : ''}`);
+    set('#surfaceWind', `${weather.windSpeedMps.toFixed(0)} m/s`);
+    const shipSite = region.landedShip ?? region.landing;
+    const shipDistance = Math.hypot(this.surfaceSession.x - shipSite.x, this.surfaceSession.z - shipSite.z);
+    set('#surfaceShipDistance', `${shipDistance.toFixed(0)} m`);
+    set('#surfaceClock', `${Math.floor(this.surfaceSession.weather?.elapsedSeconds ?? 0)} s`);
     set('#surfaceDiscoveries', `${this.surfaceSession.scannedPoiIds.size}/${surfacePois(region).length}`);
+    const weatherStatus = this.root.querySelector('#surfaceWeatherStatus');
+    if (weatherStatus) {
+      const boundary = weather.realityClass === 'impossible' ? 'IMPOSSIBLE / VISUAL-ONLY' : weather.realityClass === 'speculative' ? 'SPECULATIVE WEATHER' : 'MODELED ENVIRONMENT';
+      const timing = weather.type === 'clear' ? (Number.isFinite(weather.nextEventSeconds) ? `Next seeded change ~${weather.nextEventSeconds.toFixed(0)} s.` : 'Stable interval.') : `Event remaining ~${weather.secondsRemaining.toFixed(0)} s.`;
+      weatherStatus.textContent = `${boundary} · ${weather.label} · wind ${weather.windSpeedMps.toFixed(0)} m/s. ${timing} Weather changes visibility/presentation only; no aerodynamic force or damage is applied.`;
+    }
     if (nearest) {
       const scanned = this.surfaceSession.scannedPoiIds.has(nearest.poi.id);
       const reality = scanned ? (SURFACE_REALITY_LABELS[nearest.poi.realityClass] ?? nearest.poi.realityClass.toUpperCase()) : 'UNCLASSIFIED';
@@ -434,7 +483,7 @@ export class UniverseLabApp {
     const status = this.root.querySelector('#surfaceScanStatus');
     if (status) status.textContent = selected
       ? `${SURFACE_REALITY_LABELS[selected.realityClass] ?? selected.realityClass}: ${selected.signal}. ${selected.summary} ${selected.archive}`
-      : `Shatterfall mixes normal geology with seven nearby anomaly families. Anomaly visuals are discovery content only: no hidden gravity, teleportation or time manipulation is applied in this foundation.`;
+      : `${region.name} mixes conventional terrain with ${region.anomalies?.length ?? 0} seeded anomaly sites. Surface weather and anomaly visuals are presentation/discovery layers only: no hidden gravity, teleportation, time manipulation or aerodynamic damage is applied.`;
   }
 
   addBody(definition) {
@@ -1600,6 +1649,7 @@ export class UniverseLabApp {
       shipPathEnabled: this.shipPathEnabled,
       trajectoryHorizon: this.predictionHorizonSeconds(),
       navigationMode: this.navigationMode,
+      selectedSurfaceRegionId: this.selectedSurfaceRegionId,
       cockpitEnabled: this.cockpitEnabled,
       selectedPhenomenonId: this.selectedPhenomenonId,
       discoveredPhenomena: [...this.discoveredPhenomena],
@@ -1677,6 +1727,7 @@ export class UniverseLabApp {
     this.root.querySelector('#seedInput').value = payload.seed;
     if (payload.trajectoryHorizon) this.root.querySelector('#trajectoryHorizon').value = String(payload.trajectoryHorizon);
     this.userBodySerial = payload.userBodySerial ?? 1;
+    this.selectedSurfaceRegionId = typeof payload.selectedSurfaceRegionId === 'string' ? payload.selectedSurfaceRegionId : 'shatterfall-basin';
     const restoredHome = this.bodies.find((body) => body.kind === BODY_KIND.PLANET && body.landable) ?? this.registry.get(this.system.homeId) ?? this.bodies.find((body) => body.kind === BODY_KIND.PLANET);
     if (restoredHome) this.system.homeId = restoredHome.id;
     this.shipPathEnabled = payload.shipPathEnabled !== false;
@@ -1755,6 +1806,7 @@ export class UniverseLabApp {
     $('#overlayOrbitPlane').addEventListener('change', (event) => this.setOverlaySetting('orbitPlane', event.target.checked));
     $('#scannerToggle').addEventListener('click', () => this.hud.toggleScanner());
     $('#scannerClose').addEventListener('click', () => this.hud.toggleScanner(false));
+    $('#surfaceRegionSelect').addEventListener('change', (event) => { this.selectedSurfaceRegionId = event.target.value || 'shatterfall-basin'; this.updateLandingUi(); });
     $('#landTarget').addEventListener('click', () => { this.hud.toggleScanner(false); this.enterSurface(this.targetId); });
     $('#surfaceLandButton').addEventListener('click', () => { this.hud.toggleMore(false); this.enterSurface(this.targetId); });
     $('#phenomenonSelect').addEventListener('change', (event) => this.selectPhenomenon(event.target.value, false));

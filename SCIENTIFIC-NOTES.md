@@ -1,4 +1,4 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.3.1
+# Scientific / Model Notes — Universe Lab v0.1.4.4.1
 
 Universe Lab deliberately mixes physically motivated simulation with clearly labeled speculative/fictional presentation. The boundary matters more as planetary surfaces and anomalies are introduced.
 
@@ -48,3 +48,13 @@ The Gravity Knot is also visual-only in this build: floating stones do not add a
 ## Existing free-space notes
 
 The v0.1.4.2 free-space anomaly layer remains in `CosmicPhenomenonRegistry`, separate from major gravity bodies. CME weather remains a seeded kinematic cone/front model, not MHD or radiation transport. Scientific overlays remain approximate diagnostic visualizations. TRANSIT remains explicitly fictional coordinate translation while local spacecraft velocity remains Newtonian.
+
+## Surface weather / environment model
+
+Surface weather in v0.1.4.4 is a deterministic presentation model, not atmospheric fluid dynamics. Ordinary event labels describe recognizable environmental appearances; wind speed and temperature offset are seeded UI/visual parameters rather than outputs from Navier–Stokes, radiative-convective or cloud-microphysics solvers.
+
+`Upward Rain`, `Shadow Fog`, `Suspended Lightning` and `Sky Fracture` are intentionally impossible/fictional anomaly-weather classes. They are labeled as such and do not modify gravity, time, causality, player movement or orbital state.
+
+Local weather time advances only while the surface session is actively rendered. Large tab/background hitches are bounded so reopening Safari does not skip an entire event. Orbital N-body time remains held until TAKEOFF.
+
+The landed spacecraft exterior is a visual proxy. No rigid-body landing gear, mass distribution, aerodynamic entry, fuel, structural stress or terrain collision is solved in this release.

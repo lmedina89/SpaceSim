@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { createRng } from '../util/prng.js';
 import { surfaceColorAt, surfaceHeightAt, surfaceZoneWeights, surfacePois } from '../surface/surfaceGenerator.js';
 import { surfaceEyePosition } from '../surface/surfaceSession.js';
+import { surfaceWeatherReading } from '../surface/surfaceWeather.js';
 
 function disposeMaterial(material) {
   if (!material) return;
@@ -316,8 +317,135 @@ function createLandingBeacon(region) {
   const group = new THREE.Group();
   const ring = new THREE.Mesh(new THREE.RingGeometry(8, 9, 40), new THREE.MeshBasicMaterial({ color: 0x76eaff, side: THREE.DoubleSide, transparent: true, opacity: 0.62, blending: THREE.AdditiveBlending })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.12; group.add(ring);
   const light = new THREE.PointLight(0x5eeaff, 45, 80, 2); light.position.y = 2.5; group.add(light);
-  placeOnGround(group, region, region.landing.x, region.landing.z, 0);
+  const site = region.landedShip ?? region.landing;
+  placeOnGround(group, region, site.x, site.z, 0);
   return group;
+}
+
+function createLandedShip(region) {
+  const group = new THREE.Group();
+  group.name = 'landed-spacecraft';
+  const hull = new THREE.MeshStandardMaterial({ color: 0xb7c1ca, roughness: 0.46, metalness: 0.72 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x252d35, roughness: 0.42, metalness: 0.78 });
+  const panel = new THREE.MeshStandardMaterial({ color: 0x485966, roughness: 0.58, metalness: 0.55 });
+  const canopy = new THREE.MeshStandardMaterial({ color: 0x142d3b, roughness: 0.1, metalness: 0.45, transparent: true, opacity: 0.82, emissive: 0x06131b, emissiveIntensity: 0.45 });
+  const engineGlow = new THREE.MeshBasicMaterial({ color: 0x67d9ff, transparent: true, opacity: 0.62, blending: THREE.AdditiveBlending, depthWrite: false });
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(3.25, 4.1, 17, 10, 1, false), hull);
+  body.rotation.x = Math.PI / 2; body.position.set(0, 5.2, 0.5); group.add(body);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(3.25, 7.2, 10), hull);
+  nose.rotation.x = Math.PI / 2; nose.position.set(0, 5.2, 12.1); group.add(nose);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(4.1, 3.6, 4.4, 10), dark);
+  tail.rotation.x = Math.PI / 2; tail.position.set(0, 5.2, -10); group.add(tail);
+
+  const canopyMesh = new THREE.Mesh(new THREE.SphereGeometry(2.7, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.62), canopy);
+  canopyMesh.scale.set(0.9, 0.48, 1.25); canopyMesh.rotation.x = -0.12; canopyMesh.position.set(0, 7.3, 6.1); group.add(canopyMesh);
+
+  for (const side of [-1, 1]) {
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(9.5, 0.65, 6.8), panel);
+    wing.position.set(side * 6.1, 4.5, -1.3); wing.rotation.y = side * -0.12; group.add(wing);
+    const pod = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.7, 8.4, 10), dark);
+    pod.rotation.x = Math.PI / 2; pod.position.set(side * 6.6, 4.6, -3.8); group.add(pod);
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.55, 1.3, 10), dark);
+    nozzle.rotation.x = Math.PI / 2; nozzle.position.set(side * 6.6, 4.6, -8.5); group.add(nozzle);
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(1.05, 16), engineGlow.clone());
+    glow.position.set(side * 6.6, 4.6, -9.18); group.add(glow);
+  }
+
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x56616b, roughness: 0.66, metalness: 0.76 });
+  for (const [x, z] of [[-4.6, 2.2],[4.6, 2.2],[-4.2,-5.6],[4.2,-5.6]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 4.3, 7), legMat);
+    leg.position.set(x, 2.2, z); leg.rotation.z = x < 0 ? -0.18 : 0.18; group.add(leg);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.25, 0.32, 10), dark);
+    pad.position.set(x + (x < 0 ? -0.4 : 0.4), 0.18, z); group.add(pad);
+  }
+
+  const navPort = new THREE.PointLight(0xff4b5a, 18, 32, 2); navPort.position.set(-7.8, 5.1, 0); group.add(navPort);
+  const navStar = new THREE.PointLight(0x59ff99, 18, 32, 2); navStar.position.set(7.8, 5.1, 0); group.add(navStar);
+  group.userData.navLights = [navPort, navStar];
+  group.userData.engineMaterials = group.children.filter((c) => c.material?.blending === THREE.AdditiveBlending).map((c) => c.material);
+
+  const site = region.landedShip ?? { x: -18, z: -20, yaw: 0 };
+  placeOnGround(group, region, site.x, site.z, 0.2);
+  group.rotation.y = site.yaw ?? 0;
+  return group;
+}
+
+function makeCloudTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 192; canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const [x, y, r, a] of [[40,54,30,.26],[72,40,34,.31],[108,48,42,.34],[145,55,28,.24],[96,65,38,.28]]) {
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0, `rgba(230,240,245,${a})`);
+    g.addColorStop(.65, `rgba(190,205,215,${a*.55})`);
+    g.addColorStop(1, 'rgba(120,140,155,0)');
+    ctx.fillStyle = g; ctx.fillRect(x-r,y-r,r*2,r*2);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.userData.surfaceOwned = true;
+  return texture;
+}
+
+function createWeatherRig(region, rng) {
+  const group = new THREE.Group();
+  group.name = 'surface-weather-rig';
+  const cloudTexture = makeCloudTexture();
+  cloudTexture.userData.surfaceOwned = false;
+  const clouds = new THREE.Group();
+  for (let i = 0; i < 18; i += 1) {
+    const mat = new THREE.SpriteMaterial({ map: cloudTexture, color: 0xb9c7cf, transparent: true, opacity: 0, depthWrite: false });
+    const sprite = new THREE.Sprite(mat);
+    const a = rng.range(0, Math.PI * 2), radius = rng.range(130, 520);
+    sprite.position.set(Math.cos(a) * radius, rng.range(90, 230), Math.sin(a) * radius);
+    const size = rng.range(120, 260); sprite.scale.set(size * 1.8, size, 1);
+    clouds.add(sprite);
+  }
+  group.add(clouds);
+
+  const makePoints = (count, color, size) => {
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i += 1) {
+      positions[i*3] = rng.range(-110, 110); positions[i*3+1] = rng.range(1, 72); positions[i*3+2] = rng.range(-110, 110);
+    }
+    const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const points = new THREE.Points(geometry, material); points.frustumCulled = false; group.add(points); return points;
+  };
+  const dust = makePoints(560, 0xd6a77f, 1.35);
+  const frost = makePoints(460, 0xdffaff, 1.05);
+
+  const rainCount = 220;
+  const rainPositions = new Float32Array(rainCount * 6);
+  const rainBase = [];
+  for (let i = 0; i < rainCount; i += 1) rainBase.push([rng.range(-95,95), rng.range(0,72), rng.range(-95,95), rng.range(1.1,3.2)]);
+  const rainGeometry = new THREE.BufferGeometry(); rainGeometry.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+  const rainMaterial = new THREE.LineBasicMaterial({ color: 0x8edcff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+  const rain = new THREE.LineSegments(rainGeometry, rainMaterial); rain.frustumCulled = false; rain.userData.base = rainBase; group.add(rain);
+
+  const lightningPositions = [];
+  for (let branch = 0; branch < 7; branch += 1) {
+    let x = rng.range(-70,70), y = rng.range(48,76), z = rng.range(-70,70);
+    for (let s = 0; s < 7; s += 1) {
+      const nx=x+rng.range(-5,5), ny=y-rng.range(4,9), nz=z+rng.range(-5,5);
+      lightningPositions.push(x,y,z,nx,ny,nz); x=nx;y=ny;z=nz;
+    }
+  }
+  const lightningGeo = new THREE.BufferGeometry(); lightningGeo.setAttribute('position', new THREE.Float32BufferAttribute(lightningPositions,3));
+  const lightning = new THREE.LineSegments(lightningGeo, new THREE.LineBasicMaterial({ color: 0xb6f4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite:false })); group.add(lightning);
+
+  const fracturePositions = [];
+  for (let i=0;i<5;i+=1) {
+    const x=rng.range(-100,100), z=rng.range(-100,100), y=rng.range(82,135);
+    fracturePositions.push(x,y,z,x+rng.range(22,55),y+rng.range(-10,22),z+rng.range(-18,18));
+  }
+  const fractureGeo=new THREE.BufferGeometry(); fractureGeo.setAttribute('position',new THREE.Float32BufferAttribute(fracturePositions,3));
+  const fracture=new THREE.LineSegments(fractureGeo,new THREE.LineBasicMaterial({color:0xff7be9,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false})); group.add(fracture);
+
+  const flash = new THREE.PointLight(0xbceeff, 0, 260, 2); flash.position.set(0, 55, 0); group.add(flash);
+  return { group, clouds, dust, frost, rain, lightning, fracture, flash, cloudTexture };
 }
 
 export class SurfaceWorldVisual {
@@ -327,7 +455,8 @@ export class SurfaceWorldVisual {
     this.star = star;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(region.palette.skyTop);
-    this.scene.fog = new THREE.FogExp2(region.palette.fog, 0.00115 / Math.max(0.3, region.atmosphereAtmProxy));
+    this._baseFogDensity = 0.00115 / Math.max(0.3, region.atmosphereAtmProxy);
+    this.scene.fog = new THREE.FogExp2(region.palette.fog, this._baseFogDensity);
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.08, 6200);
     this.rng = createRng(`${region.seed}:render`);
     this.poiGroups = new Map();
@@ -348,6 +477,8 @@ export class SurfaceWorldVisual {
     this.emberFissures = createEmberFissures(region, this.rng); this.scene.add(this.emberFissures);
     this.dust = createDust(region, this.rng); this.scene.add(this.dust);
     this.landingBeacon = createLandingBeacon(region); this.scene.add(this.landingBeacon);
+    this.landedShip = createLandedShip(region); this.scene.add(this.landedShip);
+    this.weatherRig = createWeatherRig(region, createRng(`${region.seed}:weather-visuals`)); this.scene.add(this.weatherRig.group);
 
     for (const poi of surfacePois(region)) {
       const beacon = createBeacon(poi, region); this.scene.add(beacon); this.poiGroups.set(`${poi.id}:beacon`, beacon);
@@ -370,11 +501,68 @@ export class SurfaceWorldVisual {
     }
   }
 
+  updateWeather(session, timeSeconds) {
+    const reading = surfaceWeatherReading(session?.weather);
+    const rig = this.weatherRig;
+    if (!rig) return reading;
+    rig.group.position.x = session.x;
+    rig.group.position.y = surfaceHeightAt(this.region, session.x, session.z);
+    rig.group.position.z = session.z;
+    const intensity = reading.intensity;
+    const type = reading.type;
+    const isStorm = type === 'dust-front' || type === 'electrostatic-storm' || type === 'shadow-fog' || type === 'suspended-lightning' || type === 'sky-fracture';
+    const cloudOpacity = type === 'clear' ? 0.05 : type === 'fog-bank' ? 0.18 : Math.min(0.46, 0.16 + intensity * 0.34);
+    for (const sprite of rig.clouds.children) {
+      sprite.material.opacity = cloudOpacity;
+      sprite.material.color.setHex(type === 'shadow-fog' ? 0x4a4654 : type === 'electrostatic-storm' ? 0x697782 : 0xb9c7cf);
+    }
+    rig.clouds.rotation.y = (reading.windHeadingRad || 0) + timeSeconds * Math.max(0.001, reading.windSpeedMps * 0.00022);
+
+    rig.dust.material.opacity = type === 'dust-front' ? 0.28 + intensity * 0.34 : 0;
+    rig.dust.rotation.y = reading.windHeadingRad + timeSeconds * reading.windSpeedMps * 0.008;
+    rig.frost.material.opacity = type === 'frost-squall' ? 0.34 + intensity * 0.42 : 0;
+    rig.frost.rotation.y = -reading.windHeadingRad + timeSeconds * 0.12;
+
+    const upward = type === 'upward-rain';
+    const frostStreak = type === 'frost-squall';
+    const rainVisible = upward || frostStreak;
+    rig.rain.material.opacity = rainVisible ? (0.34 + intensity * 0.42) : 0;
+    rig.rain.material.color.setHex(upward ? 0x83d9ff : 0xe5fbff);
+    if (rainVisible) {
+      const pos = rig.rain.geometry.attributes.position.array;
+      const speed = upward ? 18 : -22;
+      for (let i=0;i<rig.rain.userData.base.length;i+=1) {
+        const [x,baseY,z,len]=rig.rain.userData.base[i];
+        const y=((baseY + timeSeconds*speed + 7200) % 72 + 72) % 72;
+        const k=i*6; pos[k]=x;pos[k+1]=y;pos[k+2]=z;pos[k+3]=x;pos[k+4]=y+(upward?len:-len);pos[k+5]=z;
+      }
+      rig.rain.geometry.attributes.position.needsUpdate=true;
+    }
+
+    const lightningOn = type === 'electrostatic-storm' || type === 'suspended-lightning';
+    const pulse = Math.max(0, Math.sin(timeSeconds * (type === 'suspended-lightning' ? 2.1 : 7.7)));
+    rig.lightning.material.opacity = lightningOn ? (type === 'suspended-lightning' ? 0.44 + 0.28*pulse : (pulse > 0.88 ? 0.75 : 0.08)) * intensity : 0;
+    rig.flash.intensity = lightningOn && pulse > 0.9 ? 95 * intensity : 0;
+    rig.fracture.material.opacity = type === 'sky-fracture' ? (0.34 + 0.26*Math.sin(timeSeconds*1.7)**2) * intensity : 0;
+
+    let fogFactor = 1;
+    if (type === 'fog-bank') fogFactor = 2.8 + intensity * 2.2;
+    else if (type === 'shadow-fog') fogFactor = 3.6 + intensity * 2.9;
+    else if (type === 'dust-front') fogFactor = 1.5 + intensity * 1.8;
+    else if (type === 'frost-squall') fogFactor = 1.4 + intensity * 1.2;
+    else if (isStorm) fogFactor = 1.25 + intensity * 1.25;
+    this.scene.fog.density = this._baseFogDensity * fogFactor;
+    this.scene.fog.color.setHex(type === 'shadow-fog' ? 0x241f2a : type === 'dust-front' ? 0x72513f : this.region.palette.fog);
+    this.scene.background.setHex(type === 'shadow-fog' ? 0x111019 : this.region.palette.skyTop);
+    return reading;
+  }
+
   animate(timeSeconds) {
     const t = Number(timeSeconds) || 0;
     this.emberFissures.material.opacity = 0.64 + Math.sin(t * 2.2) * 0.16;
     this.dust.rotation.y = t * 0.006;
     this.landingBeacon.rotation.y = t * 0.18;
+    if (this.landedShip?.userData?.navLights) for (const light of this.landedShip.userData.navLights) light.intensity = 12 + (Math.sin(t * 2.4) + 1) * 7;
     for (const group of this.animated) {
       const type = group.userData.type;
       if (type === 'fracture-gate') {
@@ -418,11 +606,12 @@ export class SurfaceWorldVisual {
     const cp = Math.cos(session.pitch), sp = Math.sin(session.pitch), sy = Math.sin(session.yaw), cy = Math.cos(session.yaw);
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(eye[0] + sy * cp * 100, eye[1] + sp * 100, eye[2] + cy * cp * 100);
+    const weather = this.updateWeather(session, realTimeSeconds);
     this.animate(realTimeSeconds);
     this.updatePoiState(session.scannedPoiIds);
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = weather?.type === 'shadow-fog' ? 0.78 : weather?.type === 'electrostatic-storm' ? 0.94 : weather?.type === 'dust-front' ? 0.98 : 1.05;
     renderer.render(this.scene, this.camera);
   }
 
-  dispose() { disposeTree(this.scene); }
+  dispose() { this.weatherRig?.cloudTexture?.dispose?.(); disposeTree(this.scene); }
 }

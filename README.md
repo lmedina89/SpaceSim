@@ -1,9 +1,9 @@
-# Universe Lab v0.1.4.3.1 — Ship Cockpit View
+# Universe Lab v0.1.4.4 — Planetary Environments & Surface Weather
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `COCKPIT-1431`  
-**Save schema:** 1 (unchanged; surface state and cockpit preference are optional backward-compatible payload fields)  
+**Build marker:** `ENVWX-144`  
+**Save schema:** 1 (unchanged; surface/weather state, selected landing region and cockpit preference remain optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
@@ -11,6 +11,28 @@ Universe Lab is a mobile-first scientific/experimental space sandbox for static 
 v0.1.4.3 is built directly from v0.1.4.2 System Map + Discovery & Anomalies. It preserves System Map/discovery, persistent space weather, stellar rendering, Newtonian flight, BOOST, TRANSIT, impacts, experiments, compact objects and scientific overlays while introducing the first deliberately bounded planetary surface architecture.
 
 v0.1.4.3.1 is built directly from v0.1.4.3 Planetary Landing Foundation. It preserves the surface landing architecture and adds a **default-on, low-obstruction ship cockpit overlay** so SHIP VIEW feels like the player is inside an actual spacecraft without sacrificing the wide forward view.
+
+## v0.1.4.4 environment layer
+
+v0.1.4.4 builds directly from v0.1.4.3.1 and turns the first planetary surface from a single static showcase into a small deterministic environment framework. The first landable planet now exposes three seeded landing regions:
+
+- **Shatterfall Basin** — the original anomaly-rich basalt/ash showcase, retaining all seven surface anomaly families.
+- **Glasswind Flats** — smoother wind-polished glass-darkened terrain with stronger dust/fog emphasis and four anomaly sites.
+- **Frostscar Rise** — rougher cold mineral highland with broad frost coverage, frost/electrostatic weather emphasis and four anomaly sites.
+
+The Flight Scanner contains a **Landing region** selector. System Map landing still defaults safely to Shatterfall unless another region was selected. Region generation remains deterministic from system seed + body ID + region ID.
+
+### Persistent local weather
+
+Surface weather uses its own deterministic real-time clock because orbital N-body time remains intentionally held while landed. The first seeded change is scheduled soon enough to be testable on iPhone, then later clear/event intervals continue deterministically. Save/load preserves the exact event, remaining duration, next clear-interval timer and weather RNG state.
+
+Modeled/ordinary presentation events are Dust Front, Low Fog Bank, Frost Squall and Electrostatic Storm. The anomaly layer can also produce intentionally impossible Upward Rain, Shadow Fog, Suspended Lightning and Sky Fracture. Impossible events are explicitly labeled in the surface HUD.
+
+Weather currently changes visual cloud/fog/particle layers, visibility, scene exposure, wind/temperature readouts and lightning/fracture presentation. It **does not** apply aerodynamic forces, surface damage, erosion, precipitation accumulation, wetness, fluid dynamics or hidden time/gravity effects.
+
+### Parked spacecraft
+
+A lightweight procedural exterior spacecraft now sits at the landing site. It includes a metallic fuselage, canopy, wings, engine pods, landing gear, navigation lights and the existing landing beacon. The surface HUD shows distance back to the ship. This model is a local visual representation only; orbital ship position/velocity remain authoritative and frozen until the scripted TAKEOFF / ORBIT transition.
 
 ## Ship cockpit view
 
@@ -112,7 +134,7 @@ Older schema-1 saves remain valid. When loading an older save, deterministic lan
 
 ## Recommended first iPhone test
 
-1. Confirm **v0.1.4.3.1 / COCKPIT-1431** and no runtime `ERR`.
+1. Confirm **v0.1.4.4 / ENVWX-144** and no runtime `ERR`.
 2. On a fresh `ORIGIN-001` run, the home world should already be selected and the ship should begin in the landing envelope.
 3. Press **LAND / DESCEND**.
 4. Confirm Shatterfall Basin renders as actual ground/sky/terrain rather than a flat orbital sphere.
@@ -132,4 +154,4 @@ Automated QA does **not** prove real iPhone WebGPU performance, touch feel, ther
 
 ## Next likely milestone
 
-After physical acceptance of v0.1.4.3, the sensible next step is **planetary environment + weather depth**: local sky/weather states, dust/fog/storms/precipitation where planet chemistry allows, stronger terrain variety and additional seeded landing regions—without turning every planet into the same anomaly showcase.
+After physical acceptance of v0.1.4.4, the sensible next step is **v0.1.4.5 Surface Exploration, Resources & POIs**: deeper scan interactions, sample/resource collection, caves/ruins, region-specific discoveries and first surface objectives while preserving the mobile streaming budget.

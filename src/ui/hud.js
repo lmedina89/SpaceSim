@@ -162,9 +162,9 @@ export class Hud {
     this.cameraChip.hidden = false;
     if (state?.activeCount != null) {
       const active = Number(state.activeCount).toLocaleString();
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD COCKPIT-1431`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD ENVWX-144`;
     } else {
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD COCKPIT-1431`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD ENVWX-144`;
     }
     this.cameraChip.classList.add('observing');
   }

@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.3.1
+# Architecture — Universe Lab v0.1.4.4
 
 ## Core invariant
 
@@ -18,6 +18,16 @@ v0.1.4.3.1 adds a lightweight DOM/CSS cockpit presentation layer that sits above
 - preserve the user's cockpit preference through save/load without changing schema 1.
 
 This keeps the effect inexpensive on mobile while restoring a stronger sense of physical spacecraft presence.
+
+## Planetary environment / weather boundary
+
+v0.1.4.4 adds `src/surface/surfaceWeather.js` as a deterministic local-environment state machine. It is deliberately separate from `SimulationClock`: orbital N-body time is still held while landed, while a bounded real-time surface clock advances weather. The state serializes inside the optional schema-1 `surfaceSession` payload.
+
+Surface weather owns event identity, intensity, wind presentation, event duration, next clear interval and an explicit serializable PRNG state. `SurfaceWorldVisual` consumes the resulting reading to alter local fog, clouds, weather particles, lightning, sky-fracture lines and exposure. It never writes spacecraft velocity, gravity sources, orbital time or player movement acceleration.
+
+`surfaceGenerator.js` now exposes three deterministic region profiles. `UniverseLabApp` owns the selected landing-region ID and passes it into region generation. Existing old schema-1 surface saves still resolve Shatterfall because the legacy region ID is unchanged.
+
+The parked ship is a renderer-local procedural model stored only inside `SurfaceWorldVisual`. It is not inserted into `EntityRegistry`; the authoritative spacecraft remains `ShipDynamics` and is restored to safe orbit only on TAKEOFF.
 
 ## Surface-instance boundary
 

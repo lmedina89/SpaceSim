@@ -1,6 +1,6 @@
 {
-  "version": "0.1.4.3.1",
-  "name": "Ship Cockpit View",
+  "version": "0.1.4.4",
+  "name": "Planetary Environments & Surface Weather",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,7 @@
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "COCKPIT-1431",
+  "buildMarker": "ENVWX-144",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric approximate L1-L5 + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples",
   "transitDrive": "explicitly fictional 1c/10c/100c/500c/1000c reference-frame translation; local Newtonian spacecraft velocity is preserved; automatic tier step-down and optional BOOST+APPROACH physical capture",
@@ -60,8 +60,15 @@
   "systemMap": "interactive mobile-first logarithmic X/Z system projection of live bodies, spacecraft and cosmic/anomaly sources with target, scan and transit handoff",
   "discovery": "persistent 0-3 layered scan depth per cosmic source; classification, signal/stability detail and final scientific/fictional status unlock progressively",
   "anomalyLayer": "9-15 deterministic seeded free-space anomaly signals per system spanning speculative, anomalous and intentionally impossible/fictional reality classes; visuals never secretly become gravity sources",
-  "surfaceFoundation": "first selected solid home planet exposes deterministic Shatterfall Basin local surface instance with procedural terrain, four environmental subzones, normal geology, seven anomaly POIs, first-person look/movement, proximity scanning, persistent local discoveries and scripted takeoff",
+  "surfaceFoundation": "three seeded landing regions on the first landable home planet, with deterministic terrain/environment identities, local first-person exploration, persistent scans and scripted takeoff",
   "surfacePhysicsBoundary": "orbital N-body simulation is intentionally held while the local surface instance is active; surface anomalies do not create hidden gravity, teleportation or time effects; atmospheric entry/aerodynamics, fluid weather, rigid-body surface physics and ecosystems are future layers",
-  "surfacePersistence": "optional schema-1 surfaceSession payload preserves body/region identity, local x/z/yaw/pitch and scanned/selected POIs; older schema-1 saves refresh deterministic landable metadata without replacing saved physical state",
-  "cockpitView": "default-on low-obstruction ship-view canopy overlay with subtle dashboard, side struts, observation/surface auto-hide, optional user toggle, and optional schema-1 cockpitEnabled preference persistence"
+  "surfacePersistence": "optional schema-1 surfaceSession payload preserves body/region identity, local x/z/yaw/pitch, scanned/selected POIs and local weather timeline; selected landing region and cockpit preference are optional backward-compatible fields",
+  "cockpitView": "default-on low-obstruction ship-view canopy overlay with subtle dashboard, side struts, observation/surface auto-hide, optional user toggle, and optional schema-1 cockpitEnabled preference persistence",
+  "surfaceWeather": "persistent deterministic local surface-weather clock with ordinary dust/fog/frost/electrostatic events plus explicitly impossible upward rain, shadow fog, suspended lightning and sky fractures; visibility/presentation only, no aerodynamic force or damage model",
+  "landedShip": "visible lightweight parked spacecraft exterior at the seeded landing site with landing beacon and distance readout; visual only and separate from authoritative orbital ship physics while surface mode holds N-body time",
+  "surfaceRegions": [
+    "shatterfall-basin",
+    "glasswind-flats",
+    "frostscar-rise"
+  ]
 }

@@ -1,56 +1,25 @@
-# Universe Lab v0.1.4.3.1 — Planetary Landing Foundation QA Report
+# Universe Lab v0.1.4.4 — Planetary Environments & Surface Weather QA Report
 
 ## Build identity
 
-- Version: **0.1.4.3**
-- Build marker: **COCKPIT-1431**
-- Source baseline: **v0.1.4.2 — System Map + Discovery & Anomalies**
-- Save schema: **1 (unchanged)**
-- Three.js: **0.185.0 (pinned)**
-- Target deployment: GitHub Pages `main` → `/(root)`
+- Source checkpoint: v0.1.4.3.1 Ship Cockpit View
+- Build marker: **ENVWX-144**
+- Save schema: **1** (unchanged)
+- Three.js: **0.185.0** (unchanged)
+- GitHub Pages: branch-root compatible
 
 ## Automated status
 
-`npm run qa` passes **98/98 tests** plus static file/shell/syntax validation.
+- `npm run check`: passed
+- Node syntax checks: passed for all JS/MJS source/tests
+- `npm test`: **104/104 passing**
 
-New v0.1.4.3 coverage verifies:
+New coverage verifies three deterministic landing regions, finite terrain and parked-ship sites, deterministic surface-weather timelines, save/load weather continuity, explicit separation of ordinary vs impossible weather classes, and inherited cockpit/surface/physics/navigation behavior.
 
-- first generated home world exposes the intended landable surface profile,
-- exactly one current detailed landable planet is advertised per generated system,
-- deterministic Shatterfall generation for the same system/body,
-- anomaly layout changes with another seed,
-- seven anomaly POIs + two conventional geology POIs,
-- speculative/anomalous/impossible surface reality classes are present,
-- terrain height is finite and meaningfully non-flat,
-- local movement obeys heading/sprint and hard region bounds,
-- surface scan requires proximity,
-- scanned POI state survives surface-session serialization/restore,
-- required LAND / surface HUD / movement controls and source modules exist.
+## Protected behavior
 
-All inherited 93 physics/navigation/discovery/weather/stellar/experiment/impact tests remain passing.
+The build does not replace the Newtonian solver, velocity-Verlet integration, spacecraft dynamics, BOOST/TRANSIT separation, observation-camera isolation, collision/impact model, cosmic discovery layer, stellar rendering, space-weather CME timeline or save schema. Surface weather is a local presentation state machine only.
 
-## Compatibility/model guards
+## Browser/device gate
 
-v0.1.4.3 does **not** change:
-
-- save schema number,
-- direct Newtonian major-body gravity,
-- velocity-Verlet major integrator,
-- FLIGHT / CRUISE / BOOST acceleration constants,
-- TRANSIT coordinate-rate tiers,
-- propulsion-safe APPROACH/HOLD logic,
-- particle experiment budgets/warp cap,
-- free-space anomaly gravity isolation,
-- stellar perceptual-LOD policy,
-- space-weather seeded scheduling/continuity.
-
-Surface-specific model boundary:
-
-- orbital N-body time is intentionally held during local surface exploration,
-- surface anomaly visuals are not gravity sources and do not alter time/causality,
-- landing/takeoff are scripted scene transitions, not atmospheric/aerodynamic simulations,
-- local terrain is a bounded deterministic region, not a whole-planet streamed terrain claim.
-
-## Device/browser caveat
-
-No claim is made that automated Node tests establish physical iPhone Safari WebGPU performance, safe-area fit, touch quality, thermal behavior or subjective surface/anomaly appearance. Physical iPhone Safari remains the release gate.
+Automated source/unit QA cannot substitute for physical WebGPU/mobile acceptance. Release gate remains iPhone Safari for touch controls, safe-area layout, weather visibility, parked-ship scale, sustained FPS and thermals.
