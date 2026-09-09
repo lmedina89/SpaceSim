@@ -26,6 +26,7 @@ import { Hud } from '../ui/hud.js';
 import { SystemMapController } from '../ui/systemMap.js';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
+import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff } from '../surface/landingTransition.js';
 import { stepSurfaceWeather, surfaceWeatherReading } from '../surface/surfaceWeather.js';
 
 function safeNumber(value, fallback) {
@@ -213,12 +214,14 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.4.1 online. Compact-by-default surface HUD and mobile exploration polish are active while planetary environments, weather, anomalies and parked spacecraft remain unchanged. Build SURFHUD-1441.');
+    this.hud.notify('v0.1.4.5 online. Landing reliability state machine, guarded boarding/ascent, transition recovery and upgraded spacecraft presence are active. Build SHIPLAND-145.');
   }
 
   newSystem(seed) {
     this.selectedSurfaceRegionId = 'shatterfall-basin';
-    if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false });
+    if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false, preserveRunning: true });
+    setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
+    this.running = true;
     if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
     this._particleWarpRestoreScale = null;
     this._particleWarpCapActive = false;
@@ -287,7 +290,7 @@ export class UniverseLabApp {
 
   landingEligibility(body = this.target) {
     if (!body) return { ok: false, reason: 'Select a planetary target first.' };
-    if (this.surfaceSession?.active) return { ok: false, reason: 'Already in a surface instance.' };
+    if (!canEnterSurface(this.surfaceTransition) || this.surfaceSession?.active) return { ok: false, reason: `Surface transition is ${this.surfaceTransition?.phase ?? 'active'}.` };
     if (body.kind !== BODY_KIND.PLANET || body.planetType === 'gas') return { ok: false, reason: 'This target has no solid landing foundation.' };
     if (!body.landable || body.surfaceProfile !== 'anomalous-showcase-v1') return { ok: false, reason: 'Detailed surface generation is not enabled for this world yet.' };
     if (this.transitState.active) return { ok: false, reason: 'Disengage TRANSIT before descent.' };
@@ -361,9 +364,63 @@ export class UniverseLabApp {
     this.invalidatePredictions();
   }
 
+  surfaceShipDistanceMeters() {
+    if (!this.surfaceSession?.active || !this.surfaceRegion) return Infinity;
+    const site = this.surfaceRegion.landedShip ?? this.surfaceRegion.landing ?? { x: 0, z: 0 };
+    return Math.hypot(this.surfaceSession.x - site.x, this.surfaceSession.z - site.z);
+  }
+
+  setSurfaceControlsEnabled(enabled) {
+    const active = enabled === true;
+    for (const selector of ['#surfaceForward','#surfaceBack','#surfaceLeft','#surfaceRight','#surfaceSprintButton','#surfaceScanButton']) {
+      const button = this.root.querySelector(selector);
+      if (button) button.disabled = !active;
+    }
+    const move = this.root.querySelector('#surfaceMovePad');
+    if (move) move.classList.toggle('transition-locked', !active);
+    if (!active) this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
+  }
+
+  updateSurfaceTransitionUi() {
+    const phase = this.surfaceTransition?.phase ?? SURFACE_PHASE.ORBIT;
+    const takeoff = this.root.querySelector('#surfaceTakeoffButton');
+    const phaseLabel = this.root.querySelector('#surfacePhase');
+    const shipCompact = this.root.querySelector('#surfaceShipCompact');
+    const shipDistance = this.surfaceShipDistanceMeters();
+    const boardingRadius = 36;
+    if (phaseLabel) phaseLabel.textContent = phase.toUpperCase();
+    if (shipCompact) {
+      if (!Number.isFinite(shipDistance)) shipCompact.textContent = 'SHIP —';
+      else if (phase === SURFACE_PHASE.ASCENDING) shipCompact.textContent = 'SHIP ASCENDING';
+      else if (phase === SURFACE_PHASE.DESCENDING) shipCompact.textContent = 'SHIP DESCENDING';
+      else shipCompact.textContent = `SHIP ${shipDistance.toFixed(0)} m${shipDistance <= boardingRadius ? ' · BOARD' : ''}`;
+    }
+    const save = this.root.querySelector('#surfaceSaveButton');
+    if (save) save.disabled = phase !== SURFACE_PHASE.LANDED;
+    if (takeoff) {
+      if (phase === SURFACE_PHASE.ASCENDING) {
+        takeoff.disabled = true;
+        takeoff.textContent = 'ASCENDING…';
+      } else if (phase === SURFACE_PHASE.DESCENDING) {
+        takeoff.disabled = true;
+        takeoff.textContent = 'LANDING…';
+      } else if (phase === SURFACE_PHASE.LANDED) {
+        takeoff.disabled = !(shipDistance <= boardingRadius);
+        takeoff.textContent = shipDistance <= boardingRadius ? 'BOARD / TAKEOFF' : `RETURN TO SHIP (${shipDistance.toFixed(0)} m)`;
+      } else {
+        takeoff.disabled = true;
+        takeoff.textContent = 'TAKEOFF / ORBIT';
+      }
+    }
+  }
+
   enterSurface(bodyId = this.targetId, options = {}) {
     const body = bodyId ? this.registry.get(bodyId) : null;
     if (!body) { this.hud.notify('Landing failed: target body is unavailable.'); return false; }
+    if (!options.fromLoad && !canEnterSurface(this.surfaceTransition)) {
+      this.hud.notify(`LANDING LOCKED: spacecraft transition is currently ${this.surfaceTransition.phase.toUpperCase()}.`);
+      return false;
+    }
     if (!options.fromLoad) {
       const eligibility = this.landingEligibility(body);
       if (!eligibility.ok) { this.hud.notify(`LANDING LOCKED: ${eligibility.reason}`); return false; }
@@ -372,49 +429,116 @@ export class UniverseLabApp {
       return false;
     }
 
-    this._surfacePreviousRunning = this.running;
-    this._surfacePreviousTimeScale = this.clock.timeScale;
-    if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
-    this.returnToShipView(false);
-    this.cancelNavigation();
-    this.ship.throttle = 0; this.ship.reverseThrottle = 0; this.ship.strafe = 0; this.ship.lift = 0; this.ship.braking = false; this.ship.clearNavigationAcceleration();
-    this.clock.setTimeScale(1);
-    const timeSelect = this.root.querySelector('#timeScale'); if (timeSelect) timeSelect.value = '1';
-    const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = 'SURFACE';
-    this.running = false;
+    const previousRunning = this.running;
+    const previousTimeScale = this.clock.timeScale;
+    this._surfacePreviousRunning = previousRunning;
+    this._surfacePreviousTimeScale = previousTimeScale;
 
-    const savedRegionId = options.snapshot?.regionId;
-    const savedRegionKey = typeof savedRegionId === 'string' && savedRegionId.startsWith(`${body.id}:`) ? savedRegionId.slice(body.id.length + 1) : null;
-    const regionKey = options.regionId ?? savedRegionKey ?? this.selectedSurfaceRegionId ?? body.surfaceRegionId ?? 'shatterfall-basin';
-    this.surfaceRegion = generateSurfaceRegion(this.system, body, regionKey);
-    this.selectedSurfaceRegionId = this.surfaceRegion.regionKey ?? regionKey;
-    this.surfaceSession = createSurfaceSession(this.surfaceRegion, options.snapshot ?? null);
-    this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
-    const star = this.registry.get('star-0') ?? this.bodies.find((entry) => entry.kind === BODY_KIND.STAR) ?? null;
-    this.renderer.enterSurface(this.surfaceRegion, body, star);
-    this.root.classList.add('surface-active');
-    this.syncViewClasses();
-    for (const id of ['morePanel','labPanel','scannerPanel','sciencePanel','cosmosPanel','overlayPanel','mapPanel','transitPanel']) {
-      const panel = this.root.querySelector(`#${id}`); if (panel) panel.hidden = true;
+    try {
+      if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
+      this.returnToShipView(false);
+      this.cancelNavigation();
+      this.ship.throttle = 0; this.ship.reverseThrottle = 0; this.ship.strafe = 0; this.ship.lift = 0; this.ship.braking = false; this.ship.clearNavigationAcceleration();
+      this.clock.setTimeScale(1);
+      const timeSelect = this.root.querySelector('#timeScale'); if (timeSelect) timeSelect.value = '1';
+      const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = 'SURFACE';
+      this.running = false;
+
+      const savedRegionId = options.snapshot?.regionId;
+      const savedRegionKey = typeof savedRegionId === 'string' && savedRegionId.startsWith(`${body.id}:`) ? savedRegionId.slice(body.id.length + 1) : null;
+      const regionKey = options.regionId ?? savedRegionKey ?? this.selectedSurfaceRegionId ?? body.surfaceRegionId ?? 'shatterfall-basin';
+      this.surfaceRegion = generateSurfaceRegion(this.system, body, regionKey);
+      this.selectedSurfaceRegionId = this.surfaceRegion.regionKey ?? regionKey;
+      this.surfaceSession = createSurfaceSession(this.surfaceRegion, options.snapshot ?? null);
+      this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
+
+      // Fresh landings deliberately face the parked spacecraft so the descent is visible.
+      if (!options.fromLoad) {
+        const site = this.surfaceRegion.landedShip ?? this.surfaceRegion.landing;
+        if (site) this.surfaceSession.yaw = Math.atan2(site.x - this.surfaceSession.x, site.z - this.surfaceSession.z);
+      }
+
+      const star = this.registry.get('star-0') ?? this.bodies.find((entry) => entry.kind === BODY_KIND.STAR) ?? null;
+      this.renderer.enterSurface(this.surfaceRegion, body, star);
+      this.root.classList.add('surface-active');
+      this.syncViewClasses();
+      for (const id of ['morePanel','labPanel','scannerPanel','sciencePanel','cosmosPanel','overlayPanel','mapPanel','transitPanel']) {
+        const panel = this.root.querySelector(`#${id}`); if (panel) panel.hidden = true;
+      }
+      const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = false;
+      const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = false;
+      const velocity = this.root.querySelector('#velocityMarker'); if (velocity) velocity.hidden = true;
+      this.setSurfaceHudExpanded(this.surfaceSession.hudExpanded === true, false);
+      if (options.fromLoad) {
+        setLandingPhase(this.surfaceTransition, SURFACE_PHASE.LANDED, { bodyId: body.id, regionId: this.surfaceRegion.id });
+        this.setSurfaceControlsEnabled(true);
+      } else {
+        beginLandingTransition(this.surfaceTransition, SURFACE_PHASE.DESCENDING, { durationSeconds: SURFACE_TRANSITION_SECONDS.descent, bodyId: body.id, regionId: this.surfaceRegion.id });
+        this.setSurfaceControlsEnabled(false);
+      }
+      this.selectTarget(body.id);
+      this.updateSurfaceHud();
+      this.updateSurfaceTransitionUi();
+      if (options.notify !== false) this.hud.notify(options.fromLoad
+        ? `SURFACE RESTORED: ${body.name} · ${this.surfaceRegion.name}. Local exploration resumed beside the parked spacecraft.`
+        : `DESCENT: ${body.name} · ${this.surfaceRegion.name}. Scripted landing sequence engaged; controls unlock after touchdown. Orbital N-body time is held while the local surface instance is active.`, 6500);
+      return true;
+    } catch (error) {
+      console.error('Surface entry failure', error);
+      this.recoverSurfaceRuntime({ body, reason: `Landing transition failed: ${error?.message ?? error}`, restoreOrbit: false, previousRunning, previousTimeScale });
+      return false;
     }
-    const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = false;
-    const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = false;
-    const velocity = this.root.querySelector('#velocityMarker'); if (velocity) velocity.hidden = true;
-    this.setSurfaceHudExpanded(this.surfaceSession.hudExpanded === true, false);
-    this.selectTarget(body.id);
-    this.updateSurfaceHud();
-    if (options.notify !== false) this.hud.notify(`LANDED: ${body.name} · ${this.surfaceRegion.name}. The parked spacecraft is behind/near the landing point. Orbital N-body time is held; local seeded weather now advances on its own persistent surface clock. LOOK + movement explore the region; SCAN identifies geology and anomalies.`, 7600);
-    return true;
   }
 
-  exitSurface({ returnToOrbit = true, notify = true } = {}) {
-    if (!this.surfaceSession?.active && !this.surfaceRegion) return false;
+  recoverSurfaceRuntime({ body = null, reason = 'Surface transition recovery.', restoreOrbit = true, previousRunning = this._surfacePreviousRunning, previousTimeScale = this._surfacePreviousTimeScale } = {}) {
+    if (this._surfaceRecoveryGuard) return false;
+    this._surfaceRecoveryGuard = true;
+    try {
+      try { this.renderer.exitSurface(); } catch (error) { console.error('Surface renderer recovery cleanup failed', error); }
+      this.surfaceSession = null;
+      this.surfaceRegion = null;
+      this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
+      setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
+      this.root.classList.remove('surface-active');
+      this.syncViewClasses();
+      const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = true;
+      const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = true;
+      if (restoreOrbit && body) {
+        this.placeShipInSurfaceReturnOrbit(body);
+        this.selectTarget(body.id);
+      }
+      const scale = Math.max(1, Number(previousTimeScale) || 1);
+      this.clock.setTimeScale(scale);
+      const timeSelect = this.root.querySelector('#timeScale');
+      if (timeSelect) {
+        if (![...timeSelect.options].some((option) => Number(option.value) === scale)) {
+          const option = document.createElement('option'); option.value = String(scale); option.textContent = `${scale.toLocaleString()}×`; timeSelect.appendChild(option);
+        }
+        timeSelect.value = String(scale);
+      }
+      const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = `WARP ${scale.toLocaleString()}×`;
+      this.running = previousRunning !== false;
+      const pause = this.root.querySelector('#pauseToggle'); if (pause) pause.textContent = this.running ? 'PAUSE' : 'RESUME';
+      this.updateLandingUi();
+      this.hud.notify(`SURFACE RECOVERY: ${reason} Returned to a valid orbital state instead of leaving the simulation half-transitioned.`, 7600);
+      return true;
+    } finally {
+      this._surfaceRecoveryGuard = false;
+    }
+  }
+
+  exitSurface({ returnToOrbit = true, notify = true, preserveRunning = false } = {}) {
+    if (!this.surfaceSession?.active && !this.surfaceRegion) {
+      setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
+      return false;
+    }
     const bodyId = this.surfaceSession?.bodyId ?? this.surfaceRegion?.bodyId;
     const body = bodyId ? this.registry.get(bodyId) : null;
-    this.renderer.exitSurface();
+    try { this.renderer.exitSurface(); } catch (error) { console.error('Surface renderer exit cleanup failed', error); }
     this.surfaceSession = null;
     this.surfaceRegion = null;
     this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
+    setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
     this.root.classList.remove('surface-active');
     this.syncViewClasses();
     const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = true;
@@ -422,21 +546,86 @@ export class UniverseLabApp {
     if (returnToOrbit && body) {
       this.placeShipInSurfaceReturnOrbit(body);
       this.selectTarget(body.id);
-      this.clock.setTimeScale(1);
+      // A successful ascent always hands control back at 1×. The pre-surface orbital scale is
+      // preserved in saves/recovery metadata, but is not re-applied automatically after landing.
+      const restoreScale = 1;
+      this.clock.setTimeScale(restoreScale);
       const timeSelect = this.root.querySelector('#timeScale'); if (timeSelect) timeSelect.value = '1';
       const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = 'WARP 1×';
     }
-    this.running = returnToOrbit ? this._surfacePreviousRunning : false;
+    if (!preserveRunning) this.running = returnToOrbit ? this._surfacePreviousRunning !== false : false;
+    const pause = this.root.querySelector('#pauseToggle'); if (pause) pause.textContent = this.running ? 'PAUSE' : 'RESUME';
     this.updateLandingUi();
-    if (notify && returnToOrbit) this.hud.notify(`ASCENT COMPLETE: scripted surface transition returned the spacecraft to a safe 5-radius orbit around ${body?.name ?? 'the landing world'}. Atmospheric ascent/aerodynamics are not simulated yet; normal Newtonian flight is restored at 1×.`, 7000);
+    if (notify && returnToOrbit) this.hud.notify(`ORBIT RESTORED: spacecraft returned to a safe 5-radius orbit around ${body?.name ?? 'the landing world'}. Normal Newtonian flight is active again.`, 7000);
     return true;
+  }
+
+  requestSurfaceTakeoff() {
+    if (!this.surfaceSession?.active || !this.surfaceRegion) { this.hud.notify('No active landed spacecraft session.'); return false; }
+    if (!canRequestTakeoff(this.surfaceTransition)) { this.hud.notify(`TAKEOFF LOCKED: transition is ${this.surfaceTransition.phase.toUpperCase()}.`); return false; }
+    const distance = this.surfaceShipDistanceMeters();
+    const boardingRadius = 36;
+    if (!(distance <= boardingRadius)) {
+      this.hud.notify(`RETURN TO SHIP: you are ${distance.toFixed(0)} m from the spacecraft. Move within ${boardingRadius} m to board and take off.`);
+      this.updateSurfaceTransitionUi();
+      return false;
+    }
+    const shipSite = this.surfaceRegion.landedShip ?? this.surfaceRegion.landing;
+    if (shipSite) {
+      this.surfaceSession.yaw = Math.atan2(shipSite.x - this.surfaceSession.x, shipSite.z - this.surfaceSession.z);
+      this.surfaceSession.pitch = 0.06;
+    }
+    beginLandingTransition(this.surfaceTransition, SURFACE_PHASE.ASCENDING, {
+      durationSeconds: SURFACE_TRANSITION_SECONDS.ascent,
+      bodyId: this.surfaceSession.bodyId,
+      regionId: this.surfaceRegion.id,
+    });
+    this.setSurfaceControlsEnabled(false);
+    this.setSurfaceHudExpanded(false, false);
+    this.updateSurfaceTransitionUi();
+    this.hud.notify('BOARDING COMPLETE: ascent sequence engaged. VTOL thrusters are lifting the spacecraft clear of the landing site before orbital handoff.', 5200);
+    return true;
+  }
+
+  completeSurfaceAscent() {
+    const bodyId = this.surfaceSession?.bodyId ?? this.surfaceRegion?.bodyId;
+    const body = bodyId ? this.registry.get(bodyId) : null;
+    try {
+      if (!body) throw new Error('Landing body was lost during ascent.');
+      this.exitSurface({ returnToOrbit: true, notify: false });
+      this.returnToShipView(false);
+      this.hud.notify(`ASCENT COMPLETE: ${body.name} surface cleared and the spacecraft is back in safe orbit. LAND / DESCEND is available again after the normal eligibility checks.`, 7200);
+      return true;
+    } catch (error) {
+      console.error('Surface ascent completion failure', error);
+      return this.recoverSurfaceRuntime({ body, reason: `Ascent handoff failed: ${error?.message ?? error}`, restoreOrbit: true });
+    }
   }
 
   updateSurface(realDt) {
     if (!this.surfaceSession?.active || !this.surfaceRegion) return;
-    stepSurfaceMovement(this.surfaceSession, this.surfaceRegion, this.surfaceInput, realDt);
-    stepSurfaceWeather(this.surfaceSession.weather, this.surfaceRegion, realDt);
-    this.updateSurfaceHud();
+    const step = stepLandingTransition(this.surfaceTransition, realDt);
+    if (this.surfaceTransition.phase === SURFACE_PHASE.DESCENDING) {
+      this.surfaceSession.lastMoveSpeedMps = 0;
+      if (step.completed) {
+        setLandingPhase(this.surfaceTransition, SURFACE_PHASE.LANDED, { bodyId: this.surfaceSession.bodyId, regionId: this.surfaceRegion.id });
+        this.setSurfaceControlsEnabled(true);
+        this.hud.notify(`TOUCHDOWN: ${this.surfaceRegion.name}. Surface controls unlocked; the spacecraft beacon remains active for return/boarding.`);
+      }
+    } else if (this.surfaceTransition.phase === SURFACE_PHASE.ASCENDING) {
+      this.surfaceSession.lastMoveSpeedMps = 0;
+      if (step.completed) {
+        this.completeSurfaceAscent();
+        return;
+      }
+    } else if (canWalkSurface(this.surfaceTransition)) {
+      stepSurfaceMovement(this.surfaceSession, this.surfaceRegion, this.surfaceInput, realDt);
+    }
+    if (this.surfaceSession?.active && this.surfaceRegion) {
+      stepSurfaceWeather(this.surfaceSession.weather, this.surfaceRegion, realDt);
+      this.updateSurfaceHud();
+      this.updateSurfaceTransitionUi();
+    }
   }
 
   setSurfaceHudExpanded(expanded, notify = false) {
@@ -1252,6 +1441,7 @@ export class UniverseLabApp {
     if (turnButton) turnButton.textContent = 'TURN & BURN';
     const warpButton = this.root.querySelector('#warpQuick');
     if (warpButton) warpButton.textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`;
+    const pauseButton = this.root.querySelector('#pauseToggle'); if (pauseButton) pauseButton.textContent = this.running ? 'PAUSE' : 'RESUME';
     if (message) this.hud.notify(message);
   }
 
@@ -1574,7 +1764,7 @@ export class UniverseLabApp {
     this.experimentMs = 0;
     this.updateSurface(realDt);
     const renderStart = performance.now();
-    this.renderer.renderSurface({ session: this.surfaceSession, realTimeSeconds: now / 1000 });
+    if (this.surfaceSession?.active) this.renderer.renderSurface({ session: this.surfaceSession, transition: this.surfaceTransition, realTimeSeconds: now / 1000 });
     this.renderMs = performance.now() - renderStart;
     this.fpsFrames += 1;
     if (now - this.fpsClock >= 500) {
@@ -1664,7 +1854,8 @@ export class UniverseLabApp {
     return {
       seed: this.system.seed,
       elapsedSimSeconds: this.clock.elapsedSimSeconds,
-      timeScale: this.clock.timeScale,
+      timeScale: this.surfaceSession?.active ? this._surfacePreviousTimeScale : this.clock.timeScale,
+      simulationRunning: this.surfaceSession?.active ? this._surfacePreviousRunning : this.running,
       ship: this.ship.serialize(),
       bodies: this.bodies.map(serializeBody),
       minorCount: this.minorField?.count ?? 0,
@@ -1684,7 +1875,8 @@ export class UniverseLabApp {
   }
 
   loadSave() {
-    if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false });
+    if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false, preserveRunning: true });
+    setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
     if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false });
     this._particleWarpRestoreScale = null;
     this._particleWarpCapActive = false;
@@ -1736,7 +1928,10 @@ export class UniverseLabApp {
       if (!Array.isArray(entry) || entry.length < 2 || !this.cosmicPhenomena.has(entry[0])) continue;
       this.discoveryScanDepth.set(entry[0], Math.max(0, Math.min(3, Math.floor(Number(entry[1]) || 0))));
     }
-    this.clock.setTimeScale(payload.timeScale ?? 60);
+    this.running = payload.simulationRunning !== false;
+    this._surfacePreviousRunning = this.running;
+    this._surfacePreviousTimeScale = Math.max(1, safeNumber(payload.timeScale, 60));
+    this.clock.setTimeScale(this._surfacePreviousTimeScale);
     const timeSelect = this.root.querySelector('#timeScale');
     if (![...timeSelect.options].some((option) => Number(option.value) === this.clock.timeScale)) {
       const option = document.createElement('option');
@@ -1747,6 +1942,7 @@ export class UniverseLabApp {
     timeSelect.value = String(this.clock.timeScale);
     const warpButton = this.root.querySelector('#warpQuick');
     if (warpButton) warpButton.textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`;
+    const pauseButton = this.root.querySelector('#pauseToggle'); if (pauseButton) pauseButton.textContent = this.running ? 'PAUSE' : 'RESUME';
     this.root.querySelector('#minorCount').value = String(this.minorField.count);
     this.root.querySelector('#seedInput').value = payload.seed;
     if (payload.trajectoryHorizon) this.root.querySelector('#trajectoryHorizon').value = String(payload.trajectoryHorizon);
@@ -2040,7 +2236,7 @@ export class UniverseLabApp {
 
     $('#surfaceScanButton').addEventListener('click', () => this.scanSurface());
     $('#surfaceSaveButton').addEventListener('click', () => { this.saveSystem.save(this.serialize()); this.hud.notify('Surface position and discoveries saved locally on this device.'); });
-    $('#surfaceTakeoffButton').addEventListener('click', () => this.exitSurface({ returnToOrbit: true, notify: true }));
+    $('#surfaceTakeoffButton').addEventListener('click', () => this.requestSurfaceTakeoff());
 
     // The simulator is an interactive surface, not a document. In particular, iOS Safari
     // otherwise starts text-selection/callout gestures during a sustained thruster press.

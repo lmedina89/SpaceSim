@@ -1,6 +1,6 @@
 {
-  "version": "0.1.4.4.1",
-  "name": "Surface HUD & Mobile Exploration Polish",
+  "version": "0.1.4.5",
+  "name": "Landing Reliability & Spacecraft Presence",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,7 @@
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "SURFHUD-1441",
+  "buildMarker": "SHIPLAND-145",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric approximate L1-L5 + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples",
   "transitDrive": "explicitly fictional 1c/10c/100c/500c/1000c reference-frame translation; local Newtonian spacecraft velocity is preserved; automatic tier step-down and optional BOOST+APPROACH physical capture",
@@ -60,16 +60,18 @@
   "systemMap": "interactive mobile-first logarithmic X/Z system projection of live bodies, spacecraft and cosmic/anomaly sources with target, scan and transit handoff",
   "discovery": "persistent 0-3 layered scan depth per cosmic source; classification, signal/stability detail and final scientific/fictional status unlock progressively",
   "anomalyLayer": "9-15 deterministic seeded free-space anomaly signals per system spanning speculative, anomalous and intentionally impossible/fictional reality classes; visuals never secretly become gravity sources",
-  "surfaceFoundation": "three seeded landing regions on the first landable home planet, with deterministic terrain/environment identities, local first-person exploration, persistent scans and scripted takeoff",
+  "surfaceFoundation": "three seeded landing regions on the first landable home planet, with deterministic terrain/environment identities, local first-person exploration, persistent scans, explicit descent/landed/ascent/orbit lifecycle and guarded boarding-based takeoff",
   "surfacePhysicsBoundary": "orbital N-body simulation is intentionally held while the local surface instance is active; surface anomalies do not create hidden gravity, teleportation or time effects; atmospheric entry/aerodynamics, fluid weather, rigid-body surface physics and ecosystems are future layers",
-  "surfacePersistence": "optional schema-1 surfaceSession payload preserves body/region identity, local x/z/yaw/pitch, scanned/selected POIs and local weather timeline; selected landing region and cockpit preference are optional backward-compatible fields",
+  "surfacePersistence": "optional schema-1 surfaceSession payload preserves body/region identity, local x/z/yaw/pitch, scanned/selected POIs and local weather timeline; selected landing region, cockpit preference, pre-surface simulation running state and orbital time scale are optional backward-compatible fields",
   "cockpitView": "default-on low-obstruction ship-view canopy overlay with subtle dashboard, side struts, observation/surface auto-hide, optional user toggle, and optional schema-1 cockpitEnabled preference persistence",
   "surfaceWeather": "persistent deterministic local surface-weather clock with ordinary dust/fog/frost/electrostatic events plus explicitly impossible upward rain, shadow fog, suspended lightning and sky fractures; visibility/presentation only, no aerodynamic force or damage model",
-  "landedShip": "visible lightweight parked spacecraft exterior at the seeded landing site with landing beacon and distance readout; visual only and separate from authoritative orbital ship physics while surface mode holds N-body time",
+  "landedShip": "upgraded lightweight spacecraft exterior with smoother hull, canopy, swept wings, twin engines, VTOL thrusters, landing gear, nav/strobe/landing lights, landing beacon and distance/boarding readout; visual surface representation remains separate from authoritative orbital ship physics while landed",
   "surfaceRegions": [
     "shatterfall-basin",
     "glasswind-flats",
     "frostscar-rise"
   ],
-  "surfaceHud": "compact-by-default mobile exploration HUD with persistent expanded/collapsed state, always-available scan/sprint controls, details-only save/takeoff controls, and reduced WALK-pad footprint"
+  "surfaceHud": "compact-by-default mobile exploration HUD with persistent expanded/collapsed state, always-available scan/sprint controls, details-only save/takeoff controls, and reduced WALK-pad footprint",
+  "landingLifecycle": "explicit ORBIT -> DESCENDING -> LANDED -> ASCENDING -> ORBIT state machine with transition locking, near-ship boarding requirement, scripted VTOL descent/ascent visuals, safe orbital handoff and recovery fallback instead of half-transitioned states",
+  "landingRecovery": "surface entry/ascent failures clean up renderer/UI/session state and fall back to a valid orbital state; repeated LAND is blocked during transitions and becomes eligible again only after successful orbital handoff"
 }

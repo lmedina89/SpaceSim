@@ -1,12 +1,25 @@
-# Universe Lab v0.1.4.4.1 — Surface HUD & Mobile Exploration Polish
+# Universe Lab v0.1.4.5 — Landing Reliability & Spacecraft Presence
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `SURFHUD-1441`  
-**Save schema:** 1 (unchanged; surface/weather state, selected landing region and cockpit preference remain optional backward-compatible payload fields)  
+**Build marker:** `SHIPLAND-145`  
+**Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
+
+
+## v0.1.4.5 landing reliability + spacecraft presence
+
+v0.1.4.5 is built directly from the physically tested v0.1.4.4.1 surface-HUD baseline. It fixes the surface/orbit lifecycle instead of patching TAKEOFF in isolation.
+
+The landing path now has explicit states: **ORBIT → DESCENDING → LANDED → ASCENDING → ORBIT**. LAND cannot be re-entered while a transition is in progress, surface movement/scan/save controls are locked during descent/ascent, and any failed entry/ascent cleanup falls back to a valid orbital state rather than leaving the app half-landed. Successful ascent hands control back at safe 5-radius orbit and 1× Newtonian flight.
+
+TAKEOFF is now a boarding action. The compact HUD shows ship distance/readiness; the player must be within 36 m of the parked spacecraft before **BOARD / TAKEOFF** can start. Fresh descent and ascent automatically face the ship so the scripted VTOL sequence is actually visible.
+
+The exterior spacecraft was rebuilt with a smoother 20-segment fuselage/nose, dark heat-shield chine, canopy/spine, swept wing geometry, tail surfaces, twin engine pods/nozzles, four VTOL thrusters, landing struts/pads, nav/strobe/landing lights and ground transition glow. It remains a lightweight renderer-local representation; authoritative orbital `ShipDynamics` is unchanged.
+
+Save/load now also preserves the pre-surface simulation running state and orbital time-scale intent as optional schema-1 fields, preventing a loaded surface session from accidentally inheriting the temporary landed pause as its orbital state.
 
 v0.1.4.3 is built directly from v0.1.4.2 System Map + Discovery & Anomalies. It preserves System Map/discovery, persistent space weather, stellar rendering, Newtonian flight, BOOST, TRANSIT, impacts, experiments, compact objects and scientific overlays while introducing the first deliberately bounded planetary surface architecture.
 

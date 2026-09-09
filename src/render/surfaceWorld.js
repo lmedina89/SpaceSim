@@ -325,49 +325,130 @@ function createLandingBeacon(region) {
 function createLandedShip(region) {
   const group = new THREE.Group();
   group.name = 'landed-spacecraft';
-  const hull = new THREE.MeshStandardMaterial({ color: 0xb7c1ca, roughness: 0.46, metalness: 0.72 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x252d35, roughness: 0.42, metalness: 0.78 });
-  const panel = new THREE.MeshStandardMaterial({ color: 0x485966, roughness: 0.58, metalness: 0.55 });
-  const canopy = new THREE.MeshStandardMaterial({ color: 0x142d3b, roughness: 0.1, metalness: 0.45, transparent: true, opacity: 0.82, emissive: 0x06131b, emissiveIntensity: 0.45 });
-  const engineGlow = new THREE.MeshBasicMaterial({ color: 0x67d9ff, transparent: true, opacity: 0.62, blending: THREE.AdditiveBlending, depthWrite: false });
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(3.25, 4.1, 17, 10, 1, false), hull);
-  body.rotation.x = Math.PI / 2; body.position.set(0, 5.2, 0.5); group.add(body);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(3.25, 7.2, 10), hull);
-  nose.rotation.x = Math.PI / 2; nose.position.set(0, 5.2, 12.1); group.add(nose);
-  const tail = new THREE.Mesh(new THREE.CylinderGeometry(4.1, 3.6, 4.4, 10), dark);
-  tail.rotation.x = Math.PI / 2; tail.position.set(0, 5.2, -10); group.add(tail);
+  const hull = new THREE.MeshStandardMaterial({ color: 0xc8d0d5, roughness: 0.34, metalness: 0.78 });
+  const hullDark = new THREE.MeshStandardMaterial({ color: 0x202a31, roughness: 0.38, metalness: 0.82 });
+  const panel = new THREE.MeshStandardMaterial({ color: 0x536773, roughness: 0.42, metalness: 0.66 });
+  const accent = new THREE.MeshStandardMaterial({ color: 0x2c4653, roughness: 0.32, metalness: 0.7, emissive: 0x07151b, emissiveIntensity: 0.32 });
+  const canopy = new THREE.MeshStandardMaterial({ color: 0x0d3140, roughness: 0.08, metalness: 0.34, transparent: true, opacity: 0.88, emissive: 0x082833, emissiveIntensity: 0.62 });
+  const engineGlowBase = { color: 0x6ee9ff, transparent: true, opacity: 0.34, blending: THREE.AdditiveBlending, depthWrite: false };
+  const engineMaterials = [];
 
-  const canopyMesh = new THREE.Mesh(new THREE.SphereGeometry(2.7, 14, 9, 0, Math.PI * 2, 0, Math.PI * 0.62), canopy);
-  canopyMesh.scale.set(0.9, 0.48, 1.25); canopyMesh.rotation.x = -0.12; canopyMesh.position.set(0, 7.3, 6.1); group.add(canopyMesh);
+  // Smooth central pressure hull: long enough to read as a real vehicle, but kept compact for mobile.
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 3.45, 15.5, 20, 2, false), hull);
+  body.rotation.x = Math.PI / 2; body.position.set(0, 5.25, -0.3); body.scale.x = 0.92; group.add(body);
+  const forwardCollar = new THREE.Mesh(new THREE.CylinderGeometry(2.45, 2.9, 3.8, 20, 1, false), hull);
+  forwardCollar.rotation.x = Math.PI / 2; forwardCollar.position.set(0, 5.35, 8.9); forwardCollar.scale.x = 0.94; group.add(forwardCollar);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(2.45, 8.4, 20, 2, false), hull);
+  nose.rotation.x = Math.PI / 2; nose.position.set(0, 5.35, 14.9); nose.scale.x = 0.9; group.add(nose);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(3.45, 3.05, 4.6, 20, 1, false), hullDark);
+  tail.rotation.x = Math.PI / 2; tail.position.set(0, 5.2, -10.25); tail.scale.x = 0.92; group.add(tail);
 
+  // Lower chine / heat shield gives the hull a believable underside silhouette.
+  const belly = new THREE.Mesh(new THREE.BoxGeometry(4.7, 0.65, 14.5), hullDark);
+  belly.position.set(0, 3.25, -0.4); belly.rotation.x = 0.03; group.add(belly);
+  const dorsal = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.35, 11.5), accent);
+  dorsal.position.set(0, 7.58, -0.7); group.add(dorsal);
+
+  const canopyMesh = new THREE.Mesh(new THREE.SphereGeometry(2.65, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), canopy);
+  canopyMesh.scale.set(0.82, 0.48, 1.42); canopyMesh.rotation.x = -0.16; canopyMesh.position.set(0, 7.1, 7.1); group.add(canopyMesh);
+  const canopySpine = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 6.2), hullDark);
+  canopySpine.position.set(0, 7.92, 7.25); canopySpine.rotation.x = -0.06; group.add(canopySpine);
+
+  const makeWing = (side) => {
+    const s = side;
+    const geometry = new THREE.BufferGeometry();
+    const verts = new Float32Array([
+      s * 2.5, 4.55, 3.6,
+      s * 11.3, 4.18, -1.5,
+      s * 8.4, 4.28, -7.3,
+      s * 2.7, 4.52, -5.3,
+    ]);
+    geometry.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+    geometry.setIndex([0,1,2,0,2,3]);
+    geometry.computeVertexNormals();
+    const wing = new THREE.Mesh(geometry, panel.clone());
+    group.add(wing);
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.35, 5.4), hullDark);
+    edge.position.set(s * 8.9, 4.2, -3.9); edge.rotation.y = s * 0.47; group.add(edge);
+  };
+  makeWing(-1); makeWing(1);
+
+  // Tail surfaces.
   for (const side of [-1, 1]) {
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(9.5, 0.65, 6.8), panel);
-    wing.position.set(side * 6.1, 4.5, -1.3); wing.rotation.y = side * -0.12; group.add(wing);
-    const pod = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.7, 8.4, 10), dark);
-    pod.rotation.x = Math.PI / 2; pod.position.set(side * 6.6, 4.6, -3.8); group.add(pod);
-    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.55, 1.3, 10), dark);
-    nozzle.rotation.x = Math.PI / 2; nozzle.position.set(side * 6.6, 4.6, -8.5); group.add(nozzle);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(1.05, 16), engineGlow.clone());
-    glow.position.set(side * 6.6, 4.6, -9.18); group.add(glow);
+    const stabilizer = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.42, 3.4), panel);
+    stabilizer.position.set(side * 4.15, 5.3, -10.1); stabilizer.rotation.y = side * 0.12; group.add(stabilizer);
+  }
+  const finGeom = new THREE.BufferGeometry();
+  finGeom.setAttribute('position', new THREE.Float32BufferAttribute([0,6.4,-8.4, 0,11.2,-10.6, 0,6.2,-12.0], 3));
+  finGeom.setIndex([0,1,2]); finGeom.computeVertexNormals();
+  group.add(new THREE.Mesh(finGeom, panel.clone()));
+
+  // Twin main engines and rear nozzles.
+  for (const side of [-1, 1]) {
+    const pod = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.55, 8.7, 16, 1, false), hullDark);
+    pod.rotation.x = Math.PI / 2; pod.position.set(side * 5.8, 4.7, -4.0); group.add(pod);
+    const intake = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.14, 6, 18), accent);
+    intake.rotation.x = Math.PI / 2; intake.position.set(side * 5.8, 4.7, 0.45); group.add(intake);
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.48, 1.8, 16, 1, true), hullDark);
+    nozzle.rotation.x = Math.PI / 2; nozzle.position.set(side * 5.8, 4.7, -8.95); group.add(nozzle);
+    const glowMat = new THREE.MeshBasicMaterial(engineGlowBase); engineMaterials.push(glowMat);
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.94, 20), glowMat);
+    glow.position.set(side * 5.8, 4.7, -9.9); group.add(glow);
   }
 
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x56616b, roughness: 0.66, metalness: 0.76 });
-  for (const [x, z] of [[-4.6, 2.2],[4.6, 2.2],[-4.2,-5.6],[4.2,-5.6]]) {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 4.3, 7), legMat);
-    leg.position.set(x, 2.2, z); leg.rotation.z = x < 0 ? -0.18 : 0.18; group.add(leg);
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.25, 0.32, 10), dark);
-    pad.position.set(x + (x < 0 ? -0.4 : 0.4), 0.18, z); group.add(pad);
+  // Four downward VTOL thrusters make the scripted landing/takeoff presentation visually coherent.
+  const vtolPlumes = [];
+  for (const [x, z] of [[-3.2,3.0],[3.2,3.0],[-3.3,-4.5],[3.3,-4.5]]) {
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.82, 0.9, 12, 1, true), hullDark);
+    nozzle.position.set(x, 2.95, z); group.add(nozzle);
+    const plumeMat = new THREE.MeshBasicMaterial({ color: 0x8ef3ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    engineMaterials.push(plumeMat);
+    const plume = new THREE.Mesh(new THREE.ConeGeometry(0.72, 4.8, 12, 1, true), plumeMat);
+    plume.position.set(x, 0.55, z); plume.rotation.x = Math.PI; group.add(plume); vtolPlumes.push(plume);
   }
 
-  const navPort = new THREE.PointLight(0xff4b5a, 18, 32, 2); navPort.position.set(-7.8, 5.1, 0); group.add(navPort);
-  const navStar = new THREE.PointLight(0x59ff99, 18, 32, 2); navStar.position.set(7.8, 5.1, 0); group.add(navStar);
-  group.userData.navLights = [navPort, navStar];
-  group.userData.engineMaterials = group.children.filter((c) => c.material?.blending === THREE.AdditiveBlending).map((c) => c.material);
+  // Landing gear: angled struts and broad feet, intentionally simple but proportionally believable.
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x68737b, roughness: 0.52, metalness: 0.78 });
+  const pads = [[-4.5,2.8],[4.5,2.8],[-4.2,-6.0],[4.2,-6.0]];
+  for (const [x,z] of pads) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.28, 4.15, 10), legMat);
+    leg.position.set(x * 0.88, 2.15, z); leg.rotation.z = x < 0 ? -0.22 : 0.22; group.add(leg);
+    const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 2.6, 8), legMat);
+    brace.position.set(x * 0.66, 2.25, z + 0.5); brace.rotation.z = x < 0 ? 0.62 : -0.62; group.add(brace);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.15, 0.24, 14), hullDark);
+    pad.position.set(x, 0.13, z); group.add(pad);
+  }
+
+  // Navigation/strobe/landing lights.
+  const navPort = new THREE.PointLight(0xff4056, 14, 36, 2); navPort.position.set(-10.5, 4.55, -1.3); group.add(navPort);
+  const navStar = new THREE.PointLight(0x55ffa1, 14, 36, 2); navStar.position.set(10.5, 4.55, -1.3); group.add(navStar);
+  const landingLight = new THREE.PointLight(0xe8fbff, 55, 70, 2); landingLight.position.set(0, 2.7, 7.0); group.add(landingLight);
+  const strobe = new THREE.PointLight(0xffffff, 0, 55, 2); strobe.position.set(0, 8.2, -2.0); group.add(strobe);
 
   const site = region.landedShip ?? { x: -18, z: -20, yaw: 0 };
   placeOnGround(group, region, site.x, site.z, 0.2);
   group.rotation.y = site.yaw ?? 0;
+  group.userData.baseY = group.position.y;
+  group.userData.navLights = [navPort, navStar];
+  group.userData.landingLight = landingLight;
+  group.userData.strobe = strobe;
+  group.userData.engineMaterials = engineMaterials;
+  group.userData.vtolPlumes = vtolPlumes;
+  return group;
+}
+
+function createShipTransitionFx(region) {
+  const group = new THREE.Group();
+  group.name = 'ship-transition-fx';
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xd7b07d, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(5, 14, 36), ringMat); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.18; group.add(ring);
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0x8feeff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  const core = new THREE.Mesh(new THREE.CircleGeometry(5.4, 28), coreMat); core.rotation.x = -Math.PI / 2; core.position.y = 0.2; group.add(core);
+  const light = new THREE.PointLight(0xb8f5ff, 0, 95, 2); light.position.y = 4; group.add(light);
+  const site = region.landedShip ?? region.landing ?? { x: 0, z: 0 };
+  placeOnGround(group, region, site.x, site.z, 0);
+  group.userData.ring = ring; group.userData.core = core; group.userData.light = light;
   return group;
 }
 
@@ -478,6 +559,7 @@ export class SurfaceWorldVisual {
     this.dust = createDust(region, this.rng); this.scene.add(this.dust);
     this.landingBeacon = createLandingBeacon(region); this.scene.add(this.landingBeacon);
     this.landedShip = createLandedShip(region); this.scene.add(this.landedShip);
+    this.shipTransitionFx = createShipTransitionFx(region); this.scene.add(this.shipTransitionFx);
     this.weatherRig = createWeatherRig(region, createRng(`${region.seed}:weather-visuals`)); this.scene.add(this.weatherRig.group);
 
     for (const poi of surfacePois(region)) {
@@ -557,12 +639,47 @@ export class SurfaceWorldVisual {
     return reading;
   }
 
+  updateShipTransition(transition, timeSeconds) {
+    if (!this.landedShip) return;
+    const phase = transition?.phase ?? 'landed';
+    const duration = Math.max(1e-6, Number(transition?.durationSeconds) || 1);
+    const p = Math.max(0, Math.min(1, (Number(transition?.elapsedSeconds) || 0) / duration));
+    const easeOut = 1 - Math.pow(1 - p, 3);
+    const easeIn = p * p * p;
+    let lift = 0;
+    let thrust = 0.16;
+    if (phase === 'descending') { lift = 48 * (1 - easeOut); thrust = 0.96 - p * 0.28; }
+    else if (phase === 'ascending') { lift = 78 * easeIn; thrust = 0.72 + p * 0.28; }
+    this.landedShip.position.y = (this.landedShip.userData.baseY ?? this.landedShip.position.y) + lift;
+    this.landedShip.rotation.z = phase === 'descending' ? (1 - p) * 0.025 : phase === 'ascending' ? p * -0.018 : 0;
+    if (this.landedShip.userData.engineMaterials) for (const material of this.landedShip.userData.engineMaterials) {
+      material.opacity = phase === 'landed' ? 0.18 : Math.min(0.96, thrust * (0.78 + Math.sin(timeSeconds * 16) * 0.08));
+    }
+    if (this.landedShip.userData.vtolPlumes) for (const plume of this.landedShip.userData.vtolPlumes) {
+      const scale = phase === 'landed' ? 0.05 : 0.68 + thrust * 0.72;
+      plume.scale.y = scale;
+      plume.visible = phase !== 'landed';
+    }
+    if (this.landedShip.userData.navLights) for (const light of this.landedShip.userData.navLights) light.intensity = 12 + (Math.sin(timeSeconds * 2.4) + 1) * 7;
+    if (this.landedShip.userData.landingLight) this.landedShip.userData.landingLight.intensity = phase === 'landed' ? 38 : 70;
+
+    const fx = this.shipTransitionFx;
+    if (fx?.userData?.ring) {
+      const active = phase === 'descending' || phase === 'ascending';
+      const groundPulse = active ? Math.max(0, 1 - Math.min(1, lift / 48)) : 0;
+      fx.userData.ring.material.opacity = active ? 0.18 + groundPulse * 0.32 : 0;
+      fx.userData.ring.scale.setScalar(0.8 + (phase === 'ascending' ? p : 1 - p) * 0.75);
+      fx.userData.core.material.opacity = active ? 0.12 + groundPulse * 0.24 : 0;
+      fx.userData.light.intensity = active ? 28 + groundPulse * 62 : 0;
+    }
+  }
+
   animate(timeSeconds) {
     const t = Number(timeSeconds) || 0;
     this.emberFissures.material.opacity = 0.64 + Math.sin(t * 2.2) * 0.16;
     this.dust.rotation.y = t * 0.006;
     this.landingBeacon.rotation.y = t * 0.18;
-    if (this.landedShip?.userData?.navLights) for (const light of this.landedShip.userData.navLights) light.intensity = 12 + (Math.sin(t * 2.4) + 1) * 7;
+    if (this.landedShip?.userData?.strobe) this.landedShip.userData.strobe.intensity = Math.sin(t * 4.2) > 0.965 ? 42 : 0;
     for (const group of this.animated) {
       const type = group.userData.type;
       if (type === 'fracture-gate') {
@@ -599,7 +716,7 @@ export class SurfaceWorldVisual {
     }
   }
 
-  render(renderer, session, realTimeSeconds) {
+  render(renderer, session, realTimeSeconds, transition = null) {
     const eye = surfaceEyePosition(session, this.region);
     const bob = session.lastMoveSpeedMps > 0 ? Math.sin(realTimeSeconds * 8.5) * 0.045 : 0;
     this.camera.position.set(eye[0], eye[1] + bob, eye[2]);
@@ -607,6 +724,7 @@ export class SurfaceWorldVisual {
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(eye[0] + sy * cp * 100, eye[1] + sp * 100, eye[2] + cy * cp * 100);
     const weather = this.updateWeather(session, realTimeSeconds);
+    this.updateShipTransition(transition, realTimeSeconds);
     this.animate(realTimeSeconds);
     this.updatePoiState(session.scannedPoiIds);
     renderer.toneMappingExposure = weather?.type === 'shadow-fog' ? 0.78 : weather?.type === 'electrostatic-storm' ? 0.94 : weather?.type === 'dust-front' ? 0.98 : 1.05;

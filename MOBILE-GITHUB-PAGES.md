@@ -1,4 +1,4 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.4.1
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.5
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -16,8 +16,8 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 
 After upload/reload verify:
 
-- title/HUD says **v0.1.4.4**,
-- MORE help shows **SURFHUD-1441**,
+- title/HUD says **v0.1.4.5**,
+- MORE help shows **SHIPLAND-145**,
 - FPS/physics/render telemetry populate in orbit,
 - no `RUNTIME ERROR` banner appears.
 
@@ -55,3 +55,14 @@ Container/Node QA cannot prove physical iPhone WebGPU FPS, touch feel, browser t
 - Tap HIDE and confirm the compact strip returns.
 - SAVE while expanded, reload the surface save, and confirm the expanded preference is restored.
 - Confirm the smaller WALK pad remains comfortably thumb-usable inside the right safe area.
+
+## v0.1.4.5 landing-cycle acceptance
+
+1. Fresh ORIGIN-001 → LAND / DESCEND and confirm the ship visibly descends before controls unlock.
+2. Walk more than 36 m from the spacecraft; DETAILS should show RETURN TO SHIP and TAKEOFF must stay locked.
+3. Return within 36 m; BOARD / TAKEOFF should enable.
+4. Start ascent and confirm movement/scan controls lock while the ship visibly lifts with VTOL effects.
+5. Confirm the view returns to safe orbit at 1× with normal ship controls.
+6. Immediately LAND / DESCEND again and confirm the second surface session loads normally with no freeze.
+7. Repeat after SAVE/LOAD from the surface.
+8. Inspect the rebuilt ship exterior for clipping/sinking and verify nav/strobe/landing lights and landing gear remain performant on iPhone.

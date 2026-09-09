@@ -540,11 +540,11 @@ export class UniverseRenderer {
     this.renderer.toneMappingExposure = this._stellarExposure || 1;
   }
 
-  renderSurface({ session, realTimeSeconds = 0 }) {
+  renderSurface({ session, transition = null, realTimeSeconds = 0 }) {
     if (!this.surfaceWorld || !session?.active) return false;
     this._motionLines.visible = false;
     this.targetMarker.visible = false;
-    this.surfaceWorld.render(this.renderer, session, realTimeSeconds);
+    this.surfaceWorld.render(this.renderer, session, realTimeSeconds, transition);
     return true;
   }
 

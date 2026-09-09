@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.4.1</title>
+  <title>Universe Lab v0.1.4.5</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.4.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.5</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -90,6 +90,7 @@
           <span><small>WX</small><b id="surfaceWeather">CLEAR</b></span>
           <span><small>SIGNAL</small><b id="surfaceNearest">—</b></span>
           <span><small>FOUND</small><b id="surfaceDiscoveries">0/0</b></span>
+          <span><small>SHIP</small><b id="surfaceShipCompact">—</b></span>
         </div>
         <div class="surface-compact-actions">
           <button id="surfaceScanButton" class="surface-accent" type="button">SCAN</button>
@@ -102,13 +103,13 @@
           <span>Gravity</span><b id="surfaceGravity">—</b><span>Temperature</span><b id="surfaceTemperature">—</b>
           <span>Atmosphere</span><b id="surfaceAtmosphere">—</b><span>Local X/Z</span><b id="surfaceCoords">—</b>
           <span>Wind</span><b id="surfaceWind">—</b><span>Ship</span><b id="surfaceShipDistance">—</b>
-          <span>Surface clock</span><b id="surfaceClock">0 s</b><span>Mode</span><b>LOCAL INSTANCE</b>
+          <span>Surface clock</span><b id="surfaceClock">0 s</b><span>Mode</span><b id="surfacePhase">LANDED</b>
         </div>
         <p id="surfaceWeatherStatus" class="surface-weather-status">Local weather monitor initializing.</p>
         <p id="surfaceScanStatus" class="surface-scan-status">Surface scanner ready.</p>
         <div class="surface-action-grid surface-detail-actions">
           <button id="surfaceSaveButton" type="button">SAVE</button>
-          <button id="surfaceTakeoffButton" class="void" type="button">TAKEOFF / ORBIT</button>
+          <button id="surfaceTakeoffButton" class="void" type="button">BOARD / TAKEOFF</button>
         </div>
         <small class="surface-model-note">LOCAL SURFACE INSTANCE · orbital N-body time held · anomalies and weather remain presentation/discovery layers</small>
       </div>
@@ -144,7 +145,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>SURFHUD-1441</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>SHIPLAND-145</b>.</p>
     </aside>
 
     <aside id="mapPanel" class="drawer system-map-panel" hidden>

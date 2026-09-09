@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.4.5 — Landing Reliability & Spacecraft Presence
+
+- Replaced the ambiguous surface/orbit lifecycle with explicit **ORBIT → DESCENDING → LANDED → ASCENDING → ORBIT** state control.
+- Fixed the reported TAKEOFF/re-land failure path by preventing duplicate surface entry during transitions and forcing successful ascent back to a clean orbital state.
+- Added guarded recovery cleanup for failed surface entry/ascent so renderer/UI/session state cannot remain half-transitioned.
+- Added near-ship boarding requirement: **BOARD / TAKEOFF** requires the player to return within 36 m of the spacecraft.
+- Added compact ship-distance / boarding-readiness status and explicit surface phase readout.
+- Added visible scripted descent/ascent presentation with VTOL plumes and landing-site ground glow; successful ascent returns at safe orbit and 1×.
+- Rebuilt the parked spacecraft with smoother hull/nose geometry, canopy, swept wings, tail surfaces, twin engines, VTOL thrusters, landing gear and nav/strobe/landing lights.
+- Preserved authoritative orbital ship physics; surface spacecraft remains a renderer-local visual representation.
+- Added optional schema-1 persistence for pre-surface running/time-scale state so surface saves do not accidentally restore a temporary landed pause as orbital intent.
+- Automated QA: **111/111 tests passing** plus static/syntax checks.
+
 ## v0.1.4.4.1 — Surface HUD & Mobile Exploration Polish
 
 - Reworked the planetary surface HUD into a **compact-by-default exploration strip** so terrain and anomaly visuals remain visible on iPhone landscape.

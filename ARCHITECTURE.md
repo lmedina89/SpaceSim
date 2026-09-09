@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.4.1
+# Architecture — Universe Lab v0.1.4.5
 
 ## Core invariant
 
@@ -18,6 +18,14 @@ v0.1.4.3.1 adds a lightweight DOM/CSS cockpit presentation layer that sits above
 - preserve the user's cockpit preference through save/load without changing schema 1.
 
 This keeps the effect inexpensive on mobile while restoring a stronger sense of physical spacecraft presence.
+
+## Landing lifecycle / recovery boundary
+
+v0.1.4.5 adds `src/surface/landingTransition.js` as the explicit lifecycle controller. The allowed progression is ORBIT → DESCENDING → LANDED → ASCENDING → ORBIT. `UniverseLabApp` owns the controller, boarding distance checks, input locking, orbital handoff and recovery fallback.
+
+A failed renderer entry/ascent completion is cleaned up through one recovery path that clears surface renderer/session/UI state, resets the phase to ORBIT and restores a valid spacecraft/orbit state. This prevents repeated LAND calls from operating on stale surface state.
+
+The surface ship remains renderer-local and non-physical. Its descent/ascent motion, VTOL plumes and landing-site glow are presentation cues only. The authoritative `ShipDynamics` object remains frozen while surface mode is active and is placed into the existing safe 5-radius orbital handoff only after ascent completes.
 
 ## Surface HUD presentation boundary
 

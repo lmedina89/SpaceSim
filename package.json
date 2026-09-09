@@ -1,9 +1,9 @@
 {
   "name": "universe-lab",
-  "version": "0.1.4.4.1",
+  "version": "0.1.4.5",
   "private": true,
   "type": "module",
-  "description": "Scientific mobile-first seeded universe laboratory with persistent seeded planetary environments and local weather, multiple landable regions, a visible parked spacecraft, low-obstruction cockpit ship view, anomaly-rich local exploration, interactive logarithmic system map, layered discovery, persistent seeded space weather, stellar rendering, transit navigation, extreme objects, scientific overlays, cosmic phenomena, and particle experiments.",
+  "description": "Scientific mobile-first seeded universe laboratory with persistent seeded planetary environments and local weather, multiple landable regions, a guarded landing/takeoff state machine, upgraded visible spacecraft exterior, low-obstruction cockpit ship view, anomaly-rich local exploration, interactive logarithmic system map, layered discovery, persistent seeded space weather, stellar rendering, transit navigation, extreme objects, scientific overlays, cosmic phenomena, and particle experiments.",
   "scripts": {
     "check": "node ./tests/static-check.mjs && find src tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "test": "node --test tests/*.test.mjs",

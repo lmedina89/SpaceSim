@@ -1,4 +1,4 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.4.1.1
+# Scientific / Model Notes — Universe Lab v0.1.4.5
 
 Universe Lab deliberately mixes physically motivated simulation with clearly labeled speculative/fictional presentation. The boundary matters more as planetary surfaces and anomalies are introduced.
 
@@ -22,7 +22,7 @@ While landed, orbital N-body time is intentionally held. This prevents hidden sy
 
 ## Landing / takeoff boundary
 
-`LAND / DESCEND` and `TAKEOFF / ORBIT` are scripted transitions. v0.1.4.3 does not claim:
+`LAND / DESCEND` and `BOARD / TAKEOFF` are scripted visual transitions. v0.1.4.5 now models their software lifecycle explicitly, but still does not claim:
 
 - atmospheric entry heating,
 - lift/drag/aerodynamics,
@@ -58,3 +58,5 @@ Surface weather in v0.1.4.4 is a deterministic presentation model, not atmospher
 Local weather time advances only while the surface session is actively rendered. Large tab/background hitches are bounded so reopening Safari does not skip an entire event. Orbital N-body time remains held until TAKEOFF.
 
 The landed spacecraft exterior is a visual proxy. No rigid-body landing gear, mass distribution, aerodynamic entry, fuel, structural stress or terrain collision is solved in this release.
+
+The upgraded surface spacecraft, VTOL plumes, landing glow and ascent/descent motion are presentation only. They do not model thrust mass flow, aerodynamics, rigid-body landing gear loads, terrain contact dynamics or real atmospheric ascent.
