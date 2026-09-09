@@ -1,4 +1,4 @@
-# Scientific Model Boundaries — Universe Lab v0.1.1.2
+# Scientific Model Boundaries — Universe Lab v0.1.1.3
 
 The project is allowed to be strange and mysterious. It is **not** allowed to blur the line between a physical model and a visual/fictional effect.
 
@@ -149,13 +149,17 @@ A double-slit experiment must separate classical ballistic particles from a quan
 
 Particle life, Conway-inspired moving automata, negative mass, modified force laws, repulsive gravity, and similar tools will be explicitly labeled **EXPERIMENTAL / NON-PHYSICAL** unless they correspond to a recognized physical model.
 
-## v0.1.1.2 motion perception and time warp
+## v0.1.1.3 motion perception and time warp
 
-The navigation streaks introduced in v0.1.1.2 are explicitly **not physical dust**. The floating-origin renderer keeps the spacecraft near render coordinate zero while authoritative SI coordinates can move by millions of meters. Deep stars are also decorative and extremely distant, so correct motion may provide little immediate parallax. The motion-reference field therefore maps the magnitude/direction of spacecraft inertial velocity to a logarithmically exaggerated local visual cue. It never feeds back into position, velocity, acceleration, gravity, trajectories, collision tests, or saves.
+The navigation streaks introduced in v0.1.1.3 are explicitly **not physical dust**. The floating-origin renderer keeps the spacecraft near render coordinate zero while authoritative SI coordinates can move by millions of meters. Deep stars are also decorative and extremely distant, so correct motion may provide little immediate parallax. The motion-reference field therefore maps the magnitude/direction of spacecraft inertial velocity to a logarithmically exaggerated local visual cue. It never feeds back into position, velocity, acceleration, gravity, trajectories, collision tests, or saves.
 
 The quick WARP control advances the same scientific simulation clock at 1×, 60×, 600×, or 3,600×. If thrust is held while time is accelerated, the propulsion acceleration is integrated over the corresponding simulated duration. This is a time-compression control, not a hidden velocity multiplier.
 
 
-## v0.1.1.2 interaction-only hotfix
+## v0.1.1.3 interaction-only hotfix
 
 The iOS hold-input and control-layout changes are presentation/input changes only. They do not alter SI units, engine acceleration magnitudes, gravity, integrator behavior, simulation time, trajectory prediction, impact calculations, or saved scientific state.
+
+## Render-space stellar illumination (v0.1.1.3)
+
+Universe Lab does **not** treat Three.js lighting intensity as authoritative stellar radiometry. Astronomical SI coordinates are compressed before rendering, so applying a renderer's inverse-distance light falloff to those compressed coordinates produces visually meaningless irradiance. The renderer therefore uses an exposure-normalized point light with no render-space attenuation. The point source remains located at the simulated star, so hemisphere orientation and terminator direction remain geometrically starward. Physical gravity and orbital dynamics continue to use SI distances and inverse-square Newtonian gravity. Absolute photometry, atmospheric scattering, albedo maps, and physically calibrated stellar irradiance remain future scientific-rendering work.

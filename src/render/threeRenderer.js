@@ -43,9 +43,14 @@ export class UniverseRenderer {
     this.minorPoints = null;
     this.minorGeometry = null;
     this.systemSeed = null;
-    this.sunLight = new THREE.PointLight(0xffffff, 4.5, 120_000, 1.7);
+    // Rendering uses an exposure-normalized stellar point light. Authoritative physics remains
+    // inverse-square SI gravity; radiometric falloff is deliberately not evaluated in compressed
+    // render coordinates because doing so makes planetary illumination numerically meaningless.
+    // Point geometry still gives each body's lit hemisphere the correct starward direction.
+    this.sunLight = new THREE.PointLight(0xffffff, 2.6, 0, 0);
     this.scene.add(this.sunLight);
-    this.scene.add(new THREE.AmbientLight(0x46516d, 0.16));
+    // Keep the unlit hemisphere near-black while preserving just enough scene readability.
+    this.scene.add(new THREE.AmbientLight(0x263149, 0.055));
     this.trajectories = new Map();
     this.targetBodyId = null;
     this.targetMarker = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -284,7 +289,10 @@ export class UniverseRenderer {
       const visual = this.bodyVisuals.get(body.id);
       referenceFrame.toRender(body.position, this._temp);
       visual.position.copy(this._temp);
-      if (body.kind === BODY_KIND.STAR) this.sunLight.position.copy(this._temp);
+      if (body.kind === BODY_KIND.STAR) {
+        this.sunLight.position.copy(this._temp);
+        this.sunLight.color.setHex(body.color ?? 0xffffff);
+      }
       visual.rotation.y += body.kind === BODY_KIND.PLANET ? 0.0008 : 0.0002;
     }
     if (minorField) this.updateMinorField(minorField, referenceFrame);

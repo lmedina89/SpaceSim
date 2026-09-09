@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.1.2 — iOS Hold Input & Pilot Layout Hotfix — 2026-09-08
+## v0.1.1.3 — iOS Hold Input & Pilot Layout Hotfix — 2026-09-08
 
 Physical iPhone testing of v0.1.1.1 showed sustained flight-button presses could trigger WebKit text-selection handles/callouts and transfer the pointer away from THRUST/REV/DAMP. Landscape controls were also still visually crowded.
 
@@ -65,3 +65,12 @@ Changes:
 - Replace the huge target ring with small constant-angular-size target-center brackets.
 - HOME/new-system placement now uses the same physical orbital state but starts with a prograde-biased pilot view instead of pointing directly at the target center.
 - No save-schema change and no gravity/integrator changes.
+
+## v0.1.1.3 — Stellar Lighting Readability Hotfix
+
+- Fixed generated planets and moons appearing nearly featureless black at ordinary planetary distances.
+- Root cause: inverse-distance PointLight attenuation was being evaluated after astronomical positions were compressed into renderer units, so the visual irradiance collapsed even though body colors/materials were present.
+- Stellar lighting is now exposure-normalized in render space (`PointLight` decay 0) while retaining the star as the positional light source, preserving the correct starward day/night hemisphere orientation.
+- Stellar light color now follows the generated star color.
+- Reduced ambient illumination so true night sides remain very dark instead of becoming uniformly game-lit.
+- This is a rendering-only correction. SI gravity, masses, trajectories, ship dynamics, collisions, time integration, and saves are unchanged.

@@ -1,6 +1,6 @@
 {
   "name": "universe-lab",
-  "version": "0.1.1.2",
+  "version": "0.1.1.3",
   "private": true,
   "type": "module",
   "description": "Scientific mobile-first seeded solar-system laboratory with targeting, N-body trajectory prediction, experiment launching, and hardened iOS continuous-flight controls.",

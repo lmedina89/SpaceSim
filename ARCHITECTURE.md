@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.1.2
+# Architecture — Universe Lab v0.1.1.3
 
 ## Non-negotiable rule
 
@@ -151,7 +151,7 @@ New v0.1.1 fields such as target ID, path toggle, trajectory horizon, roll, and 
 
 The procedural seed supplies the untouched base system; major-body/ship evolved state is snapshot-saved. The high-count minor field is regenerated deterministically in this milestone.
 
-### Mobile visible-viewport contract (v0.1.1.2)
+### Mobile visible-viewport contract (v0.1.1.3)
 
 The UI shell is sized from `visualViewport.height` when available rather than relying only on `100svh`. This keeps interactive flight controls inside the actually visible Safari region while browser chrome expands/collapses. This adjustment affects only presentation geometry.
 
@@ -160,6 +160,6 @@ The UI shell is sized from `visualViewport.height` when available rather than re
 The renderer owns a camera-local line field that visualizes spacecraft inertial velocity with a deliberately logarithmic/exaggerated mapping. It is a one-way renderer consumer of ship velocity and is not part of the entity registry, save state, collision system, gravity solver, trajectory predictor, or scientific particle field. The separation is intentional so visual flight feel cannot contaminate authoritative physics.
 
 
-## Mobile control-surface contract — v0.1.1.2
+## Mobile control-surface contract — v0.1.1.3
 
 Continuous pilot inputs are treated as controller state, not click actions. The input layer owns pointer capture and must always have global release fallbacks. The game surface suppresses browser text-selection/callout behavior, while form controls remain normal editable web controls. This separation is required for sustained thrust/RCS operation on iOS Safari.

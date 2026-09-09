@@ -121,7 +121,7 @@ export class UniverseLabApp {
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
     this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.1.2 online. iOS hold controls and compact pilot layout are active.');
+    this.hud.notify('v0.1.1.3 online. Stellar lighting readability hotfix active.');
   }
 
   newSystem(seed) {
