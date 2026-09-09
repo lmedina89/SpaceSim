@@ -121,7 +121,7 @@ export class UniverseLabApp {
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
     this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.1 online. Target a body, enable PATH, or configure an experiment in LAB.');
+    this.hud.notify('v0.1.1.1 online. Mobile controls and flight motion cues are active.');
   }
 
   newSystem(seed) {
@@ -159,7 +159,13 @@ export class UniverseLabApp {
     this.ship.velocity[1] = home.velocity[1];
     this.ship.velocity[2] = home.velocity[2];
     this.ship.roll = 0;
-    this.ship.lookAt(home.position);
+    // Start in a useful orbital pilot view instead of staring directly into the planet center.
+    // The ship still occupies the same physical orbit; only camera attitude changes.
+    this.ship.lookAt(new Float64Array([
+      this.ship.position[0] + distance * 0.55,
+      this.ship.position[1] - distance * 0.84,
+      this.ship.position[2],
+    ]));
     this.shipContactId = null;
     this.invalidatePredictions();
   }
@@ -388,7 +394,16 @@ export class UniverseLabApp {
     this.ship.restore(payload.ship);
     this.clock.elapsedSimSeconds = safeNumber(payload.elapsedSimSeconds, 0);
     this.clock.setTimeScale(payload.timeScale ?? 60);
-    this.root.querySelector('#timeScale').value = String(this.clock.timeScale);
+    const timeSelect = this.root.querySelector('#timeScale');
+    if (![...timeSelect.options].some((option) => Number(option.value) === this.clock.timeScale)) {
+      const option = document.createElement('option');
+      option.value = String(this.clock.timeScale);
+      option.textContent = `${this.clock.timeScale.toLocaleString()}×`;
+      timeSelect.appendChild(option);
+    }
+    timeSelect.value = String(this.clock.timeScale);
+    const warpButton = this.root.querySelector('#warpQuick');
+    if (warpButton) warpButton.textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`;
     this.root.querySelector('#minorCount').value = String(this.minorField.count);
     this.root.querySelector('#seedInput').value = payload.seed;
     if (payload.trajectoryHorizon) this.root.querySelector('#trajectoryHorizon').value = String(payload.trajectoryHorizon);
@@ -405,9 +420,12 @@ export class UniverseLabApp {
 
   bindUi() {
     const $ = (selector) => this.root.querySelector(selector);
+    const updateWarpButton = () => { $('#warpQuick').textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`; };
     $('#labToggle').addEventListener('click', () => this.hud.toggleLab());
+    $('#moreToggle').addEventListener('click', () => this.hud.toggleMore());
+    $('#moreClose').addEventListener('click', () => this.hud.toggleMore(false));
     $('#labClose').addEventListener('click', () => this.hud.toggleLab(false));
-    $('#scienceToggle').addEventListener('click', () => this.hud.toggleScience());
+    $('#scienceToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleScience(); });
     $('#scienceClose').addEventListener('click', () => this.hud.toggleScience(false));
     $('#scannerToggle').addEventListener('click', () => this.hud.toggleScanner());
     $('#scannerClose').addEventListener('click', () => this.hud.toggleScanner(false));
@@ -416,7 +434,21 @@ export class UniverseLabApp {
     $('#aimTarget').addEventListener('click', () => this.aimAtTarget());
     $('#regenerate').addEventListener('click', () => this.newSystem($('#seedInput').value));
     $('#randomSeed').addEventListener('click', () => this.newSystem(`SYS-${crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase()}`));
-    $('#timeScale').addEventListener('change', (e) => this.clock.setTimeScale(e.target.value));
+    $('#timeScale').addEventListener('change', (e) => { this.clock.setTimeScale(e.target.value); updateWarpButton(); });
+    $('#warpQuick').addEventListener('click', () => {
+      const levels = [1, 60, 600, 3600];
+      const current = this.clock.timeScale;
+      const next = levels.find((value) => value > current) ?? levels[0];
+      this.clock.setTimeScale(next);
+      const select = $('#timeScale');
+      if (![...select.options].some((option) => Number(option.value) === next)) {
+        const option = document.createElement('option');
+        option.value = String(next); option.textContent = `${next.toLocaleString()}×`; select.appendChild(option);
+      }
+      select.value = String(next);
+      updateWarpButton();
+      this.hud.notify(`Time warp ${next.toLocaleString()}×. Gravity and thrust are integrated over accelerated simulation time; this is not a visual speed cheat.`);
+    });
     $('#trajectoryHorizon').addEventListener('change', () => this.invalidatePredictions());
     $('#minorCount').addEventListener('change', (e) => {
       this.minorField.setCount(e.target.value);
@@ -424,13 +456,14 @@ export class UniverseLabApp {
       this.hud.notify(`Minor test-particle field rebuilt: ${this.minorField.count.toLocaleString()} bodies. They feel major gravity but do not source it.`);
     });
     $('#pauseToggle').addEventListener('click', (e) => {
+      this.hud.toggleMore(false);
       this.running = !this.running;
       e.currentTarget.textContent = this.running ? 'PAUSE' : 'RESUME';
       this.hud.notify(this.running ? 'Simulation resumed.' : 'Simulation paused.');
     });
-    $('#saveButton').addEventListener('click', () => { this.saveSystem.save(this.serialize()); this.hud.notify('Saved locally on this device.'); });
-    $('#loadButton').addEventListener('click', () => this.loadSave());
-    $('#homeButton').addEventListener('click', () => { this.placeShipNearHome(); this.selectTarget(this.system.homeId); this.hud.notify('Ship returned near the designated future surface world.'); });
+    $('#saveButton').addEventListener('click', () => { this.hud.toggleMore(false); this.saveSystem.save(this.serialize()); this.hud.notify('Saved locally on this device.'); });
+    $('#loadButton').addEventListener('click', () => { this.hud.toggleMore(false); this.loadSave(); });
+    $('#homeButton').addEventListener('click', () => { this.hud.toggleMore(false); this.placeShipNearHome(); this.selectTarget(this.system.homeId); this.hud.notify('Ship returned to the seeded orbital demonstration position with a prograde-biased pilot view.'); });
     $('#pathToggle').addEventListener('click', (event) => {
       this.shipPathEnabled = !this.shipPathEnabled;
       event.currentTarget.textContent = this.shipPathEnabled ? 'PATH ON' : 'PATH';
@@ -448,6 +481,7 @@ export class UniverseLabApp {
     $('#asteroidMass').addEventListener('input', () => this.updateAsteroidDerived());
     $('#asteroidSpeed').addEventListener('input', () => this.invalidatePredictions());
     this.updateAsteroidDerived();
+    updateWarpButton();
 
     $('#previewAsteroid').addEventListener('click', (event) => {
       this.launchPreviewEnabled = !this.launchPreviewEnabled;
@@ -509,7 +543,7 @@ export class UniverseLabApp {
     bindHold($('#rcsDown'), () => { this.ship.lift = -1; }, () => { if (this.ship.lift < 0) this.ship.lift = 0; });
     bindHold($('#rollLeft'), () => { this._rollDirection = -1; }, () => { if (this._rollDirection < 0) this._rollDirection = 0; });
     bindHold($('#rollRight'), () => { this._rollDirection = 1; }, () => { if (this._rollDirection > 0) this._rollDirection = 0; });
-    $('#rcsToggle').addEventListener('click', () => { $('#rcsPanel').hidden = !$('#rcsPanel').hidden; });
+    $('#rcsToggle').addEventListener('click', () => { this.hud.toggleMore(false); $('#rcsPanel').hidden = !$('#rcsPanel').hidden; });
 
     const viewport = $('#viewport');
     viewport.addEventListener('pointerdown', (event) => { this._viewportTap = { id: event.pointerId, x: event.clientX, y: event.clientY }; });

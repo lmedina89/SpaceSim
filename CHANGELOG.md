@@ -34,3 +34,21 @@ Built directly from the phone-safe v0.1.0.1 baseline.
 - No `.github/workflows/*` files in the distributable archive.
 - Three.js remains pinned to 0.185.0.
 - Collision response/craters/explosions are still intentionally absent rather than faked.
+
+## v0.1.1.1 — Mobile Flight UX & Motion-Cue Hotfix
+
+Physical iPhone testing of v0.1.1 showed that Safari's visible browser viewport could be shorter than the CSS layout viewport, causing the portrait flight controls and utility bar to extend behind browser chrome. It also showed that scientifically correct astronomical translation can feel visually stationary because the ship-centered floating origin removes ordinary parallax and the decorative deep-star field is intentionally distant.
+
+Changes:
+- Synchronize the application height to `window.visualViewport.height` on supported mobile browsers, including resize/orientation/browser-toolbar changes.
+- Replace the ten-button bottom utility bar with six primary controls: LAB, TARGET, SCAN, PATH, WARP, MORE.
+- Move RCS, SCIENCE, HOME, PAUSE, SAVE, and LOAD into a compact secondary drawer.
+- Keep THRUST / REV / DAMP in one horizontal row in portrait instead of a tall right-side stack.
+- Compact portrait telemetry so ship speed remains visible while renderer/physics detail is hidden from the top strip.
+- Hide the seed/performance chip in portrait; the underlying data remains available in the simulation and desktop layout.
+- Fade transient status messages after a short interval so they do not permanently cover flight.
+- Add a WARP quick control cycling 1× → 60× → 600× → 3,600×. This changes simulated elapsed time, not spatial rendering scale or gravity equations.
+- Add a visual-only logarithmic navigation motion-reference field and small FOV thrust cue. They change no authoritative physics state and exist only to make inertial motion perceptible against astronomical distances.
+- Replace the huge target ring with small constant-angular-size target-center brackets.
+- HOME/new-system placement now uses the same physical orbital state but starts with a prograde-biased pilot view instead of pointing directly at the target center.
+- No save-schema change and no gravity/integrator changes.

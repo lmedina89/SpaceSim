@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.1
+# Architecture — Universe Lab v0.1.1.1
 
 ## Non-negotiable rule
 
@@ -150,3 +150,11 @@ Save schema remains **1** and is backward-compatible with v0.1.0/v0.1.0.1 payloa
 New v0.1.1 fields such as target ID, path toggle, trajectory horizon, roll, and richer body metadata are optional. Old saves therefore remain recoverable.
 
 The procedural seed supplies the untouched base system; major-body/ship evolved state is snapshot-saved. The high-count minor field is regenerated deterministically in this milestone.
+
+### Mobile visible-viewport contract (v0.1.1.1)
+
+The UI shell is sized from `visualViewport.height` when available rather than relying only on `100svh`. This keeps interactive flight controls inside the actually visible Safari region while browser chrome expands/collapses. This adjustment affects only presentation geometry.
+
+### Navigation motion-reference layer
+
+The renderer owns a camera-local line field that visualizes spacecraft inertial velocity with a deliberately logarithmic/exaggerated mapping. It is a one-way renderer consumer of ship velocity and is not part of the entity registry, save state, collision system, gravity solver, trajectory predictor, or scientific particle field. The separation is intentional so visual flight feel cannot contaminate authoritative physics.

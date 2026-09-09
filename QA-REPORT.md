@@ -1,19 +1,26 @@
-# Universe Lab v0.1.1 — QA Report
+# Universe Lab v0.1.1.1 — QA Report
 
-## Release scope
+## Trigger for hotfix
 
-Scientific flight instrumentation, target scanning, N-body path prediction, configurable physical launcher, seeded moon/eccentric-orbit upgrade, and impact telemetry.
+Physical iPhone testing of v0.1.1 showed two user-facing problems:
+
+1. portrait flight/system controls could extend behind the iOS browser chrome because the page height followed the layout viewport rather than the actually visible viewport;
+2. correct astronomical translation felt visually weak because the ship-centered floating origin and distant decorative starfield intentionally remove most nearby parallax.
+
+This hotfix changes presentation and mobile control access only. Newtonian gravity, SI authoritative state, velocity-Verlet integration, trajectory prediction, save schema 1, and v0.1.1 experiment physics remain intact.
 
 ## Automated release checks
 
 **PASS — repository/static structure**
 
 - required shell/modules/docs present,
-- Three.js import-map version pinned,
-- shell and package versions agree,
+- Three.js remains pinned to 0.185.0,
+- shell/package version agree on 0.1.1.1,
+- `visualViewport` mobile-height synchronization hook present,
+- six-button primary control bar and MORE drawer present,
 - no JavaScript/MJS syntax errors.
 
-**PASS — 13/13 numerical/unit tests**
+**PASS — 15/15 numerical/unit tests**
 
 1. solar gravity at 1 AU matches `GM/r²`,
 2. reduced-mass impact energy,
@@ -23,28 +30,40 @@ Scientific flight instrumentation, target scanning, N-body path prediction, conf
 6. circular osculating orbit telemetry,
 7. deterministic PRNG,
 8. orthonormal spacecraft local basis with roll,
-9. deterministic seeded physical initial state,
-10. barycentric center-of-mass/rest-frame initialization,
-11. generated planet/moon metadata consistency,
-12. forward trajectory keeps a low-Earth circular trajectory bounded for one orbit,
-13. swept predictor detects a finite-radius impact.
+9. main engine produces its declared 20 m/s² physical acceleration,
+10. 60 simulated seconds of continuous thrust produce 1.2 km/s delta-v and 36 km displacement from rest,
+11. deterministic seeded physical initial state,
+12. barycentric center-of-mass/rest-frame initialization,
+13. generated planet/moon metadata consistency,
+14. forward trajectory keeps a low-Earth circular trajectory bounded for one orbit,
+15. swept predictor detects a finite-radius impact.
 
-## Additional numerical stress checks
+The new thrust tests directly guard against accidental “fake movement”: the authoritative spacecraft state really changes according to the declared acceleration. The new navigation streaks/FOV response are renderer-only cues layered on top of that state.
 
-A private release stress pass integrated 8 different generated systems for 30 simulated days with 900-second major-body timesteps.
+## Mobile-layout hardening
 
-- maximum generated major-body count observed: 21,
-- spontaneous finite-radius major-body collisions: 0,
-- expected orbital radius naturally varied because v0.1.1 intentionally generates eccentric orbits; no non-finite state was observed.
+**PASS — static contract**
 
-A Node-side algorithm timing sample on seed `BENCH` measured approximately:
+- `.app-shell` height is controlled by `--app-height`,
+- `src/main.js` updates that value from `window.visualViewport.height` when available,
+- orientation/resize/browser-toolbar changes re-run the synchronization,
+- portrait THRUST/REV/DAMP are a horizontal row instead of a vertical stack,
+- primary bottom bar contains only LAB/TARGET/SCAN/PATH/WARP/MORE,
+- secondary controls are in a compact drawer,
+- ship speed remains visible in compact portrait telemetry,
+- transient messages automatically clear.
 
-- 4,000 minor bodies, one 60 s step: ~8 ms,
-- 10,000 minor bodies, one 60 s step: ~6 ms,
-- 20,000 minor bodies, one 60 s step: ~13 ms,
-- one-day 420-point N-body trajectory forecast with 9 major sources: ~5 ms.
+## Flight-perception hardening
 
-These numbers are **not iPhone performance claims**. They only confirm the algorithms are in a reasonable cost regime in the release environment. Physical iPhone Safari remains the performance gate.
+The renderer now provides:
+
+- small constant-angular-size target-center brackets instead of a giant target ring,
+- a visual-only logarithmic inertial motion-reference field,
+- a small thrust-responsive FOV cue,
+- a prograde-biased HOME/new-system pilot view instead of pointing directly at the planet center,
+- quick 1×/60×/600×/3,600× scientific time-compression control.
+
+The motion-reference field does **not** modify the entity registry, SI ship state, gravity, trajectories, collision tests, experiment results, or saves.
 
 ## Packaging/static-host checks
 
@@ -53,25 +72,20 @@ These numbers are **not iPhone performance claims**. They only confirm the algor
 - repository-root layout verified,
 - no wrapper directory,
 - no `.github/workflows/*`,
-- local static HTTP smoke returned HTTP 200 for the shell, CSS, main module, app module, trajectory predictor, and version manifest,
-- HTML ID/query-selector audit found no duplicate IDs and no missing queried elements,
-- final ZIP integrity is checked after packaging and the SHA-256 is reported with the release artifact.
+- HTTP 200 smoke for shell, CSS, main module, app module, renderer module, and version manifest,
+- HTML ID/query-selector audit: no duplicate IDs and no missing queried elements.
 
 ## Interactive rendering limitation
 
-The previous foundation build could not be reliably interactively smoke-tested in the container because its headless Chromium environment lacked a working EGL/GPU backend. This environment limitation remains relevant.
+The release environment still lacks a reliable interactive iOS/WebGPU browser target. Therefore automated QA cannot certify exact Safari toolbar geometry, touch ergonomics, or perceived motion. The user's physical iPhone remains the release gate for those presentation details.
 
-Therefore this report does **not** claim a real iPhone/WebGPU/WebGL interactive playthrough. Deploy to GitHub Pages and physically test Safari before treating the graphics/control experience as release-gated.
+## Recommended iPhone retest
 
-## Recommended iPhone test order
-
-1. Load default 4,000 particles and confirm renderer initializes.
-2. Drag LOOK and hold THRUST/REV.
-3. Open RCS; verify lateral/up/down translation and roll.
-4. Tap a planet/moon and open SCAN.
-5. Toggle PATH and verify the cyan trajectory moves as ship state changes.
-6. Aim at the selected target.
-7. Configure a basalt asteroid, enable PREVIEW, and verify the orange path appears.
-8. Launch it and confirm the spawned body becomes targetable/scannable.
-9. Increase minor field to 10,000 then 20,000 while watching FPS/physics cost.
-10. Test portrait once for layout recovery, but landscape remains the primary mobile mode.
+1. Replace v0.1.1 with v0.1.1.1 and hard-refresh the Pages site.
+2. Test portrait with the browser bottom toolbar visible: THRUST, REV, DAMP and the six-button bottom bar should all remain fully visible.
+3. Press HOME once to load the improved orbital pilot attitude.
+4. Hold THRUST at WARP 60× and confirm the navigation streaks/FOV cue make acceleration obvious while ship speed changes.
+5. Cycle WARP to 600× only when you deliberately want faster orbital-distance travel; remember that engine burn duration is also time-compressed.
+6. Rotate LOOK and confirm the target marker is now a compact center bracket rather than a huge cyan ring around the planet.
+7. Open MORE and verify RCS/SCIENCE/HOME/PAUSE/SAVE/LOAD are reachable without covering the permanent flight controls.
+8. Repeat in landscape, then continue the v0.1.1 scanner/path/launcher tests.

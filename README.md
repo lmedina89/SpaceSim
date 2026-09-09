@@ -1,4 +1,4 @@
-# Universe Lab v0.1.1 — Scientific Flight & Experiment Control
+# Universe Lab v0.1.1.1 — Mobile Flight UX & Motion-Cue Hotfix
 
 A mobile-first browser-based 3D scientific sandbox built around one deterministic seeded solar system, a spacecraft laboratory, real Newtonian trajectories, and future plug-in experiments ranging from impacts and fluids to particle life and quantum demonstrations.
 
@@ -138,3 +138,7 @@ v0.1.1 contains 13 automated numerical/unit tests plus repository/syntax checks.
 **v0.1.2 — Impact, Fragmentation & Explosion Foundation**
 
 The intent is to turn physically measured contact events into a scalable response pipeline: continuous/swept collision handling for launched bodies, impact geometry, physically budgeted fragmentation/ejecta, persistent debris, and visual explosion effects driven by the computed energy rather than arbitrary animation strength.
+
+### Mobile v0.1.1.1 flight hotfix
+
+On iPhone, the app now tracks the *visible* Safari viewport, keeps THRUST/REV/DAMP in a compact horizontal portrait row, uses a six-button primary bar with a MORE drawer, and keeps ship speed visible. A purely visual navigation-reference streak field makes inertial travel readable even though the scientific floating origin and astronomical scale remove much of the parallax players expect from ordinary games. Use **WARP** for real time-compression when you want to cross orbital distances faster; it cycles through 1×, 60×, 600×, and 3,600×.

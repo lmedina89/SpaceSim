@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { createStarfield } from './starfield.js';
 import { createCelestialVisual } from './celestialFactory.js';
-import { BODY_KIND } from '../core/constants.js';
+import { BODY_KIND, SIMULATION } from '../core/constants.js';
 
 function disposeObject(root) {
   root.traverse?.((node) => {
@@ -17,16 +17,16 @@ function makeTargetTexture() {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, 256, 256);
   ctx.strokeStyle = 'rgba(116,229,255,.95)';
-  ctx.lineWidth = 7;
-  ctx.beginPath(); ctx.arc(128, 128, 90, 0, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,.95)';
-  ctx.lineWidth = 3;
-  for (let i = 0; i < 4; i += 1) {
-    const a = i * Math.PI / 2;
-    const x1 = 128 + Math.cos(a) * 72, y1 = 128 + Math.sin(a) * 72;
-    const x2 = 128 + Math.cos(a) * 112, y2 = 128 + Math.sin(a) * 112;
-    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.lineWidth = 8;
+  const inset = 62, arm = 38, far = 194;
+  const corners = [
+    [inset, inset, 1, 1], [far, inset, -1, 1], [inset, far, 1, -1], [far, far, -1, -1],
+  ];
+  for (const [x, y, sx, sy] of corners) {
+    ctx.beginPath(); ctx.moveTo(x, y + sy * arm); ctx.lineTo(x, y); ctx.lineTo(x + sx * arm, y); ctx.stroke();
   }
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.beginPath(); ctx.arc(128, 128, 5, 0, Math.PI * 2); ctx.fill();
   return new THREE.CanvasTexture(canvas);
 }
 
@@ -61,6 +61,23 @@ export class UniverseRenderer {
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
     this._temp = new THREE.Vector3();
+    this._motionCueCount = 180;
+    this._motionCenters = new Float32Array(this._motionCueCount * 3);
+    this._motionPositions = new Float32Array(this._motionCueCount * 6);
+    this._motionGeometry = new THREE.BufferGeometry();
+    this._motionGeometry.setAttribute('position', new THREE.BufferAttribute(this._motionPositions, 3));
+    this._motionMaterial = new THREE.LineBasicMaterial({ color: 0x8bdfff, transparent: true, opacity: 0.08, depthWrite: false, blending: THREE.AdditiveBlending });
+    this._motionLines = new THREE.LineSegments(this._motionGeometry, this._motionMaterial);
+    this._motionLines.frustumCulled = false;
+    this._motionLines.renderOrder = 2;
+    for (let i = 0; i < this._motionCueCount; i += 1) {
+      const k = i * 3;
+      this._motionCenters[k] = (Math.random() * 2 - 1) * 34;
+      this._motionCenters[k + 1] = (Math.random() * 2 - 1) * 24;
+      this._motionCenters[k + 2] = (Math.random() * 2 - 1) * 34;
+    }
+    this.scene.add(this._motionLines);
+    this._lastMotionAt = performance.now();
     this._resizeObserver = new ResizeObserver(() => this.resize());
     this._resizeObserver.observe(this.container);
   }
@@ -196,6 +213,43 @@ export class UniverseRenderer {
     }
   }
 
+  updateMotionCue(ship) {
+    const now = performance.now();
+    const dt = Math.min(0.05, Math.max(0, (now - this._lastMotionAt) / 1000));
+    this._lastMotionAt = now;
+    const speed = Math.hypot(ship.velocity[0], ship.velocity[1], ship.velocity[2]);
+    const inv = speed > 1e-9 ? 1 / speed : 0;
+    const dx = ship.velocity[0] * inv, dy = ship.velocity[1] * inv, dz = ship.velocity[2] * inv;
+    // Visual-only logarithmic navigation cue. It deliberately exaggerates translation so astronomical
+    // flight remains perceptible without changing any authoritative position, velocity, or gravity.
+    const baseRate = Math.max(0.15, Math.min(8, (Math.log10(speed + 10) - 1) * 1.55));
+    const thrustBoost = ship.throttle > 0 ? 3.5 : ship.reverseThrottle > 0 ? 1.8 : 0;
+    const rate = baseRate + thrustBoost;
+    const trail = Math.max(0.04, Math.min(1.35, 0.05 + rate * 0.13));
+    const limitX = 34, limitY = 24, limitZ = 34;
+    const move = rate * dt;
+    for (let i = 0; i < this._motionCueCount; i += 1) {
+      const c = i * 3;
+      this._motionCenters[c] -= dx * move;
+      this._motionCenters[c + 1] -= dy * move;
+      this._motionCenters[c + 2] -= dz * move;
+      if (this._motionCenters[c] > limitX) this._motionCenters[c] -= limitX * 2;
+      if (this._motionCenters[c] < -limitX) this._motionCenters[c] += limitX * 2;
+      if (this._motionCenters[c + 1] > limitY) this._motionCenters[c + 1] -= limitY * 2;
+      if (this._motionCenters[c + 1] < -limitY) this._motionCenters[c + 1] += limitY * 2;
+      if (this._motionCenters[c + 2] > limitZ) this._motionCenters[c + 2] -= limitZ * 2;
+      if (this._motionCenters[c + 2] < -limitZ) this._motionCenters[c + 2] += limitZ * 2;
+      const p = i * 6;
+      const x = this._motionCenters[c], y = this._motionCenters[c + 1], z = this._motionCenters[c + 2];
+      this._motionPositions[p] = x; this._motionPositions[p + 1] = y; this._motionPositions[p + 2] = z;
+      this._motionPositions[p + 3] = x + dx * trail;
+      this._motionPositions[p + 4] = y + dy * trail;
+      this._motionPositions[p + 5] = z + dz * trail;
+    }
+    this._motionGeometry.attributes.position.needsUpdate = true;
+    this._motionMaterial.opacity = Math.max(0.04, Math.min(0.32, 0.035 + rate * 0.028));
+  }
+
   pickBodyAt(clientX, clientY) {
     const rect = this.renderer.domElement.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
@@ -239,14 +293,19 @@ export class UniverseRenderer {
     if (this.targetBodyId && this.bodyVisuals.has(this.targetBodyId)) {
       const visual = this.bodyVisuals.get(this.targetBodyId);
       this.targetMarker.position.copy(visual.position);
-      const radius = Math.max(1.1, visual.userData.renderRadius || 1);
-      const size = Math.max(3.8, radius * 3.0);
+      const distance = Math.max(0.01, visual.position.length());
+      // Constant-angular-size center brackets: target indication no longer blankets nearby planets.
+      const size = Math.max(0.22, distance * 0.045);
       this.targetMarker.scale.set(size, size, 1);
       this.targetMarker.visible = true;
     } else {
       this.targetMarker.visible = false;
     }
 
+    this.updateMotionCue(ship);
+    const desiredFov = 66 + (ship.throttle > 0 ? 5 : 0) + (ship.reverseThrottle > 0 ? 2 : 0);
+    const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.14;
+    if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
     this.camera.position.set(0, 0, 0);
     const basis = ship.basis();
     this.camera.up.set(basis.up[0], basis.up[1], basis.up[2]);
@@ -257,6 +316,8 @@ export class UniverseRenderer {
   dispose() {
     this._resizeObserver.disconnect();
     for (const id of [...this.trajectories.keys()]) this.clearTrajectory(id);
+    this._motionGeometry.dispose();
+    this._motionMaterial.dispose();
     this.renderer.dispose();
   }
 }

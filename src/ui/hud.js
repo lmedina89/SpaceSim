@@ -43,6 +43,8 @@ export class Hud {
     this.lab = root.querySelector('#labPanel');
     this.science = root.querySelector('#sciencePanel');
     this.scanner = root.querySelector('#scannerPanel');
+    this.more = root.querySelector('#morePanel');
+    this._messageTimer = null;
     this.targetChip = root.querySelector('#targetChip');
     this.targetName = root.querySelector('#targetName');
     this.targetKind = root.querySelector('#targetKind');
@@ -66,7 +68,13 @@ export class Hud {
   toggleLab(force) { this.lab.hidden = typeof force === 'boolean' ? !force : !this.lab.hidden; }
   toggleScience(force) { this.science.hidden = typeof force === 'boolean' ? !force : !this.science.hidden; }
   toggleScanner(force) { this.scanner.hidden = typeof force === 'boolean' ? !force : !this.scanner.hidden; }
-  notify(text) { this.message.textContent = text; }
+  toggleMore(force) { this.more.hidden = typeof force === 'boolean' ? !force : !this.more.hidden; }
+  notify(text, holdMs = 4400) {
+    this.message.hidden = false;
+    this.message.textContent = text;
+    clearTimeout(this._messageTimer);
+    if (holdMs > 0) this._messageTimer = setTimeout(() => { this.message.hidden = true; }, holdMs);
+  }
 
   setTarget(body, metrics, prediction = null) {
     if (!body || !metrics) {

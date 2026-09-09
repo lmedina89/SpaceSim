@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.1</title>
+  <title>Universe Lab v0.1.1.1</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,13 +21,13 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.1</span></div>
-      <div class="stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
-      <div class="stat"><b id="fpsValue">—</b><small>fps</small></div>
-      <div class="stat"><b id="physicsMsValue">—</b><small>physics</small></div>
-      <div class="stat"><b id="renderMsValue">—</b><small>render</small></div>
-      <div class="stat"><b id="speedValue">—</b><small>ship</small></div>
-      <div class="stat"><b id="simTimeValue">0 d</b><small>sim time</small></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.1.1</span></div>
+      <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
+      <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
+      <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
+      <div class="stat technical-stat"><b id="renderMsValue">—</b><small>render</small></div>
+      <div class="stat primary-stat ship-stat"><b id="speedValue">—</b><small>ship</small></div>
+      <div class="stat primary-stat"><b id="simTimeValue">0 d</b><small>sim time</small></div>
     </div>
 
     <div class="seed-chip">SEED <b id="seedValue">ORIGIN-001</b> · MAJOR <b id="bodyCountValue">—</b> · TEST <b id="minorCountValue">—</b> · DRAW <b id="drawCallsValue">—</b> · PRED <b id="predictionMsValue">—</b></div>
@@ -56,20 +56,29 @@
       <small>RCS 6 m/s² · attitude roll is pilot-controlled</small>
     </div>
 
-    <nav class="bottom-bar" aria-label="Simulation controls">
+    <nav class="bottom-bar" aria-label="Primary simulation controls">
       <button id="labToggle" type="button">LAB</button>
       <button id="targetButton" type="button">TARGET</button>
       <button id="scannerToggle" type="button">SCAN</button>
       <button id="pathToggle" type="button">PATH ON</button>
-      <button id="rcsToggle" type="button">RCS</button>
-      <button id="scienceToggle" type="button">SCIENCE</button>
-      <button id="homeButton" type="button">HOME</button>
-      <button id="pauseToggle" type="button">PAUSE</button>
-      <button id="saveButton" type="button">SAVE</button>
-      <button id="loadButton" type="button">LOAD</button>
+      <button id="warpQuick" type="button">WARP 60×</button>
+      <button id="moreToggle" type="button">MORE</button>
     </nav>
 
     <div id="message" class="message">Initializing…</div>
+
+    <aside id="morePanel" class="drawer quick-panel" hidden>
+      <header><div><b>FLIGHT / SYSTEM</b><small>Secondary controls</small></div><button id="moreClose" type="button" aria-label="Close flight menu">×</button></header>
+      <div class="quick-grid">
+        <button id="rcsToggle" type="button">RCS PANEL</button>
+        <button id="scienceToggle" type="button">SCIENCE</button>
+        <button id="homeButton" type="button">HOME / ORBIT</button>
+        <button id="pauseToggle" type="button">PAUSE</button>
+        <button id="saveButton" type="button">SAVE</button>
+        <button id="loadButton" type="button">LOAD</button>
+      </div>
+      <p class="quick-note">HOME restores the seeded orbital demonstration position. WARP changes simulation time, not the laws of motion: holding thrust at 600× means the engine is modeled as firing for 600 simulated seconds per real second.</p>
+    </aside>
 
     <aside id="labPanel" class="drawer lab-panel" hidden>
       <header><div><b>UNIVERSE LAB</b><small>Seeded system + experiment launcher</small></div><button id="labClose" type="button" aria-label="Close lab">×</button></header>

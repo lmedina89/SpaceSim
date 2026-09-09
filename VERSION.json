@@ -1,6 +1,6 @@
 {
-  "version": "0.1.1",
-  "name": "Scientific Flight & Experiment Control",
+  "version": "0.1.1.1",
+  "name": "Mobile Flight UX & Motion-Cue Hotfix",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -9,5 +9,7 @@
   "majorIntegrator": "velocity-verlet",
   "trajectoryModel": "forward N-body velocity-verlet",
   "scannerModel": "target-relative osculating two-body elements",
+  "mobileViewport": "visualViewport-height-synchronized",
+  "motionCue": "visual-only logarithmic inertial velocity reference",
   "deploymentMode": "github-pages-branch-root"
 }
