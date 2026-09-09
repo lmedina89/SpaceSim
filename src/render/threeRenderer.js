@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { createStarfield } from './starfield.js';
 import { createCelestialVisual } from './celestialFactory.js';
-import { BODY_KIND, SIMULATION } from '../core/constants.js';
+import { BODY_KIND } from '../core/constants.js';
 
 function disposeObject(root) {
   root.traverse?.((node) => {
@@ -30,6 +30,28 @@ function makeTargetTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
+function makeGlowTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.12, 'rgba(255,255,255,.92)');
+  grad.addColorStop(0.45, 'rgba(255,190,90,.28)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(canvas);
+}
+
+let sharedGlow = null;
+function glowTexture() { sharedGlow ??= makeGlowTexture(); return sharedGlow; }
+
+function unit(v) {
+  const mag = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / mag, v[1] / mag, v[2] / mag];
+}
+
 export class UniverseRenderer {
   constructor(container) {
     this.container = container;
@@ -43,13 +65,8 @@ export class UniverseRenderer {
     this.minorPoints = null;
     this.minorGeometry = null;
     this.systemSeed = null;
-    // Rendering uses an exposure-normalized stellar point light. Authoritative physics remains
-    // inverse-square SI gravity; radiometric falloff is deliberately not evaluated in compressed
-    // render coordinates because doing so makes planetary illumination numerically meaningless.
-    // Point geometry still gives each body's lit hemisphere the correct starward direction.
-    this.sunLight = new THREE.PointLight(0xffffff, 2.6, 0, 0);
+    this.sunLight = new THREE.PointLight(0xffffff, 5.5, 0, 0);
     this.scene.add(this.sunLight);
-    // Keep the unlit hemisphere near-black while preserving just enough scene readability.
     this.scene.add(new THREE.AmbientLight(0x263149, 0.055));
     this.trajectories = new Map();
     this.targetBodyId = null;
@@ -63,6 +80,10 @@ export class UniverseRenderer {
     this.targetMarker.visible = false;
     this.targetMarker.renderOrder = 1000;
     this.scene.add(this.targetMarker);
+    this.impactEffects = [];
+    this.impactEffectGroup = new THREE.Group();
+    this.impactEffectGroup.renderOrder = 900;
+    this.scene.add(this.impactEffectGroup);
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
     this._temp = new THREE.Vector3();
@@ -83,6 +104,7 @@ export class UniverseRenderer {
     }
     this.scene.add(this._motionLines);
     this._lastMotionAt = performance.now();
+    this._lastImpactFxAt = performance.now();
     this._resizeObserver = new ResizeObserver(() => this.resize());
     this._resizeObserver.observe(this.container);
   }
@@ -120,6 +142,8 @@ export class UniverseRenderer {
     this.setTarget(null);
     const oldStars = this.scene.getObjectByName('visual-starfield');
     if (oldStars) { this.scene.remove(oldStars); disposeObject(oldStars); }
+    for (const fx of this.impactEffects) this.impactEffectGroup.remove(fx.group);
+    this.impactEffects.length = 0;
     const stars = createStarfield(seed);
     stars.name = 'visual-starfield';
     this.scene.add(stars);
@@ -132,6 +156,12 @@ export class UniverseRenderer {
       if (!ids.has(id)) { this.scene.remove(visual); disposeObject(visual); this.bodyVisuals.delete(id); }
     }
     for (const body of bodies) {
+      const existing = this.bodyVisuals.get(body.id);
+      if (existing && (existing.userData?.visualVersion !== (body.visualVersion ?? 0) || existing.userData?.bodyColor !== (body.color ?? null))) {
+        this.scene.remove(existing);
+        disposeObject(existing);
+        this.bodyVisuals.delete(body.id);
+      }
       if (!this.bodyVisuals.has(body.id)) {
         const visual = createCelestialVisual(body);
         this.bodyVisuals.set(body.id, visual);
@@ -218,6 +248,112 @@ export class UniverseRenderer {
     }
   }
 
+  addImpactEffect({ position, normal = [0, 1, 0], energyJ = 1e12, color = 0xffb05f }) {
+    const group = new THREE.Group();
+    const scaleBase = Math.max(0.24, Math.min(7.5, Math.log10(energyJ + 10) * 0.2));
+    const flash = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTexture(),
+      color,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    flash.scale.set(scaleBase * 2.2, scaleBase * 2.2, 1);
+    group.add(flash);
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(scaleBase * 0.35, scaleBase * 0.5, 48),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    const n = unit(normal);
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(n[0], n[1], n[2]));
+    group.add(ring);
+
+    const pointCount = 120;
+    const positions = new Float32Array(pointCount * 3);
+    const velocities = new Float32Array(pointCount * 3);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const points = new THREE.Points(geometry, new THREE.PointsMaterial({
+      color,
+      size: Math.max(0.08, scaleBase * 0.065),
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    group.add(points);
+
+    const up = Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    const tangent = unit([
+      up[1] * n[2] - up[2] * n[1],
+      up[2] * n[0] - up[0] * n[2],
+      up[0] * n[1] - up[1] * n[0],
+    ]);
+    const bitangent = unit([
+      n[1] * tangent[2] - n[2] * tangent[1],
+      n[2] * tangent[0] - n[0] * tangent[2],
+      n[0] * tangent[1] - n[1] * tangent[0],
+    ]);
+    const ejectaSpeed = Math.max(0.35, Math.min(18, Math.log10(energyJ + 10) * 0.48));
+    for (let i = 0; i < pointCount; i += 1) {
+      const p = i * 3;
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 0.8;
+      const lift = 0.75 + Math.random() * 0.85;
+      const dir = unit([
+        n[0] * lift + tangent[0] * Math.cos(a) * r + bitangent[0] * Math.sin(a) * r,
+        n[1] * lift + tangent[1] * Math.cos(a) * r + bitangent[1] * Math.sin(a) * r,
+        n[2] * lift + tangent[2] * Math.cos(a) * r + bitangent[2] * Math.sin(a) * r,
+      ]);
+      velocities[p] = dir[0] * ejectaSpeed * (0.6 + Math.random() * 0.9);
+      velocities[p + 1] = dir[1] * ejectaSpeed * (0.6 + Math.random() * 0.9);
+      velocities[p + 2] = dir[2] * ejectaSpeed * (0.6 + Math.random() * 0.9);
+    }
+
+    group.frustumCulled = false;
+    this.impactEffectGroup.add(group);
+    this.impactEffects.push({ group, flash, ring, points, positions, velocities, origin: [...position], age: 0, duration: 2.2 + scaleBase * 0.08, flashBase: scaleBase * 2.2 });
+  }
+
+  updateImpactEffects(referenceFrame) {
+    const now = performance.now();
+    const dt = Math.min(0.05, Math.max(0, (now - this._lastImpactFxAt) / 1000));
+    this._lastImpactFxAt = now;
+    const origin = referenceFrame.origin;
+    const scale = referenceFrame.scale;
+    for (let i = this.impactEffects.length - 1; i >= 0; i -= 1) {
+      const fx = this.impactEffects[i];
+      fx.age += dt;
+      const t = fx.age / fx.duration;
+      if (t >= 1) {
+        this.impactEffectGroup.remove(fx.group);
+        fx.points.geometry.dispose();
+        fx.points.material.dispose();
+        fx.ring.geometry.dispose();
+        fx.ring.material.dispose();
+        fx.flash.material.dispose();
+        this.impactEffects.splice(i, 1);
+        continue;
+      }
+      const opacity = 1 - t;
+      fx.flash.material.opacity = 0.95 * opacity;
+      const flashScale = fx.flashBase * (1 + t * 5.5);
+      fx.flash.scale.set(flashScale, flashScale, 1);
+      fx.ring.material.opacity = 0.72 * opacity;
+      fx.ring.scale.setScalar(1 + t * 9);
+      for (let p = 0; p < fx.positions.length; p += 3) {
+        fx.positions[p] = fx.velocities[p] * fx.age;
+        fx.positions[p + 1] = fx.velocities[p + 1] * fx.age;
+        fx.positions[p + 2] = fx.velocities[p + 2] * fx.age;
+      }
+      fx.points.geometry.attributes.position.needsUpdate = true;
+      fx.points.material.opacity = 0.85 * opacity;
+      fx.group.position.set((fx.origin[0] - origin[0]) * scale, (fx.origin[1] - origin[1]) * scale, (fx.origin[2] - origin[2]) * scale);
+    }
+  }
+
   updateMotionCue(ship) {
     const now = performance.now();
     const dt = Math.min(0.05, Math.max(0, (now - this._lastMotionAt) / 1000));
@@ -225,8 +361,6 @@ export class UniverseRenderer {
     const speed = Math.hypot(ship.velocity[0], ship.velocity[1], ship.velocity[2]);
     const inv = speed > 1e-9 ? 1 / speed : 0;
     const dx = ship.velocity[0] * inv, dy = ship.velocity[1] * inv, dz = ship.velocity[2] * inv;
-    // Visual-only logarithmic navigation cue. It deliberately exaggerates translation so astronomical
-    // flight remains perceptible without changing any authoritative position, velocity, or gravity.
     const baseRate = Math.max(0.15, Math.min(8, (Math.log10(speed + 10) - 1) * 1.55));
     const thrustBoost = ship.throttle > 0 ? 3.5 : ship.reverseThrottle > 0 ? 1.8 : 0;
     const rate = baseRate + thrustBoost;
@@ -297,12 +431,12 @@ export class UniverseRenderer {
     }
     if (minorField) this.updateMinorField(minorField, referenceFrame);
     this.updateTrajectories(referenceFrame);
+    this.updateImpactEffects(referenceFrame);
 
     if (this.targetBodyId && this.bodyVisuals.has(this.targetBodyId)) {
       const visual = this.bodyVisuals.get(this.targetBodyId);
       this.targetMarker.position.copy(visual.position);
       const distance = Math.max(0.01, visual.position.length());
-      // Constant-angular-size center brackets: target indication no longer blankets nearby planets.
       const size = Math.max(0.22, distance * 0.045);
       this.targetMarker.scale.set(size, size, 1);
       this.targetMarker.visible = true;

@@ -9,7 +9,8 @@ import { VelocityVerletIntegrator } from '../physics/integrators/velocityVerlet.
 import { CollisionMonitor } from '../physics/collisionMonitor.js';
 import { TestParticleField } from '../physics/testParticleField.js';
 import { ShipDynamics } from '../physics/shipDynamics.js';
-import { impactReport, formatEnergy } from '../physics/impactModel.js';
+import { formatEnergy } from '../physics/impactModel.js';
+import { resolveImpact } from '../physics/impactResolver.js';
 import { osculatingMetrics, angularAlignment } from '../physics/orbitalMetrics.js';
 import { TrajectoryPredictor } from '../physics/trajectoryPredictor.js';
 import { ExperimentRegistry } from '../experiments/experimentRegistry.js';
@@ -43,6 +44,8 @@ function serializeBody(body) {
     parentId: body.parentId,
     densityKgM3: body.densityKgM3,
     materialId: body.materialId,
+    visualVersion: body.visualVersion,
+    damageRecords: body.damageRecords,
     semiMajorAxis: body.semiMajorAxis,
     eccentricity: body.eccentricity,
     inclinationRad: body.inclinationRad,
@@ -121,7 +124,7 @@ export class UniverseLabApp {
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
     this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.1.3 online. Stellar lighting readability hotfix active.');
+    this.hud.notify('v0.1.2 online. Impact, fragmentation, crater telemetry, and explosion FX foundation active.');
   }
 
   newSystem(seed) {
@@ -298,17 +301,53 @@ export class UniverseLabApp {
     this.hud.setTarget(target, metrics, this.shipPrediction);
   }
 
+  applyImpactResolution(event) {
+    if (!this.registry.has(event.a.id) || !this.registry.has(event.b.id)) return;
+    event.timeSeconds ??= this.clock.elapsedSimSeconds;
+    const maxGravityFragments = Math.max(0, SIMULATION.directGravityBodyLimit - this.massiveBodies.length + 1);
+    const resolution = resolveImpact(event, { maxGravityFragments });
+    const { analysis, classification, crater } = resolution;
+
+    for (const id of resolution.deleteIds) this.registry.delete(id);
+    for (const fragment of resolution.createBodies) {
+      if (this.registry.size >= 10_000 || this.massiveBodies.length >= SIMULATION.directGravityBodyLimit) break;
+      this.registry.create(fragment);
+    }
+    this.rebuildBodyCaches();
+    this.renderer.syncBodies(this.bodies);
+    this.invalidatePredictions();
+
+    const contactPosition = resolution.targetDamageRecord?.contactPosition ?? [
+      analysis.target.position[0] + analysis.contactNormal[0] * analysis.target.radius,
+      analysis.target.position[1] + analysis.contactNormal[1] * analysis.target.radius,
+      analysis.target.position[2] + analysis.contactNormal[2] * analysis.target.radius,
+    ];
+    this.renderer.addImpactEffect({
+      position: contactPosition,
+      normal: analysis.contactNormal,
+      energyJ: analysis.centerOfMassEnergyJ,
+      color: analysis.impactor.color ?? 0xffb05f,
+    });
+    this.hud.setImpactResolution(resolution);
+
+    const craterText = crater ? ` · crater ≈ ${(crater.finalDiameterMeters / 1000).toFixed(2)} km × ${(crater.finalDepthMeters / 1000).toFixed(2)} km` : '';
+    const fragmentText = resolution.createBodies.length ? ` · ${resolution.createBodies.length} resolved fragments` : '';
+    this.hud.notify(`IMPACT ${classification.mode.toUpperCase()}: ${analysis.impactor.name} → ${analysis.target.name} · ${formatEnergy(analysis.centerOfMassEnergyJ)} · ${analysis.impactAngleDegrees.toFixed(1)}°${craterText}${fragmentText}.`, 7600);
+
+    if (this.targetId && !this.registry.has(this.targetId)) this.selectTarget(analysis.target.id);
+  }
+
   physicsStep(dt) {
     const sources = this.massiveBodies;
+    const previousPositions = new Map(sources.map((body) => [body.id, new Float64Array(body.position)]));
     this.integrator.step(sources, dt);
     this.ship.step(dt, sources);
     this.minorField?.step(dt, sources);
 
-    const collisions = this.collisionMonitor.scan(sources);
+    const collisions = this.collisionMonitor.scan(sources, previousPositions);
     for (const event of collisions) {
-      const report = impactReport(event.a, event.b, event.relativeSpeed);
-      this.hud.setImpact(event, report);
-      this.hud.notify(`CONTACT: ${event.a.name} / ${event.b.name} · ${formatEnergy(report.centerOfMassEnergyJ)} · Qᴿ ${report.specificImpactEnergyJkg.toExponential(2)} J/kg. No deformation is invented yet.`);
+      event.timeSeconds = this.clock.elapsedSimSeconds + dt * (event.stepFraction ?? 1);
+      this.applyImpactResolution(event);
     }
 
     let currentContact = null;
@@ -322,7 +361,7 @@ export class UniverseLabApp {
       this.shipContactId = currentContact?.id ?? null;
       if (currentContact) {
         const metrics = osculatingMetrics(this.ship.position, this.ship.velocity, currentContact);
-        this.hud.notify(`SHIP CONTACT: ${currentContact.name} at ${Math.abs(metrics?.relativeSpeedMps ?? 0).toFixed(1)} m/s relative speed. Crash response is reserved for v0.1.2.`);
+        this.hud.notify(`SHIP CONTACT: ${currentContact.name} at ${Math.abs(metrics?.relativeSpeedMps ?? 0).toFixed(1)} m/s relative speed. Spacecraft structural crash response is a later local rigid-body module; v0.1.2 resolves celestial-body impacts only.`);
       }
     }
   }
@@ -480,6 +519,23 @@ export class UniverseLabApp {
     $('#asteroidDensity').addEventListener('input', () => this.updateAsteroidDerived());
     $('#asteroidMass').addEventListener('input', () => this.updateAsteroidDerived());
     $('#asteroidSpeed').addEventListener('input', () => this.invalidatePredictions());
+    const impactPresets = {
+      meteor: { material: 'basalt', mass: 1e9, density: 3000, speed: 12000 },
+      tunguska: { material: 'porousRock', mass: 3.0e8, density: 1600, speed: 17000 },
+      chicxulub: { material: 'basalt', mass: 1.0e15, density: 3000, speed: 20000 },
+      moonlet: { material: 'basalt', mass: 1.0e20, density: 3200, speed: 10000 },
+    };
+    this.root.querySelectorAll('.impact-preset').forEach((button) => button.addEventListener('click', () => {
+      const preset = impactPresets[button.dataset.preset];
+      if (!preset) return;
+      $('#asteroidMaterial').value = preset.material;
+      $('#asteroidDensity').value = String(preset.density);
+      $('#asteroidMass').value = String(preset.mass);
+      $('#asteroidSpeed').value = String(preset.speed);
+      this.updateAsteroidDerived();
+      this.invalidatePredictions();
+      this.hud.notify(`${button.textContent.trim()} preset loaded. Values are editable before launch.`);
+    }));
     this.updateAsteroidDerived();
     updateWarpButton();
 

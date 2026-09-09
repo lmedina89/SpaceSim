@@ -51,12 +51,25 @@ export function createCelestialVisual(body) {
     outer.material.opacity = 0.4;
     group.add(outer);
   } else {
-    const emissive = body.kind === BODY_KIND.STAR ? body.color : 0x000000;
+    const bodyColor = body.color ?? 0x888888;
     const material = body.kind === BODY_KIND.STAR
-      ? new THREE.MeshBasicMaterial({ color: body.color ?? 0xffd38a })
-      : new THREE.MeshStandardMaterial({ color: body.color ?? 0x888888, roughness: 0.82, metalness: 0.02, emissive, emissiveIntensity: 0.04 });
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, body.kind === BODY_KIND.STAR ? 36 : 24, body.kind === BODY_KIND.STAR ? 24 : 16), material);
+      ? new THREE.MeshBasicMaterial({ color: bodyColor })
+      : new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.82, metalness: 0.02, emissive: bodyColor, emissiveIntensity: 0.13 });
+    const geometry = new THREE.SphereGeometry(radius, body.kind === BODY_KIND.STAR ? 36 : 24, body.kind === BODY_KIND.STAR ? 24 : 16);
+    const mesh = new THREE.Mesh(geometry, material);
     group.add(mesh);
+    if (body.kind !== BODY_KIND.STAR) {
+      // Exposure-floor shell: visual-only, deliberately faint, and independent of renderer light units.
+      // It guarantees a seeded body color remains readable on WebGPU/iOS while the StandardMaterial
+      // underneath still supplies the starward day/night shading and terminator.
+      const exposureShell = new THREE.Mesh(
+        geometry.clone(),
+        new THREE.MeshBasicMaterial({ color: bodyColor, transparent: true, opacity: 0.10, depthWrite: false }),
+      );
+      exposureShell.scale.setScalar(1.002);
+      exposureShell.renderOrder = 1;
+      group.add(exposureShell);
+    }
   }
 
   if (body.kind === BODY_KIND.STAR || body.kind === BODY_KIND.BLACK_HOLE) {
@@ -73,5 +86,7 @@ export function createCelestialVisual(body) {
   }
 
   group.userData.renderRadius = radius;
+  group.userData.visualVersion = body.visualVersion ?? 0;
+  group.userData.bodyColor = body.color ?? null;
   return group;
 }

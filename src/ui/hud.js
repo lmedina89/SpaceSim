@@ -20,6 +20,12 @@ function speed(value) {
   return Math.abs(value) >= 1000 ? `${fmt(value / 1000, 3)} km/s` : `${fmt(value, 2)} m/s`;
 }
 
+
+function mass(value) {
+  if (!Number.isFinite(value)) return '—';
+  return `${value.toExponential(3)} kg`;
+}
+
 function acceleration(value) {
   if (!Number.isFinite(value)) return '—';
   return value >= 0.01 ? `${fmt(value, 4)} m/s²` : `${value.toExponential(3)} m/s²`;
@@ -59,6 +65,7 @@ export class Hud {
     this.targetPeriapsis = root.querySelector('#targetPeriapsis');
     this.targetApoapsis = root.querySelector('#targetApoapsis');
     this.targetOrbitState = root.querySelector('#targetOrbitState');
+    this.targetImpactCount = root.querySelector('#targetImpactCount');
     this.predictedApproach = root.querySelector('#predictedApproach');
     this.impactReadout = root.querySelector('#impactReadout');
   }
@@ -97,6 +104,7 @@ export class Hud {
     this.targetPeriapsis.textContent = distance(metrics.periapsisAltitudeMeters);
     this.targetApoapsis.textContent = Number.isFinite(metrics.apoapsisAltitudeMeters) ? distance(metrics.apoapsisAltitudeMeters) : 'unbound';
     this.targetOrbitState.textContent = metrics.boundTwoBody ? 'bound (two-body osculating)' : 'unbound / escape-like';
+    this.targetImpactCount.textContent = String(body.damageRecords?.length ?? 0);
     if (prediction?.impact) {
       this.predictedApproach.textContent = `Impact: ${prediction.impact.bodyName} in ${fmt(prediction.impact.timeSeconds / 3600, 2)} h at ${speed(prediction.impact.relativeSpeedMps)}`;
     } else if (prediction?.targetClosest) {
@@ -108,9 +116,14 @@ export class Hud {
     }
   }
 
-  setImpact(event, report) {
-    if (!event || !report) return;
-    this.impactReadout.textContent = `${event.a.name} ↔ ${event.b.name}: ${report.centerOfMassEnergyJ.toExponential(4)} J · Qᴿ ${report.specificImpactEnergyJkg.toExponential(3)} J/kg · μv ${report.relativeMomentumKgMps.toExponential(3)} kg·m/s`;
+  setImpactResolution(resolution) {
+    if (!resolution?.analysis) return;
+    const a = resolution.analysis;
+    const crater = resolution.crater;
+    const craterText = crater ? ` · crater ${distance(crater.finalDiameterMeters)} wide × ${distance(crater.finalDepthMeters)} deep (${crater.simpleComplexClass})` : '';
+    const fragments = resolution.createBodies?.length ?? 0;
+    const fragmentText = fragments ? ` · ${fragments} resolved fragments · largest ${mass(resolution.largestFragmentMassKg)}` : '';
+    this.impactReadout.textContent = `${a.impactor.name} → ${a.target.name}: ${a.centerOfMassEnergyJ.toExponential(4)} J · ${(a.tntMegatons).toExponential(3)} Mt TNT eq. · ${speed(a.relativeSpeedMps)} · angle ${fmt(a.impactAngleDegrees, 1)}° · Qᴿ ${a.specificImpactEnergyJkg.toExponential(3)} J/kg · response ${resolution.classification.mode}${craterText}${fragmentText}`;
   }
 
   update({ fps, elapsedSeconds, shipSpeed, bodyCount, minorCount, physicsMs, renderMs, predictionMs, drawCalls }) {

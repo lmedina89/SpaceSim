@@ -1,3 +1,17 @@
+import { BODY_KIND, PHYSICS } from '../core/constants.js';
+
+const MATERIAL_RESPONSE = Object.freeze({
+  porousRock: { densityKgM3: 1600, restitution: 0.16, disruptionThresholdJkg: 1.2e5, label: 'porous rock' },
+  ice: { densityKgM3: 917, restitution: 0.12, disruptionThresholdJkg: 7.5e4, label: 'water ice' },
+  basalt: { densityKgM3: 3000, restitution: 0.09, disruptionThresholdJkg: 3.0e5, label: 'basalt' },
+  iron: { densityKgM3: 7800, restitution: 0.05, disruptionThresholdJkg: 1.1e6, label: 'iron-rich' },
+  planetRock: { densityKgM3: 3200, restitution: 0.03, disruptionThresholdJkg: 2.5e7, label: 'rocky planetary crust' },
+  planetIce: { densityKgM3: 1400, restitution: 0.04, disruptionThresholdJkg: 1.2e7, label: 'icy planetary crust' },
+  gasGiant: { densityKgM3: 1200, restitution: 0.0, disruptionThresholdJkg: 1e30, label: 'gas-giant atmosphere/envelope' },
+  star: { densityKgM3: 1400, restitution: 0.0, disruptionThresholdJkg: 1e30, label: 'stellar plasma' },
+  blackHole: { densityKgM3: Infinity, restitution: 0.0, disruptionThresholdJkg: 1e30, label: 'black-hole sink' },
+});
+
 export function reducedMassKg(a, b) {
   return (a.mass * b.mass) / (a.mass + b.mass);
 }
@@ -5,6 +19,21 @@ export function reducedMassKg(a, b) {
 export function impactEnergyJoules(a, b, relativeSpeed) {
   const mu = reducedMassKg(a, b);
   return 0.5 * mu * relativeSpeed * relativeSpeed;
+}
+
+export function materialProfile(body) {
+  if (body.kind === BODY_KIND.BLACK_HOLE) return MATERIAL_RESPONSE.blackHole;
+  if (body.kind === BODY_KIND.STAR) return MATERIAL_RESPONSE.star;
+  if (body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON) {
+    if (body.planetType === 'gas giant') return MATERIAL_RESPONSE.gasGiant;
+    if (body.planetType === 'ice' || body.planetType === 'frozen') return MATERIAL_RESPONSE.planetIce;
+    return MATERIAL_RESPONSE.planetRock;
+  }
+  return MATERIAL_RESPONSE[body.materialId] ?? MATERIAL_RESPONSE.basalt;
+}
+
+export function bodyDensityKgM3(body) {
+  return body.densityKgM3 ?? materialProfile(body).densityKgM3;
 }
 
 export function impactReport(a, b, relativeSpeed) {
@@ -17,6 +46,202 @@ export function impactReport(a, b, relativeSpeed) {
     relativeMomentumKgMps: mu * relativeSpeed,
     specificImpactEnergyJkg: energyJ / (a.mass + b.mass),
     tntMegatons: energyJ / 4.184e15,
+  };
+}
+
+export function mutualEscapeSpeedMps(a, b) {
+  const distance = Math.max(1, a.radius + b.radius);
+  return Math.sqrt((2 * PHYSICS.G * (a.mass + b.mass)) / distance);
+}
+
+function unit(v) {
+  const mag = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / mag, v[1] / mag, v[2] / mag];
+}
+
+function dot(a, b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function chooseTargetImpactor(a, b) {
+  return a.mass >= b.mass ? { target: a, impactor: b } : { target: b, impactor: a };
+}
+
+export function analyzeImpactEvent(event) {
+  const { a, b } = event;
+  const relativeVelocity = event.relativeVelocity ?? [b.velocity[0] - a.velocity[0], b.velocity[1] - a.velocity[1], b.velocity[2] - a.velocity[2]];
+  const relativeSpeed = event.relativeSpeed ?? Math.hypot(...relativeVelocity);
+  const eventNormal = unit(event.contactNormal ?? [b.position[0] - a.position[0], b.position[1] - a.position[1], b.position[2] - a.position[2]]);
+  const { target, impactor } = chooseTargetImpactor(a, b);
+  const normal = target === a ? eventNormal : [-eventNormal[0], -eventNormal[1], -eventNormal[2]];
+  const impactorRelativeVelocity = [impactor.velocity[0] - target.velocity[0], impactor.velocity[1] - target.velocity[1], impactor.velocity[2] - target.velocity[2]];
+  const velocityDirection = unit(impactorRelativeVelocity);
+  const cosNormal = clamp(Math.abs(dot(normal, velocityDirection)), 0, 1);
+  const impactAngleDegrees = Math.asin(cosNormal) * (180 / Math.PI); // 90 = straight in, 0 = grazing
+  const report = impactReport(a, b, relativeSpeed);
+  const mutualEscape = mutualEscapeSpeedMps(a, b);
+  return {
+    ...report,
+    a,
+    b,
+    target,
+    impactor,
+    timeSeconds: event.timeSeconds ?? 0,
+    relativeVelocity: impactorRelativeVelocity,
+    relativeSpeedMps: relativeSpeed,
+    contactNormal: normal,
+    impactAngleDegrees,
+    mutualEscapeSpeedMps: mutualEscape,
+    targetDensityKgM3: bodyDensityKgM3(target),
+    impactorDensityKgM3: bodyDensityKgM3(impactor),
+    massRatio: impactor.mass / target.mass,
+    impactorSpecificEnergyJkg: report.centerOfMassEnergyJ / impactor.mass,
+    targetSpecificEnergyJkg: report.centerOfMassEnergyJ / target.mass,
+  };
+}
+
+export function classifyImpact(analysis) {
+  const { target, impactor } = analysis;
+  if (target.kind === BODY_KIND.BLACK_HOLE || impactor.kind === BODY_KIND.BLACK_HOLE) return { mode: 'absorb', reason: 'black-hole sink' };
+  if (target.kind === BODY_KIND.STAR || impactor.kind === BODY_KIND.STAR) return { mode: 'absorb', reason: 'stellar envelope absorption' };
+  const targetProfile = materialProfile(target);
+  const impactorProfile = materialProfile(impactor);
+  const restitution = Math.min(targetProfile.restitution, impactorProfile.restitution);
+  const projectileDisruptionThreshold = impactorProfile.disruptionThresholdJkg;
+  const targetDisruptionThreshold = targetProfile.disruptionThresholdJkg;
+  const asteroidPair = target.kind === BODY_KIND.ASTEROID && impactor.kind === BODY_KIND.ASTEROID;
+  if (asteroidPair && analysis.relativeSpeedMps < 100 && analysis.impactorSpecificEnergyJkg < projectileDisruptionThreshold * 0.05) {
+    return { mode: 'bounce', restitution, reason: 'low-speed material encounter' };
+  }
+  if (analysis.relativeSpeedMps < analysis.mutualEscapeSpeedMps * 0.9 && analysis.impactorSpecificEnergyJkg < projectileDisruptionThreshold * 0.12) {
+    return { mode: 'merge', reason: 'gravitationally bound sub-disruptive collision' };
+  }
+  const craterForming = [BODY_KIND.PLANET, BODY_KIND.MOON].includes(target.kind) && analysis.relativeSpeedMps >= 500;
+  const projectileDisrupted = analysis.impactorSpecificEnergyJkg > projectileDisruptionThreshold * 0.15;
+  if (craterForming || projectileDisrupted) {
+    const catastrophic = analysis.specificImpactEnergyJkg > targetDisruptionThreshold || (analysis.massRatio > 0.08 && analysis.relativeSpeedMps > analysis.mutualEscapeSpeedMps * 1.2);
+    return { mode: 'fragment', catastrophic, disruptionThresholdJkg: targetDisruptionThreshold, reason: catastrophic ? 'catastrophic target disruption regime' : 'projectile disruption / crater-forming impact' };
+  }
+  return { mode: 'merge', reason: 'sub-disruptive inelastic collision' };
+}
+
+export function estimateCrater(analysis) {
+  const { target, impactor } = analysis;
+  if (!([BODY_KIND.PLANET, BODY_KIND.MOON].includes(target.kind)) || target.planetType === 'gas giant') return null;
+  const g = (PHYSICS.G * target.mass) / (target.radius * target.radius);
+  const Dp = Math.max(1, impactor.radius * 2);
+  const rhoRatio = Math.max(0.15, Math.min(8, analysis.impactorDensityKgM3 / Math.max(1, analysis.targetDensityKgM3)));
+  const theta = Math.max(0.12, Math.sin((analysis.impactAngleDegrees * Math.PI) / 180));
+  // Gravity-regime transient crater scaling used by Collins, Melosh & Marcus (2005):
+  // D_tc = 1.161 (rho_i/rho_t)^(1/3) L^0.78 v^0.44 g^-0.22 sin(theta)^(1/3), SI units.
+  const transientDiameter = 1.161 * Math.pow(rhoRatio, 1 / 3) * Math.pow(Dp, 0.78) * Math.pow(Math.max(1, analysis.relativeSpeedMps), 0.44) * Math.pow(Math.max(1e-6, g), -0.22) * Math.pow(theta, 1 / 3);
+  // Approximate simple-to-complex transition with inverse surface gravity, anchored near 3.2 km on Earth.
+  const transitionDiameter = Math.max(1_000, Math.min(80_000, 3_200 * (9.80665 / Math.max(0.05, g))));
+  const simple = transientDiameter <= transitionDiameter;
+  const finalDiameter = simple
+    ? 1.25 * transientDiameter
+    : 1.17 * Math.pow(transientDiameter, 1.13) / Math.pow(transitionDiameter, 0.13);
+  const finalDepth = finalDiameter * (simple ? 0.20 : 0.10);
+  const excavatedMass = (Math.PI / 24) * analysis.targetDensityKgM3 * finalDiameter * finalDiameter * finalDepth;
+  return {
+    transientDiameterMeters: transientDiameter,
+    finalDiameterMeters: finalDiameter,
+    finalDepthMeters: finalDepth,
+    excavatedMassKg: excavatedMass,
+    simpleComplexTransitionMeters: transitionDiameter,
+    simpleComplexClass: simple ? 'simple' : 'complex',
+    model: 'Collins-Melosh-Marcus gravity-regime crater scaling with approximate gravity-scaled simple/complex transition',
+  };
+}
+
+function tangentBasis(normal) {
+  const ref = Math.abs(normal[1]) < 0.92 ? [0, 1, 0] : [1, 0, 0];
+  const tangent = unit([
+    ref[1] * normal[2] - ref[2] * normal[1],
+    ref[2] * normal[0] - ref[0] * normal[2],
+    ref[0] * normal[1] - ref[1] * normal[0],
+  ]);
+  const bitangent = unit([
+    normal[1] * tangent[2] - normal[2] * tangent[1],
+    normal[2] * tangent[0] - normal[0] * tangent[2],
+    normal[0] * tangent[1] - normal[1] * tangent[0],
+  ]);
+  return { tangent, bitangent };
+}
+
+function pseudoRandom(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+export function generateFragments(analysis, options = {}) {
+  const { target, impactor, contactNormal } = analysis;
+  const crater = options.crater ?? null;
+  const fragmentCount = Math.max(3, Math.min(10, Math.round(3 + Math.log10(analysis.centerOfMassEnergyJ + 10) * 0.4)));
+  const sourceMass = impactor.mass;
+  const largeMassShare = 0.42;
+  const gravitationalFragmentBudget = Math.max(0, Math.min(fragmentCount, 6, Number.isFinite(options.maxFragments) ? options.maxFragments : 6));
+  const totalRenderDebrisMass = Math.max(0, sourceMass * (1 - largeMassShare));
+  const largeMass = gravitationalFragmentBudget > 0 ? sourceMass * largeMassShare : 0;
+  const masses = [];
+  let remaining = largeMass;
+  for (let i = 0; i < gravitationalFragmentBudget; i += 1) {
+    const weight = 1 / (i + 1.2);
+    masses.push(weight);
+  }
+  const sum = masses.reduce((acc, value) => acc + value, 0);
+  for (let i = 0; i < masses.length; i += 1) masses[i] = (masses[i] / sum) * remaining;
+  const { tangent, bitangent } = tangentBasis(contactNormal);
+  const ejectaSpeed = Math.max(analysis.relativeSpeedMps * 0.18, Math.sqrt(Math.max(1, analysis.centerOfMassEnergyJ / Math.max(sourceMass, 1))));
+  const origin = [
+    target.position[0] + contactNormal[0] * target.radius,
+    target.position[1] + contactNormal[1] * target.radius,
+    target.position[2] + contactNormal[2] * target.radius,
+  ];
+  const fragments = masses.map((mass, index) => {
+    const radius = Math.cbrt((3 * mass) / (4 * Math.PI * analysis.impactorDensityKgM3));
+    const r1 = pseudoRandom(analysis.centerOfMassEnergyJ * 1e-21 + index * 12.9898);
+    const r2 = pseudoRandom(analysis.centerOfMassEnergyJ * 3e-21 + index * 78.233);
+    const spreadA = (r1 - 0.5) * 0.9;
+    const spreadB = (r2 - 0.5) * 0.9;
+    const localScale = 0.65 + r1 * 0.75;
+    const dir = unit([
+      contactNormal[0] * 1.2 + tangent[0] * spreadA + bitangent[0] * spreadB,
+      contactNormal[1] * 1.2 + tangent[1] * spreadA + bitangent[1] * spreadB,
+      contactNormal[2] * 1.2 + tangent[2] * spreadA + bitangent[2] * spreadB,
+    ]);
+    const speed = ejectaSpeed * localScale * (index === 0 ? 1.3 : 0.55 + r2 * 0.85);
+    return {
+      name: `Fragment ${index + 1}`,
+      mass,
+      radius,
+      densityKgM3: analysis.impactorDensityKgM3,
+      materialId: impactor.materialId ?? 'basalt',
+      color: impactor.color ?? 0x9a816b,
+      gravitySource: true,
+      generated: false,
+      kind: BODY_KIND.ASTEROID,
+      position: [
+        origin[0] + dir[0] * (radius * 2.4),
+        origin[1] + dir[1] * (radius * 2.4),
+        origin[2] + dir[2] * (radius * 2.4),
+      ],
+      velocity: [
+        target.velocity[0] + dir[0] * speed,
+        target.velocity[1] + dir[1] * speed,
+        target.velocity[2] + dir[2] * speed,
+      ],
+    };
+  });
+  return {
+    fragments,
+    largestFragmentMassKg: masses.length ? Math.max(...masses) : 0,
+    unresolvedAccretedMassKg: totalRenderDebrisMass,
+    estimatedEscapingFraction: Math.min(0.95, Math.max(0.08, ejectaSpeed / Math.max(1, Math.sqrt((2 * PHYSICS.G * target.mass) / target.radius)) * 0.18)),
   };
 }
 

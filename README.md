@@ -1,157 +1,174 @@
-# Universe Lab v0.1.1.3 — iOS Hold Input & Pilot Layout Hotfix
+# Universe Lab v0.1.2 — Impact, Fragmentation & Explosion Foundation
 
-A mobile-first browser-based 3D scientific sandbox built around one deterministic seeded solar system, a spacecraft laboratory, real Newtonian trajectories, and future plug-in experiments ranging from impacts and fluids to particle life and quantum demonstrations.
+Universe Lab is a mobile-first scientific sandbox built for GitHub Pages. The current design simulates one deterministic seeded solar system at a time while rendering an effectively unbounded deep-space backdrop. The spacecraft is the observer and experiment platform.
 
-This archive is **GitHub repository-root ready**. Unzip it directly into the repository root. There is no wrapper folder and there are deliberately **no `.github/workflows/*` files**, preserving compatibility with iPhone Git clients whose OAuth tokens cannot modify GitHub Actions workflows.
+## v0.1.2 headline
 
+This release turns finite-radius contacts between massive simulation bodies into an explicit response pipeline:
 
-## What changed in v0.1.1.3
+1. swept contact detection,
+2. impact-frame analysis,
+3. material-response classification,
+4. bounce / merge / absorb / fragment response,
+5. crater estimate for rocky/icy planets and moons,
+6. persistent impact records,
+7. a small set of real gravitational fragments,
+8. visual impact flash / shock ring / ejecta,
+9. scientific impact telemetry.
 
-Physical iPhone testing showed WebKit text-selection handles could appear during sustained THRUST/REV/DAMP presses and steal the active pointer. This hotfix treats the flight surface as a game controller rather than selectable page content.
+It also replaces the failed v0.1.1.3 planet-lighting-only attempt with a renderer-independent body-color exposure floor. Seeded planet colors must remain visible on iOS WebGPU even when renderer light units or viewing geometry make the stellar contribution very dark.
 
-- Suppresses iOS text selection, drag gestures, long-press callouts, and context menus on the simulator control surface while preserving normal editing inside LAB inputs/selects.
-- Hold controls use `touch-action: none`, pointer capture, `lostpointercapture`, capture-phase document `pointerup`/`pointercancel`, visibility-change, and window-blur release paths so an interrupted touch cannot leave a thruster stuck on.
-- Active holds now have a clear pressed visual state and `aria-pressed` state.
-- Main thrusters use a larger two-column pilot cluster: a large THRUST pad plus separate REV and DAMP pads.
-- Landscape bottom navigation is narrowed and shifted into the clear region between LOOK and the thruster cluster instead of crowding the flight controls.
-- Portrait preserves a full-width navigation strip but keeps the larger flight cluster above it.
-- The 0.1.1.1 visual motion cues, scientific state, gravity, integration, trajectories, save schema, and experiment behavior are unchanged.
+## Scientific core retained
 
-## What changed in v0.1.1
+- SI meters, kilograms, and seconds are authoritative.
+- Authoritative positions/velocities use Float64.
+- Major gravity sources mutually interact with Newtonian gravity.
+- Velocity-Verlet integrates major-body motion.
+- Ship flight remains separate from the renderer.
+- Trajectory previews clone the current major system and integrate forward.
+- High-count minor test particles feel major gravity but do not source gravity.
+- Floating-origin rendering prevents astronomical coordinates from being passed directly to Three.js.
+- Save schema remains **1**.
 
-### Scientific spacecraft instrumentation
+## Impact response
 
-- Tap visible celestial bodies to target them, or use **TARGET** to select the body nearest the reticle direction.
-- **SCAN** exposes target-relative center distance, surface altitude, relative/radial velocity, local target gravity, escape speed, circular speed, osculating eccentricity, periapsis, apoapsis, and bound/unbound state.
-- The scanner clearly separates **two-body osculating telemetry** from the full current **N-body trajectory prediction**.
-- **AIM TARGET** rotates ship attitude toward the selected object without applying thrust.
+### Contact detection
 
-### N-body trajectory prediction
+v0.1.2 adds swept relative-motion contact checking. A fast projectile that crosses an entire body between two integration samples can still be detected instead of tunneling through because only endpoint overlap was checked.
 
-- **PATH** draws a forward-predicted spacecraft trajectory.
-- Prediction clones the current major-body state and integrates the entire cloned massive system plus the ship/projectile using the same direct Newtonian gravity + velocity-Verlet model as the live simulation.
-- 1 h, 6 h, 1 d, 7 d, and 30 d horizons are available.
-- Finite-radius contacts use swept segment/sphere checks between integration steps, reducing missed collisions on coarse prediction steps.
-- Minor test particles and future pilot inputs are intentionally excluded from prediction.
+### Impact energy
 
-### Improved spacecraft control
+The event uses reduced-mass center-of-mass kinetic energy:
 
-- Forward thrust: 20 m/s².
-- Reverse thrust: 12 m/s².
-- RCS translation: ±6 m/s² on ship-local right/up axes.
-- Roll control rotates the view/control frame around the forward vector.
-- Touch LOOK controls yaw/pitch attitude.
-- DAMP remains an explicitly fictional inertial-damping navigation aid.
-- This is a 6-DOF-style control foundation, **not yet a rigid-body angular-momentum/torque simulation**.
+`E = 1/2 μ v_rel²`
 
-### Configurable physical mass launcher
+with
 
-The launcher now accepts:
+`μ = m1 m2 / (m1 + m2)`.
 
-- material preset,
-- editable bulk density,
-- mass,
-- launch speed.
+The scanner/report also exposes reduced-mass relative momentum and `Q_R = E / (m1 + m2)`.
 
-Spherical radius is derived from mass and bulk density. The selectable material presets are porous rock, water ice, basalt, and iron-rich material.
+### Material response
 
-**PREVIEW TRAJECTORY** shows the launch path before the object is created and reports a predicted finite-radius contact when one occurs within the selected horizon. The launched object then becomes a normal major gravity source in the live simulation.
+Current material profiles are deliberately compact approximations for porous rock, water ice, basalt, iron-rich bodies, rocky/icy planetary crust, gas giants, stars, and black holes.
 
-### Seeded-system upgrade
+Low-speed asteroid contacts can bounce with a material restitution coefficient. Bound low-energy encounters can merge. High-speed projectile impacts can fragment. Stars/black holes are currently absorbing sinks in the response layer.
 
-- Star mass, radius, temperature, luminosity proxy, and spectral class are deterministic from the seed.
-- Planet initial states now use low-eccentricity near-Keplerian orbits rather than circular-only placement.
-- Deterministic moons are generated where the parent Hill sphere allows a conservative satellite region.
-- Planet/moon local state is barycentrically corrected.
-- The entire generated system is shifted into a center-of-mass rest frame.
-- One primary and one secondary non-gas world can be tagged as future detailed-surface candidates. No terrain is claimed yet.
+This is not a fracture-mechanics solver.
 
-### Collision telemetry
+### Crater estimate
 
-Major-body finite-radius contact now reports:
+For solid planets/moons, the transient crater uses the gravity-regime scaling relation associated with Collins, Melosh & Marcus (2005):
 
-- relative contact speed,
-- center-of-mass kinetic energy using reduced mass,
-- reduced-mass relative momentum,
-- specific impact energy `Q_R = E_cm / (m1 + m2)`.
+`D_tc = 1.161 (rho_i/rho_t)^(1/3) L^0.78 v^0.44 g^-0.22 sin(theta)^(1/3)`
 
-There is still deliberately **no fake crater, fragmentation, explosion, or deformation response**. That is the next impact milestone.
+The final simple crater is `1.25 D_tc`. For complex craters, the project applies the published power-law form using an approximate gravity-scaled simple/complex transition diameter. Depth and excavated mass are intentionally coarser approximations and are explicitly identified as such in the scientific notes.
 
-### Performance instrumentation
+### Fragments
 
-The HUD now separates:
+The resolver keeps only a small number of large fragments as full Newtonian gravity sources. This is a performance architecture decision, not a claim that real impacts make only a handful of fragments. Unresolved material is retained in the surviving target's represented mass while dense visual ejecta remains non-authoritative.
 
-- FPS,
-- physics-frame cost,
-- render-call cost,
-- trajectory-prediction cost,
-- draw calls when the renderer backend exposes them,
-- major-body count,
-- minor test-particle count.
+This lets a surviving fragment actually leave, fall back, enter another trajectory, or hit something later without turning one impact into hundreds of expensive gravity sources.
 
-## GitHub Pages — phone-safe deployment
+## Impact visuals
 
-1. Unzip this archive directly into the root of the GitHub repository.
-2. Commit/push to `main`.
-3. GitHub → **Settings → Pages**.
-4. Choose **Deploy from a branch**.
-5. Select **main** and **/(root)**.
-6. Save.
+Impact visuals are presentation driven by the calculated energy and impact normal:
 
-Do not add a Pages Actions workflow when using a phone Git client that lacks GitHub's `workflow` OAuth scope.
+- additive flash,
+- expanding shock/ejecta ring,
+- directional ejecta points,
+- material-colored glow.
 
-## Controls
+They do **not** add forces or mass and therefore cannot contaminate the physics state.
 
-### iPhone / touch
+## Persistent damage records
 
-- **LOOK**: drag to yaw/pitch.
-- **THRUST**: forward acceleration.
-- **REV**: reverse acceleration.
-- **DAMP**: fictional inertial damping.
-- **RCS**: opens local-axis up/down/left/right translation and roll controls.
-- Tap a visible body: select target.
-- **TARGET**: target nearest reticle direction.
-- **SCAN**: detailed telemetry.
-- **PATH**: toggle spacecraft predicted trajectory.
-- **LAB**: seed generation, time warp, particle count, trajectory horizon, launcher, black hole.
+Solid target bodies can now carry `damageRecords` containing:
 
-### Keyboard
+- simulation time,
+- impactor identity/mass/density,
+- relative velocity,
+- impact angle,
+- impact energy and `Q_R`,
+- crater estimate,
+- impact location/normal,
+- largest resolved fragment,
+- estimated ejecta escape fraction,
+- model disclosure string.
 
-- `W`: forward thrust
-- `X`: reverse thrust
-- `S`: damping
-- `A` / `D`: left/right RCS
-- `R` / `F`: up/down RCS
-- `Q` / `E`: roll
-- Arrow keys: yaw/pitch
-- `T`: target nearest reticle direction
-- `P`: trajectory path toggle
+The scanner displays the number of recorded impacts. Future landable terrain can consume the same records to materialize craters on the surface.
 
-## Architecture priorities
+## Impact presets
 
-1. Scientific simulation state is independent of rendering.
-2. Authoritative state uses SI units + Float64.
-3. Exact direct Newtonian gravity remains the small-N backend.
-4. High-count fields remain typed-array data, not object-per-particle state.
-5. Renderer works in a floating spacecraft-local frame.
-6. Specialized future solvers plug into the universe rather than replacing the universe core.
+The LAB includes editable starting presets:
 
-See `ARCHITECTURE.md` and `SCIENTIFIC-NOTES.md`.
+- Small Meteor
+- Tunguska-ish
+- Chicxulub-class
+- Moonlet
 
-## Validation
+They only populate mass/density/speed fields. The user can change every value before previewing or launching.
+
+## Planet visibility repair
+
+The `ORIGIN-001` home world **Caelum-4361 d** is generated as a tan desert world (`#c58a50`). It was still nearly black on the user's real iPhone WebGPU path in v0.1.1.3.
+
+v0.1.2 therefore uses two visual layers for non-stellar bodies:
+
+- a normally lit StandardMaterial for directional stellar shading/terminator,
+- a faint color-matched exposure shell plus low emissive floor.
+
+The second layer is intentionally visual-only. It prevents generated color from disappearing because of renderer/light-unit behavior while preserving strong day/night contrast.
+
+## Mobile input
+
+The v0.1.1.2 iOS hold-control hardening remains:
+
+- `touch-action:none` on continuous controls,
+- pointer capture,
+- document-level pointer release fallback,
+- lost-pointer/visibility/blur cleanup,
+- selection/callout suppression on the simulation surface,
+- editable LAB controls exempted.
+
+## GitHub Pages / phone workflow
+
+The release ZIP is repository-root-ready. Do not create a wrapper directory.
+
+Deploy with GitHub Pages:
+
+- Source: **Deploy from a branch**
+- Branch: **main**
+- Folder: **/(root)**
+
+The distributable intentionally contains no `.github/workflows/*` files so mobile OAuth clients do not require GitHub's workflow scope.
+
+## Current model boundaries
+
+Not implemented yet:
+
+- hydrocodes or shock-physics continuum solvers,
+- arbitrary mesh fracture,
+- atmosphere entry/ablation,
+- spacecraft structural crash physics,
+- persistent visible terrain deformation,
+- fluids,
+- Barnes-Hut/FMM gravity,
+- GR black-hole trajectories/lensing,
+- landable terrain.
+
+Those should remain separate modules rather than being hidden inside this impact foundation.
+
+## Run
+
+No build step is required for GitHub Pages. Serve the repository root over HTTP(S); ES modules cannot reliably be tested by opening `index.html` directly from `file://`.
+
+## QA
+
+Run:
 
 ```bash
 npm run qa
 ```
 
-v0.1.1 contains 13 automated numerical/unit tests plus repository/syntax checks. See `QA-REPORT.md` for the release results and known limitations.
-
-## Next planned milestone
-
-**v0.1.2 — Impact, Fragmentation & Explosion Foundation**
-
-The intent is to turn physically measured contact events into a scalable response pipeline: continuous/swept collision handling for launched bodies, impact geometry, physically budgeted fragmentation/ejecta, persistent debris, and visual explosion effects driven by the computed energy rather than arbitrary animation strength.
-
-### Mobile v0.1.1.3 flight hotfix
-
-On iPhone, the app now tracks the *visible* Safari viewport, keeps THRUST/REV/DAMP in a compact horizontal portrait row, uses a six-button primary bar with a MORE drawer, and keeps ship speed visible. A purely visual navigation-reference streak field makes inertial travel readable even though the scientific floating origin and astronomical scale remove much of the parallax players expect from ordinary games. Use **WARP** for real time-compression when you want to cross orbital distances faster; it cycles through 1×, 60×, 600×, and 3,600×.
+See `QA-REPORT.md` for the exact automated checks and remaining physical-device gate.

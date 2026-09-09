@@ -1,6 +1,21 @@
 # Changelog
 
-## v0.1.1.3 — iOS Hold Input & Pilot Layout Hotfix — 2026-09-08
+## v0.1.2 — Impact, Fragmentation & Explosion Foundation — 2026-09-08
+
+- Added swept finite-radius major-body contact detection to reduce high-speed tunneling.
+- Added isolated impact-analysis and impact-resolver modules.
+- Added bounce, merge, absorb, and energetic-fragment response classes.
+- Added momentum-conserving low-speed bounce and merge momentum handling.
+- Added gravity-regime crater scaling based on the Collins/Melosh/Marcus relation with simple/complex final-diameter handling.
+- Added persistent per-body impact/crater records without changing save schema 1.
+- Added up to six large Newtonian fragment bodies under the existing direct-gravity source budget.
+- Added visual-only energy-scaled flash, shock/ejecta ring, and directional ejecta particles.
+- Added LAB impact presets: Small Meteor, Tunguska-ish, Chicxulub-class, Moonlet.
+- Added scanner recorded-impact count and richer last-impact telemetry.
+- Reworked planet readability after real iPhone testing proved v0.1.1.3 insufficient: non-stellar bodies now use a faint color-preserving emissive/exposure shell in addition to stellar StandardMaterial shading.
+- Kept SI gravity, ship dynamics, trajectory prediction, seeded generation, time warp, iOS hold-input fixes, and save schema unchanged.
+
+## v0.1.1.2 — iOS Hold Input & Pilot Layout Hotfix — 2026-09-08
 
 Physical iPhone testing of v0.1.1.1 showed sustained flight-button presses could trigger WebKit text-selection handles/callouts and transfer the pointer away from THRUST/REV/DAMP. Landscape controls were also still visually crowded.
 

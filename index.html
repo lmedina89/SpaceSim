@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.1.3</title>
+  <title>Universe Lab v0.1.2</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.1.3</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.2</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -91,6 +91,12 @@
         <hr>
         <h3>MASS LAUNCHER</h3>
         <p class="help">Projectile radius is derived from mass and bulk density. The preview integrates the projectile and all major gravity sources mutually under the same Newtonian model used live.</p>
+        <div class="preset-grid" aria-label="Impact presets">
+          <button class="impact-preset" data-preset="meteor" type="button">SMALL METEOR</button>
+          <button class="impact-preset" data-preset="tunguska" type="button">TUNGUSKA-ISH</button>
+          <button class="impact-preset" data-preset="chicxulub" type="button">CHICXULUB-CLASS</button>
+          <button class="impact-preset" data-preset="moonlet" type="button">MOONLET</button>
+        </div>
         <label>Material<select id="asteroidMaterial"><option value="porousRock">Porous rock</option><option value="ice">Water ice</option><option value="basalt" selected>Basalt</option><option value="iron">Iron-rich</option></select></label>
         <label>Bulk density (kg/m³)<input id="asteroidDensity" type="number" inputmode="decimal" value="3000" min="100" max="30000"></label>
         <label>Mass (kg)<input id="asteroidMass" type="number" inputmode="decimal" value="1000000000000000" min="100000000" max="1e24"></label>
@@ -123,12 +129,13 @@
           <span>Periapsis altitude</span><b id="targetPeriapsis">—</b>
           <span>Apoapsis altitude</span><b id="targetApoapsis">—</b>
           <span>Two-body state</span><b id="targetOrbitState">—</b>
+          <span>Recorded impacts</span><b id="targetImpactCount">0</b>
         </div>
         <p class="help">Osculating values answer: “If this target were the only gravitating body from this instant onward, what conic orbit matches the current relative state?” The visible path prediction is different: it integrates all current major gravity sources.</p>
         <div class="prediction-box"><b>N-BODY PREDICTION</b><span id="predictedApproach">Prediction not active.</span></div>
         <div class="button-row"><button id="nextTarget" type="button">NEXT TARGET</button><button type="button" disabled>Tap body to select</button></div>
         <hr>
-        <h3>LAST MAJOR-BODY CONTACT</h3>
+        <h3>LAST RESOLVED IMPACT</h3>
         <p id="impactReadout" class="impact-readout">No collision recorded this session.</p>
       </div>
     </aside>
@@ -143,7 +150,7 @@
         <p><strong>Scanner orbit:</strong> osculating two-body elements around the selected target. Other-body perturbations are intentionally ignored in those displayed elements.</p>
         <p><strong>Minor field:</strong> 1k–20k typed-array test particles feel major gravity but intentionally contribute no gravity.</p>
         <p><strong>Ship:</strong> forward/reverse and RCS accelerations are explicit experimental propulsion. DAMP is a fictional inertial-damping navigation aid.</p>
-        <p><strong>Collisions:</strong> finite-radius contact, center-of-mass impact energy, reduced-mass momentum, and specific impact energy Qᴿ are reported. Deformation, cratering, debris and explosions are not faked yet.</p>
+        <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Black holes:</strong> Schwarzschild radius metadata + visualization, but Newtonian trajectories only. GR/lensing is future work.</p>
       </div>
     </aside>
