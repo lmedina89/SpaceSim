@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.1.2 — iOS Hold Input & Pilot Layout Hotfix — 2026-09-08
+
+Physical iPhone testing of v0.1.1.1 showed sustained flight-button presses could trigger WebKit text-selection handles/callouts and transfer the pointer away from THRUST/REV/DAMP. Landscape controls were also still visually crowded.
+
+### Corrected
+
+- Disable text selection, drag selection, long-press callouts, and context menus on the interactive simulator surface while leaving LAB inputs/selects editable.
+- Harden hold lifecycle with pointer capture, lost-capture release, capture-phase document pointer release, visibility-change release, and window-blur release.
+- Add explicit held-state feedback and `aria-pressed` updates.
+- Recompose main thrusters into a larger thumb-safe cluster with a tall THRUST pad and separate REV/DAMP pads.
+- Narrow/shift the landscape navigation strip into the free center region so it no longer crowds the right-side pilot cluster.
+- Preserve the v0.1.1.1 scientific motion cues and all authoritative physics unchanged.
+
 ## v0.1.1 — Scientific Flight & Experiment Control — 2026-09-08
 
 Built directly from the phone-safe v0.1.0.1 baseline.

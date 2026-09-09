@@ -121,7 +121,7 @@ export class UniverseLabApp {
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
     this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.1.1 online. Mobile controls and flight motion cues are active.');
+    this.hud.notify('v0.1.1.2 online. iOS hold controls and compact pilot layout are active.');
   }
 
   newSystem(seed) {
@@ -510,29 +510,74 @@ export class UniverseLabApp {
       }
     });
 
+    // The simulator is an interactive surface, not a document. In particular, iOS Safari
+    // otherwise starts text-selection/callout gestures during a sustained thruster press.
+    const clearSelection = () => window.getSelection?.()?.removeAllRanges?.();
+    const suppressGameGesture = (event) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+      event.preventDefault();
+    };
+    this.root.addEventListener('contextmenu', suppressGameGesture);
+    this.root.addEventListener('selectstart', suppressGameGesture);
+    this.root.addEventListener('dragstart', suppressGameGesture);
+
     const lookPad = $('#lookPad');
     lookPad.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      clearSelection();
       this._lookPointer = event.pointerId;
       this._lookLast = [event.clientX, event.clientY];
-      lookPad.setPointerCapture(event.pointerId);
+      lookPad.setPointerCapture?.(event.pointerId);
     });
     lookPad.addEventListener('pointermove', (event) => {
       if (this._lookPointer !== event.pointerId) return;
+      event.preventDefault();
       const dx = event.clientX - this._lookLast[0];
       const dy = event.clientY - this._lookLast[1];
       this._lookLast = [event.clientX, event.clientY];
       this.ship.rotateLook(-dx * 0.0045, dy * 0.0038);
       this.invalidatePredictions();
     });
-    const releaseLook = (event) => { if (event.pointerId === this._lookPointer) this._lookPointer = null; };
+    const releaseLook = (event) => {
+      if (event.pointerId === this._lookPointer) this._lookPointer = null;
+    };
     lookPad.addEventListener('pointerup', releaseLook);
     lookPad.addEventListener('pointercancel', releaseLook);
+    lookPad.addEventListener('lostpointercapture', releaseLook);
 
     const bindHold = (element, on, off) => {
-      element.addEventListener('pointerdown', (event) => { event.preventDefault(); element.setPointerCapture?.(event.pointerId); on(); this.invalidatePredictions(); });
-      element.addEventListener('pointerup', (event) => { event.preventDefault(); off(); this.invalidatePredictions(); });
-      element.addEventListener('pointercancel', () => { off(); this.invalidatePredictions(); });
-      element.addEventListener('lostpointercapture', () => { off(); this.invalidatePredictions(); });
+      let activePointer = null;
+      const release = (event = null, force = false) => {
+        if (!force && event?.pointerId != null && activePointer !== null && event.pointerId !== activePointer) return;
+        if (activePointer === null && !force) return;
+        activePointer = null;
+        element.classList.remove('is-held');
+        element.setAttribute('aria-pressed', 'false');
+        off();
+        this.invalidatePredictions();
+      };
+      element.setAttribute('aria-pressed', 'false');
+      element.addEventListener('pointerdown', (event) => {
+        if (activePointer !== null) return;
+        event.preventDefault();
+        event.stopPropagation();
+        clearSelection();
+        activePointer = event.pointerId;
+        element.classList.add('is-held');
+        element.setAttribute('aria-pressed', 'true');
+        try { element.setPointerCapture?.(event.pointerId); } catch (_) {}
+        on();
+        this.invalidatePredictions();
+      });
+      element.addEventListener('pointerup', (event) => { event.preventDefault(); release(event); });
+      element.addEventListener('pointercancel', (event) => release(event));
+      element.addEventListener('lostpointercapture', (event) => release(event));
+      // Capture-phase document releases protect against WebKit occasionally transferring the
+      // pointer away from a button during browser/chrome gesture arbitration.
+      document.addEventListener('pointerup', (event) => release(event), true);
+      document.addEventListener('pointercancel', (event) => release(event), true);
+      window.addEventListener('blur', () => release(null, true));
+      document.addEventListener('visibilitychange', () => { if (document.hidden) release(null, true); });
     };
     bindHold($('#thrustButton'), () => { this.ship.throttle = 1; }, () => { this.ship.throttle = 0; });
     bindHold($('#reverseButton'), () => { this.ship.reverseThrottle = 1; }, () => { this.ship.reverseThrottle = 0; });
@@ -550,7 +595,6 @@ export class UniverseLabApp {
     viewport.addEventListener('pointerup', (event) => {
       const tap = this._viewportTap;
       this._viewportTap = null;
-    this._rollDirection = 0;
       if (!tap || tap.id !== event.pointerId || Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 12) return;
       const id = this.renderer.pickBodyAt(event.clientX, event.clientY);
       if (id) this.selectTarget(id);

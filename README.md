@@ -1,8 +1,21 @@
-# Universe Lab v0.1.1.1 — Mobile Flight UX & Motion-Cue Hotfix
+# Universe Lab v0.1.1.2 — iOS Hold Input & Pilot Layout Hotfix
 
 A mobile-first browser-based 3D scientific sandbox built around one deterministic seeded solar system, a spacecraft laboratory, real Newtonian trajectories, and future plug-in experiments ranging from impacts and fluids to particle life and quantum demonstrations.
 
 This archive is **GitHub repository-root ready**. Unzip it directly into the repository root. There is no wrapper folder and there are deliberately **no `.github/workflows/*` files**, preserving compatibility with iPhone Git clients whose OAuth tokens cannot modify GitHub Actions workflows.
+
+
+## What changed in v0.1.1.2
+
+Physical iPhone testing showed WebKit text-selection handles could appear during sustained THRUST/REV/DAMP presses and steal the active pointer. This hotfix treats the flight surface as a game controller rather than selectable page content.
+
+- Suppresses iOS text selection, drag gestures, long-press callouts, and context menus on the simulator control surface while preserving normal editing inside LAB inputs/selects.
+- Hold controls use `touch-action: none`, pointer capture, `lostpointercapture`, capture-phase document `pointerup`/`pointercancel`, visibility-change, and window-blur release paths so an interrupted touch cannot leave a thruster stuck on.
+- Active holds now have a clear pressed visual state and `aria-pressed` state.
+- Main thrusters use a larger two-column pilot cluster: a large THRUST pad plus separate REV and DAMP pads.
+- Landscape bottom navigation is narrowed and shifted into the clear region between LOOK and the thruster cluster instead of crowding the flight controls.
+- Portrait preserves a full-width navigation strip but keeps the larger flight cluster above it.
+- The 0.1.1.1 visual motion cues, scientific state, gravity, integration, trajectories, save schema, and experiment behavior are unchanged.
 
 ## What changed in v0.1.1
 
@@ -139,6 +152,6 @@ v0.1.1 contains 13 automated numerical/unit tests plus repository/syntax checks.
 
 The intent is to turn physically measured contact events into a scalable response pipeline: continuous/swept collision handling for launched bodies, impact geometry, physically budgeted fragmentation/ejecta, persistent debris, and visual explosion effects driven by the computed energy rather than arbitrary animation strength.
 
-### Mobile v0.1.1.1 flight hotfix
+### Mobile v0.1.1.2 flight hotfix
 
 On iPhone, the app now tracks the *visible* Safari viewport, keeps THRUST/REV/DAMP in a compact horizontal portrait row, uses a six-button primary bar with a MORE drawer, and keeps ship speed visible. A purely visual navigation-reference streak field makes inertial travel readable even though the scientific floating origin and astronomical scale remove much of the parallax players expect from ordinary games. Use **WARP** for real time-compression when you want to cross orbital distances faster; it cycles through 1×, 60×, 600×, and 3,600×.

@@ -1,6 +1,6 @@
 {
-  "version": "0.1.1.1",
-  "name": "Mobile Flight UX & Motion-Cue Hotfix",
+  "version": "0.1.1.2",
+  "name": "iOS Hold Input & Pilot Layout Hotfix",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -11,5 +11,7 @@
   "scannerModel": "target-relative osculating two-body elements",
   "mobileViewport": "visualViewport-height-synchronized",
   "motionCue": "visual-only logarithmic inertial velocity reference",
-  "deploymentMode": "github-pages-branch-root"
+  "deploymentMode": "github-pages-branch-root",
+  "mobileInput": "pointer-capture + document-release fallback + selection/callout suppression",
+  "pilotLayout": "thumb-safe separated navigation/thruster zones"
 }

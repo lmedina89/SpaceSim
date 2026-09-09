@@ -1,4 +1,4 @@
-# Mobile GitHub Pages Setup — v0.1.1.1
+# Mobile GitHub Pages Setup — v0.1.1.2
 
 Universe Lab distributions intentionally contain **no `.github/workflows/*` files**.
 
@@ -6,7 +6,7 @@ GitHub protects workflow files with a separate OAuth `workflow` permission. Some
 
 ## Upload from the phone
 
-1. Unzip the v0.1.1.1 archive directly into the repository root.
+1. Unzip the v0.1.1.2 archive directly into the repository root.
 2. Confirm `index.html`, `src/`, `tests/`, and the documentation files are at the repo root—not inside an extra UniverseLab folder.
 3. Commit/push to `main`.
 
@@ -22,6 +22,10 @@ If upgrading an old workspace that previously contained `.github/workflows/pages
 
 No GitHub Actions workflow is required because Universe Lab is a static site.
 
-## v0.1.1.1 iPhone note
+## v0.1.1.2 iPhone note
 
 This hotfix specifically addresses Safari/embedded-browser visible-viewport changes. The app reads `window.visualViewport.height` when available so bottom flight controls should remain above browser chrome in portrait and landscape. No extra GitHub permissions are required and the distributable still contains no Actions workflow.
+
+## iOS continuous-control note — v0.1.1.2
+
+The simulator deliberately suppresses WebKit text selection and long-press callouts on the flight surface. LAB form controls remain editable. If blue text-selection handles ever appear while holding THRUST/REV/DAMP/RCS, hard-refresh the deployed site to ensure the new CSS/JS is active.
