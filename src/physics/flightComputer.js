@@ -88,7 +88,9 @@ export function propulsionSafeStandOffDistanceMeters(target, maxAccelerationMps2
   const gravityLimitedRadius = Math.sqrt((PHYSICS.G * target.mass) / supportedGravity);
   const relativisticGuardRadius = target.kind === BODY_KIND.BLACK_HOLE
     ? Math.max(target.radius * 100, target.radius + 100_000)
-    : 0;
+    : target.kind === BODY_KIND.NEUTRON_STAR
+      ? Math.max(target.radius * 50, 1_000_000)
+      : 0;
   return Math.max(base, gravityLimitedRadius, relativisticGuardRadius);
 }
 
@@ -216,13 +218,18 @@ export function newtonianModelLimit(ship, bodies, speedFractionC = 0.1) {
     return { reason: 'speed', speedMps: speed, limitMps: PHYSICS.C * speedFractionC };
   }
   for (const body of bodies ?? []) {
-    if (body.kind !== BODY_KIND.BLACK_HOLE) continue;
+    if (body.kind !== BODY_KIND.BLACK_HOLE && body.kind !== BODY_KIND.NEUTRON_STAR) continue;
     const dx = body.position[0] - ship.position[0];
     const dy = body.position[1] - ship.position[1];
     const dz = body.position[2] - ship.position[2];
     const distanceMeters = Math.hypot(dx, dy, dz);
-    const guardRadius = Math.max(body.radius * 100, body.radius + 100_000);
-    if (distanceMeters <= guardRadius) return { reason: 'black-hole-proximity', body, distanceMeters, guardRadius };
+    if (body.kind === BODY_KIND.BLACK_HOLE) {
+      const guardRadius = Math.max(body.radius * 100, body.radius + 100_000);
+      if (distanceMeters <= guardRadius) return { reason: 'black-hole-proximity', body, distanceMeters, guardRadius };
+    } else {
+      const guardRadius = Math.max(body.radius * 50, 1_000_000);
+      if (distanceMeters <= guardRadius) return { reason: 'neutron-star-proximity', body, distanceMeters, guardRadius };
+    }
   }
   return null;
 }

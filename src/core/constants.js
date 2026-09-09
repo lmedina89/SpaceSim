@@ -48,6 +48,8 @@ export const BODY_KIND = Object.freeze({
   MOON: 'moon',
   ASTEROID: 'asteroid',
   BLACK_HOLE: 'black-hole',
+  NEUTRON_STAR: 'neutron-star',
+  COMET: 'comet',
   SHIP: 'ship',
 });
 

@@ -1,9 +1,9 @@
-# Third-party components
+# Third-Party Software
 
 ## Three.js
 
-Universe Lab pins Three.js **0.185.0** through browser ESM import maps in `index.html`.
+Universe Lab v0.1.4 uses **Three.js 0.185.0**, imported from the pinned jsDelivr module URLs in `index.html` / import map.
 
-Three.js provides the rendering/WebGPU-WebGL abstraction only. Universe Lab's authoritative universe, flight, impact, and particle-experiment numerical state lives outside Three.js.
+Three.js is used for rendering/camera/GPU-visible geometry. Universe Lab's authoritative gravity, orbital integration, collision, navigation, impact and particle-experiment state are implemented separately in this project.
 
-No additional runtime third-party libraries were added in v0.1.3. The spatial hash and particle experiment solvers are project code.
+See the Three.js project for its current license and upstream notices.

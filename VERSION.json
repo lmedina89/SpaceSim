@@ -1,6 +1,6 @@
 {
-  "version": "0.1.3.2.2",
-  "name": "Particle Warp Runtime Recovery Hotfix",
+  "version": "0.1.4",
+  "name": "Cosmic Phenomena & Deep-Space Exploration",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -19,6 +19,17 @@
   "particleWarpCap": 60,
   "trajectoryModel": "forward N-body velocity-verlet",
   "scannerModel": "target-relative osculating two-body elements",
+  "cosmicPhenomena": [
+    "physical high-eccentricity comets",
+    "seeded visual debris belts",
+    "seeded visual planetary rings",
+    "stellar corona/prominence visual layer",
+    "distant nebular/galactic visual backdrop",
+    "active black-hole accretion/photon-ring/jet visual proxy",
+    "neutron-star/pulsar compact-object lab spawner"
+  ],
+  "compactObjectSafety": "propulsion-safe stand-off + adaptive strong-gravity steps + black-hole/neutron-star model guards + 10% c speed guard",
+  "cosmicObservation": "massless frame/orbit views + physical bounded-thrust rendezvous to anchored phenomena",
   "mobileViewport": "visualViewport-height-synchronized",
   "motionCue": "visual-only logarithmic inertial velocity reference",
   "deploymentMode": "github-pages-branch-root",
@@ -26,7 +37,7 @@
   "flightComputer": "propulsion-safe target-relative approach + persistent station-keeping hold + velocity match + physical inertial brake",
   "fragmentPolicy": "max 2 primary resolved fragments, 16 total resolved impact fragments, family cascade suppression",
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
-  "observationCamera": "massless frame/track/orbit experiment views with ship-state isolation",
+  "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "OBSNAV-1322"
+  "buildMarker": "COSMOS-140"
 }

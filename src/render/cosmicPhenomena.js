@@ -1,0 +1,83 @@
+import * as THREE from 'three/webgpu';
+import { PHYSICS, SIMULATION } from '../core/constants.js';
+import { createRng } from '../util/prng.js';
+
+function makeAnnulusPoints(definition, seed) {
+  const rng = createRng(`${seed}:${definition.id}:visual`);
+  const count = Math.max(500, Math.min(Number(definition.particleCount) || 4_000, 16_000));
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const inner = definition.innerRadiusMeters / SIMULATION.metersPerRenderUnit;
+  const outer = definition.outerRadiusMeters / SIMULATION.metersPerRenderUnit;
+  const thickness = Math.max(
+    definition.kind === 'planetary-rings' ? 0.004 : 0.08,
+    (definition.thicknessMeters ?? (definition.outerRadiusMeters - definition.innerRadiusMeters) * 0.02) / SIMULATION.metersPerRenderUnit,
+  );
+  const c1 = new THREE.Color(definition.colorA ?? 0xb9b1a5);
+  const c2 = new THREE.Color(definition.colorB ?? 0x757b83);
+  const color = new THREE.Color();
+
+  for (let i = 0; i < count; i += 1) {
+    const k = i * 3;
+    const u = rng.random();
+    let radius = Math.sqrt(inner * inner + u * (outer * outer - inner * inner));
+    if (definition.kind === 'planetary-rings') {
+      // A few sparse gaps make the visual read more like a structured ring system.
+      const band = (radius - inner) / Math.max(1e-9, outer - inner);
+      if ((band > 0.46 && band < 0.51) || (band > 0.72 && band < 0.745)) radius += (outer - inner) * 0.035;
+    }
+    const angle = rng.range(0, Math.PI * 2);
+    positions[k] = Math.cos(angle) * radius;
+    positions[k + 1] = rng.range(-thickness, thickness);
+    positions[k + 2] = Math.sin(angle) * radius;
+    color.copy(c1).lerp(c2, rng.random());
+    const bright = definition.kind === 'planetary-rings' ? rng.range(0.62, 1.0) : rng.range(0.42, 0.9);
+    colors[k] = color.r * bright; colors[k + 1] = color.g * bright; colors[k + 2] = color.b * bright;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const material = new THREE.PointsMaterial({
+    size: definition.kind === 'planetary-rings' ? 0.075 : 0.42,
+    sizeAttenuation: true,
+    vertexColors: true,
+    transparent: true,
+    opacity: definition.kind === 'planetary-rings' ? 0.78 : 0.55,
+    depthWrite: false,
+    blending: definition.kind === 'planetary-rings' ? THREE.AdditiveBlending : THREE.NormalBlending,
+  });
+  const points = new THREE.Points(geometry, material);
+  points.frustumCulled = false;
+  return points;
+}
+
+export function createCosmicPhenomenonVisual(definition, seed) {
+  const group = new THREE.Group();
+  group.userData.phenomenonId = definition.id;
+  group.userData.kind = definition.kind;
+  group.userData.anchorBodyId = definition.anchorBodyId ?? null;
+  group.userData.baseInclination = Number(definition.inclinationRad) || 0;
+
+  if (definition.kind === 'asteroid-belt' || definition.kind === 'planetary-rings') {
+    group.add(makeAnnulusPoints(definition, seed));
+    group.rotation.x = group.userData.baseInclination;
+  }
+
+  return group;
+}
+
+export function updateCosmicPhenomenonVisual(group, definition, anchorBody, referenceFrame, elapsedSimSeconds) {
+  if (!group || !definition || !anchorBody) return;
+  const position = new THREE.Vector3();
+  referenceFrame.toRender(anchorBody.position, position);
+  group.position.copy(position);
+
+  if (definition.kind === 'asteroid-belt') {
+    const meanRadius = (definition.innerRadiusMeters + definition.outerRadiusMeters) * 0.5;
+    const period = 2 * Math.PI * Math.sqrt((meanRadius ** 3) / Math.max(1, PHYSICS.G * anchorBody.mass));
+    group.rotation.y = (elapsedSimSeconds / Math.max(1, period)) * Math.PI * 2;
+  } else if (definition.kind === 'planetary-rings') {
+    group.rotation.y = (elapsedSimSeconds / 80_000) % (Math.PI * 2);
+  }
+}

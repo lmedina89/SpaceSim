@@ -1,83 +1,104 @@
-# Scientific Model Boundaries — Universe Lab v0.1.3.2.2
+# Scientific Notes — Universe Lab v0.1.4
 
-Universe Lab explicitly distinguishes physical models, approximations, visualization layers, and intentionally artificial experiments.
+Universe Lab is designed to be explicit about where a model is physical, approximate, artificial, or purely visual.
 
-## Authoritative celestial state
+## Major-body gravity
 
-- SI meters, kilograms, seconds.
-- Float64 positions/velocities.
-- Major-body gravity: mutual Newtonian gravity.
-- Major-body integrator: velocity-Verlet.
-- Rendering: floating-origin transformed coordinates only.
+Live major bodies use Newtonian gravity:
 
-## Gravity Cloud / Particle Gun
+\[
+\mathbf a_i = G \sum_{j \ne i} m_j\frac{\mathbf r_j-\mathbf r_i}{|\mathbf r_j-\mathbf r_i|^3}
+\]
 
-Experiment particles in these modes are physical **test particles**. Their trajectories receive Newtonian acceleration from active major gravity sources:
+with SI units and Float64 state. Major bodies are integrated with velocity-Verlet.
 
-`a = Σ G M_i (r_i-r) / |r_i-r|^3`.
+This is appropriate for ordinary system-scale orbital mechanics but not for strong-field relativistic trajectories near compact objects.
 
-They do not source gravity. Therefore the cloud is valid for studying trajectories in a prescribed major-body gravitational field, but it is **not** a self-gravitating N-body cloud.
+## Physical comets
 
-Particle integration currently uses bounded semi-implicit Euler substeps rather than the major-body velocity-Verlet kernel. This is a performance/architecture reference implementation; smaller local time steps and test-particle status make the tradeoff explicit.
+v0.1.4 generated comet nuclei are physical Newtonian bodies with finite mass/radius and high-eccentricity orbital states. Their visible tail is not integrated dust or plasma.
 
-Finite-radius contact with a major body deactivates a test particle. Individual micro-impacts do not add mass, craters, heat, or ejecta to the target in v0.1.3.2.2.
+The tail renderer:
 
-## Particle Life
+- points away from the current host-star direction,
+- becomes visually more active nearer the star,
+- disappears at large star distance.
 
-Particle Life is not physics. It is a continuous-3D cellular-automaton-inspired rule system layered on moving particle slots.
+This captures the most important visual directionality without claiming solar-wind, ionization, sublimation chemistry, radiation pressure or particle-size distribution physics.
 
-Neighbor population is approximated using occupancy in a particle's current spatial-hash cell and the 26 adjacent cells. Current survival/birth ranges are chosen to produce useful evolving behavior, not to reproduce canonical 2D Conway Life exactly.
+## Debris belts and planetary rings
 
-Major-body gravity may optionally act on the moving alive particles, allowing a deliberately hybrid experiment: physical external gravity plus artificial life-state rules.
+The ring/belt points are **population proxies**. Their radii, thicknesses, gaps and anchoring are generated coherently, but the individual visual particles:
 
-## Species Forces
+- do not source gravity,
+- do not collide,
+- do not undergo resonance migration,
+- do not exchange angular momentum.
 
-Species Forces is explicitly fictional/artificial. Three species use a non-reciprocal local attraction/repulsion matrix. Instead of exact particle-pair interactions, each particle interacts with aggregated species populations at nearby spatial-cell centers.
+This is a deliberate level-of-detail model for mobile rendering. A later local interaction mode can promote nearby representative chunks into physical objects while leaving the bulk population GPU-only.
 
-This changes the microscopic rule and should be understood as a coarse-grained artificial force field. It is designed for emergent experimentation and computational scaling, not molecular or plasma fidelity.
+## Black holes
 
-## Spatial-hash approximation
+A black-hole body stores a Schwarzschild-radius quantity:
 
-The uniform grid removes the need to inspect all N² particle pairs for local-rule modes. Work depends on occupied nearby cells and bounded species aggregates. Cell size is user-configurable through the neighbor-radius control, so changing it changes both the artificial rule scale and computational workload.
+\[
+r_s = \frac{2GM}{c^2}
+\]
 
-## Warp and numerical resolution
+but live trajectories remain Newtonian outside a safety guard. v0.1.4 adds substantially richer visuals—accretion particles, photon-ring cues, a pseudo-lensing halo and polar jets—but those are visual approximations.
 
-While particle experiments exist, global time warp is capped at 60×. This is a numerical-resolution policy, not a physical law. It prevents the application from advancing high-resolution local rules by huge simulation intervals between visible frames.
+The renderer is **not** integrating null geodesics, the Kerr metric, relativistic radiative transfer, magnetohydrodynamics, or accretion-disk plasma.
 
+The simulator pauses before the spacecraft enters the configured near-field guard or reaches 10% of light speed rather than presenting invalid Newtonian results as science.
 
+## Neutron stars / pulsars
 
-## Observation versus physical travel
+The live compact star uses a finite 12 km radius and selected mass in Newtonian gravity/collision code. Spin period and magnetic-field strength are metadata for the visual compact-object presentation.
 
-OBSERVE / FRAME / TRACK / ORBIT are visualization-only scientific cameras. They may reposition instantly because they are not spacecraft, bodies, signals, or physical observers inside the model. They do not change simulation time, particle state, ship position, ship velocity, gravity, or collision state.
+Magnetosphere rings and sweep beams are visualization proxies. The solver does not currently model:
 
-RENDEZVOUS is different: it moves the real spacecraft. The selected experiment's measured centroid and mean velocity are used as a massless target for the existing bounded-thrust APPROACH/CAPTURE/HOLD controller. Particle experiments still cap accelerated simulation time at 60× while active.
+- general relativity,
+- frame dragging,
+- neutron-star equation of state,
+- radiation pressure,
+- charged-particle magnetosphere dynamics,
+- synchrotron emission.
 
-## Navigation / strong-gravity validity
+A propulsion-safe stand-off and a neutron-star near-field model guard are therefore required.
 
-APPROACH is a bounded-thrust controller, not teleportation. The controller computes a propulsion-safe stand-off using the target's mass and the active engine's acceleration so local target gravity consumes only a reserved fraction of available thrust. On arrival it remains in station-keeping HOLD until the pilot manually takes over.
+## Stellar corona / prominences
 
-The major/ship integrators remain Newtonian. Close strong-gravity flight therefore uses an adaptive substep ceiling derived from the local gravitational dynamical time. This improves numerical stability but does **not** turn the solver into general relativity.
+The new corona particles and prominence arcs are visual activity cues. They do not currently feed a physical stellar-wind or CME model.
 
-To avoid presenting obviously invalid behavior as science, the app pauses rather than continuing if spacecraft inertial speed reaches 10% of c or if the craft enters the black-hole near-field guard (100 Schwarzschild radii, with a 100 km minimum guard). These are model-validity boundaries, not physical walls, and no hidden speed clamp is applied.
+## Nebular and galactic backdrop
 
-## Major-body impacts retained
+The faint galactic band and nebular haze are distant visual layers. They have no local density, drag, chemistry or navigation collision volume in v0.1.4.
 
-The v0.1.2.1 impact model remains unchanged: swept finite-radius contact, physical impact-frame momentum/energy telemetry, approximate crater scaling, bounded representative fragments, and visual-only unresolved ejecta.
+## Spacecraft propulsion
 
-## Ship retained
+FLIGHT (20 m/s²) and CRUISE (120 m/s²) are explicitly experimental propulsion models. They are physical accelerations inside the simulation, not claims about present-day spacecraft hardware.
 
-FLIGHT/CRUISE propulsion remains declared experimental technology. BRAKE, MATCH, and APPROACH produce bounded acceleration commands integrated by ShipDynamics. No velocity is deleted or spatial position teleported.
+BRAKE applies acceleration opposite inertial velocity; it does not erase velocity. APPROACH/MATCH/HOLD remain bounded by selected engine authority.
 
-## Current limits
+## Particle laboratory
 
-v0.1.3.1 does not claim:
+- Gravity Cloud / Particle Gun: physical **test-particle** models under major-body Newtonian gravity. They do not source gravity.
+- Particle Life: artificial continuous-3D cellular-automaton rules.
+- Species Forces: artificial local attraction/repulsion rules.
 
-- experiment-particle mutual Newtonian gravity,
-- fluid dynamics,
-- quantum mechanics,
-- plasma/MHD physics,
-- particle-particle material collisions,
-- atmospheric drag/heating,
-- relativistic black-hole trajectories.
+Artificial modes are experiments in emergent behavior, not descriptions of fundamental forces.
 
-Those require dedicated future solvers.
+## Impacts
+
+Impact energy and momentum telemetry uses reduced-mass center-of-mass quantities. Crater estimates use simplified established scaling relationships and are not hydrocode/finite-element impact simulations.
+
+## Future accuracy path
+
+Useful future upgrades include:
+
+- GR ray-traced black-hole visualization / optional geodesic test-particle mode,
+- Barnes–Hut/FMM/WebGPU self-gravity,
+- physical solar-wind/comet-tail particles,
+- local promotable ring/belt collision chunks,
+- magnetic-field-line / charged-particle experiments,
+- more explicit Hill/Roche/Lagrange visualization.

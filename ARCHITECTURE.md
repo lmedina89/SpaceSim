@@ -1,145 +1,178 @@
-# Architecture — Universe Lab v0.1.3.2.2
+# Universe Lab v0.1.4 Architecture
 
-## Core rule
+## Design rule
 
-**The renderer never owns the universe or experiment state.**
+The simulation owns reality; the renderer owns appearance.
 
-Authoritative celestial, spacecraft, and experiment coordinates remain in simulation modules. Three.js receives local floating-origin render buffers only.
+Three.js is not the authoritative physics engine. Major bodies, spacecraft, projectiles, comets and experiment particles retain SI-unit state independently of rendering. v0.1.4 extends that separation to cosmic phenomena so large visual populations do not become thousands of accidental N-body sources.
 
-## Runtime layers
+## Authoritative state
 
-```text
-Seeded universe data
-        ↓
-Entity registry
-        ↓
-Simulation clock
-        ├──────────── Flight computer
-        │                  ↓
-        ├──────────── ShipDynamics
-        │
-        ├──────────── Direct major-body Newtonian gravity
-        │                  ↓
-        │             Velocity-Verlet
-        │                  ↓
-        │             swept collisions
-        │                  ↓
-        │             impact resolver
-        │
-        └──────────── Particle Experiment Manager
-                           ↓
-               typed-array ParticleExperiment
-                  ├─ Gravity Cloud
-                  ├─ Particle Life
-                  ├─ Species Forces
-                  └─ Particle Gun
-                           ↓
-                typed spatial hash grid
-                           ↓
-Floating reference frame → Three.js/WebGPU renderer
-```
+- SI units: meters, kilograms, seconds.
+- major-body position/velocity: Float64.
+- direct Newtonian major-body gravity.
+- velocity-Verlet major-body/ship integration.
+- floating-origin conversion only at render time.
+- direct gravity source ceiling remains bounded for mobile safety.
 
+## Seeded system generation
 
-## Observation camera layer
+`src/data/systemGenerator.js` produces:
 
-Observation is deliberately separated from simulation/navigation. `ParticleExperiment.observationState()` derives a centroid, mean velocity and framing radius from authoritative typed arrays without mutating them. The renderer recenters the floating reference frame on that observation centroid and computes a local camera pose through the pure `render/observationCamera.js` helper. No mass, thrust, teleportation or state change is associated with the camera.
+- star,
+- planets,
+- moons,
+- 1–2 physical high-eccentricity comets,
+- metadata,
+- seeded cosmic-phenomenon definitions.
 
-The physical **RENDEZVOUS** path is separate: the selected experiment is exposed to the existing flight computer as a massless virtual target whose position/velocity are the current field centroid/mean velocity and whose radius is the current field extent. Ship motion therefore remains bounded by the declared engine acceleration and braking envelope.
+All generated gravity bodies receive the same barycentric correction after generation.
 
-## Particle data layout
+`src/cosmic/phenomenonGenerator.js` separately produces structured visual phenomena such as:
 
-Each `ParticleExperiment` owns SoA-style contiguous arrays rather than per-particle objects:
+- circumstellar debris belt,
+- planetary ring systems.
 
-- `Float64Array position[count*3]`
-- `Float64Array velocity[count*3]`
-- `Float32Array renderPosition[count*3]`
-- `Float32Array color[count*3]`
-- `Uint8Array active[count]`
-- `Uint8Array species[count]`
-- `Float32Array age[count]`
+This lets the seed generate a rich system without turning every visible particle into a gravity body.
 
-This minimizes garbage collection and gives later WASM/WebGPU kernels a straightforward memory model.
+## Cosmic phenomenon registry
 
-## Spatial hash
+`src/cosmic/phenomenonRegistry.js` stores immutable-ish phenomenon definitions by id. A phenomenon can carry an `anchorBodyId`; its live state resolves against the current body registry each time it is queried.
 
-`SpatialHashGrid` is a typed-array open-addressed uniform grid. It uses:
+Consequences:
 
-- integer cell coordinates,
-- multiplicative integer hashing,
-- a power-of-two table,
-- generation stamps to avoid clearing the full hash table every build,
-- linked particle indices within populated cells,
-- aggregate cell counts and 3-species counts.
+- a planetary ring follows its moving planet,
+- a debris belt follows its star/reference frame,
+- observation and rendezvous use current coordinates,
+- the definition itself does not duplicate mutable N-body state.
 
-Particle Life sums occupancy across adjacent cells. Species Forces interacts with aggregate species populations at neighboring cell centers rather than every individual particle. This deliberately trades microscopic pair detail for bounded local work and mobile scalability.
+## Cosmic rendering
 
-## Particle scientific modes
+`src/render/cosmicPhenomena.js` creates one seeded `THREE.Points` object per ring/belt phenomenon. The renderer transforms the anchor position through the floating-origin reference frame and updates proxy rotation from simulation time.
 
-### Gravity Cloud
+Typical visual counts:
 
-Semi-implicit particle integration under all active major gravity sources. Experiment particles have no authoritative mass contribution and therefore do not appear in the direct gravity source array.
+- asteroid/debris belt: 12,000 points,
+- planetary rings: 4,000–7,000 points each.
 
-### Particle Life
+These are rendering populations, not collision/gravity objects.
 
-An artificial continuous-particle cellular automaton. Alive/dead transition rules operate on spatial-cell neighborhoods. This is separate from the physics namespace because the rules are mathematical experiments, not claims of physical law.
+## Celestial visual factory
 
-### Species Forces
+`src/render/celestialFactory.js` now owns animated visual subgraphs for special bodies.
 
-Artificial local non-reciprocal attraction/repulsion. Species forces are evaluated against spatial-cell aggregates and bounded to a declared maximum local acceleration.
+### Star
 
-### Particle Gun
+- physical/generated star body remains unchanged,
+- surface sphere,
+- ~1,600-point corona,
+- prominence arcs,
+- glow.
 
-Ballistic test-particle burst. Same major-gravity path as Gravity Cloud, finite-radius absorption, bounded active lifetime.
+### Black hole
 
-## Simulation-time contract
+Live body:
 
-Particle fields cap global warp to 60× while active. Fine modes subdivide simulation intervals to <=1 s reference steps; simple ballistic/gravity fields permit larger internal steps but still inherit the same warp cap for predictable mobile cost.
+- Newtonian mass,
+- physical Schwarzschild radius metadata,
+- existing strong-gravity/model-limit safeguards.
 
-If an experiment ever cannot consume the full requested interval within its substep budget, it records dropped experiment seconds rather than silently claiming exact integration. Under the enforced 60× normal frame cap this should not happen during healthy rendering.
+Visual subgraph:
 
-## Render contract
+- black core,
+- photon-ring group,
+- ~5,200-point accretion disk,
+- disk torus layers,
+- visual relativistic-jet group with ~1,500 particles,
+- pseudo-lensing halo.
 
-Every experiment field is a single `THREE.Points` object with shared position/color buffers. Inactive slots are moved outside the visible region instead of creating/destroying Three objects. Clearing an experiment disposes its geometry/material.
+No visual element changes the live gravitational state.
 
-Current body/impact rendering remains independent from particle fields.
+### Neutron star / pulsar
 
-## Budgets
+Live body:
 
-- direct major gravity sources: 128
-- resolved impact fragments: 16
-- background minor test particles: 20,000
-- active particle-experiment slots: 40,000 total
-- active particle fields: 4
-- Gravity Cloud: 30,000 per field
-- Particle Life: 6,000 per field
-- Species Forces: 4,000 per field
-- Particle Gun: 5,000 per burst
+- mass,
+- 12 km radius,
+- Newtonian gravity/collision state,
+- spin/magnetic-field metadata.
 
-These are **current mobile-first safety budgets**, not theoretical engine ceilings.
+Visual subgraph:
 
-## Persistence
+- bright compact sphere,
+- magnetosphere rings,
+- optional rotating pulsar beam pivot,
+- glow.
 
-Save schema remains 1. Particle experiment state is deliberately session-local. System/body/ship saves are unchanged. A future experiment persistence module can store deterministic configuration plus optional binary snapshots without forcing large JSON arrays into localStorage.
+### Comet
 
+Live body:
 
-## Navigation stability boundary
+- physical nucleus mass/radius/orbit.
 
-The flight computer remains outside renderer ownership. APPROACH computes a braking-safe velocity envelope, a propulsion-safe stand-off, CAPTURE, and persistent HOLD. HOLD adds bounded counter-thrust for the selected target's local gravity plus target-relative position/velocity correction. Manual controls cancel guidance rather than competing with it.
+Visual subgraph:
 
-`navigationPhysicsStepLimitSeconds()` derives a smaller integration ceiling from local `sqrt(r/g)` gravitational dynamical time when necessary. `SimulationClock.advance()` accepts that ceiling and can stop its remaining substeps when the Newtonian validity guard requests a halt. The guard pauses rather than clamping state.
+- nucleus mesh,
+- seeded ~950-point tail,
+- current star-relative tail orientation,
+- distance-dependent visible activity.
 
-## Existing impact/flight boundaries
+## Renderer integration
 
-Impact resolution and flight-computer modules remain isolated from particle experiments. Impact visual ejecta is still presentation-only and is not automatically converted into ParticleExperiment bodies in v0.1.3.1. That can be added later through an explicit adapter without contaminating impact mass accounting.
+`src/render/threeRenderer.js` keeps:
 
-## Future backend path
+- normal SHIP VIEW on its isolated stable path,
+- experiment observation path,
+- cosmic observation path,
+- major-body visual synchronization,
+- cosmic-phenomenon synchronization,
+- floating-origin camera/reference-frame conversion.
 
-The particle interfaces are designed to allow:
+The camera far plane is enlarged enough for multi-AU visual phenomena while local body scales still use floating-origin rendering.
 
-1. CPU typed-array reference solver (v0.1.3.1),
-2. worker/WASM kernels,
-3. WebGPU storage buffers/compute,
-4. Barnes-Hut/FMM long-range gravity,
-5. local fluid/SPH/PBF solvers,
+## Observation architecture
 
-without making Three.js the authoritative simulator.
+Massless observation cameras are explicitly not spacecraft travel.
+
+Experiment observation:
+
+- FRAME,
+- TRACK,
+- ORBIT.
+
+Cosmic observation:
+
+- FRAME,
+- ORBIT.
+
+Both derive render-camera poses without mutating ship position/velocity.
+
+**RENDEZVOUS** instead creates a navigation target from the current phenomenon anchor position/velocity and uses the normal bounded-thrust flight computer. An anchored ring therefore inherits the planet's live motion/mass context, while a belt inherits the star's.
+
+## Compact-object navigation safeguards
+
+`src/physics/flightComputer.js` calculates propulsion-safe stand-off from local `GM/r²` and the selected engine acceleration.
+
+Additional validity guards:
+
+- ship speed ≥ 0.1c,
+- black-hole near-field guard,
+- neutron-star near-field guard.
+
+Strong local gravity also reduces maximum physics substep through the existing dynamical-time estimate.
+
+These guards prevent the Newtonian solver from visually masquerading as GR.
+
+## Particle experiments retained
+
+`ParticleExperimentManager` still owns contiguous typed-array fields with a global 40,000-slot budget. Artificial neighbor modes use `SpatialHashGrid`; Gravity Cloud and Particle Gun feel major-body gravity but do not source it. Each field renders with one `THREE.Points` draw call.
+
+## Save compatibility
+
+Save schema remains 1. New cosmic phenomena are regenerated deterministically from the saved seed. Discovery state and local particle experiments are currently session-local rather than silently extending the existing persistent schema.
+
+## Failure diagnostics
+
+The animation-loop runtime boundary from v0.1.3.2.1 remains. Any browser-frame exception halts the simulation and shows `RUNTIME ERROR: ...` in the HUD instead of leaving a misleading half-alive screen.
+
+The class-method integrity test added in v0.1.3.2.2 remains and verifies every direct `this.method()` call in `UniverseLabApp` has a class method definition.

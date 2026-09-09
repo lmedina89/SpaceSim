@@ -1,6 +1,7 @@
 import { BODY_KIND, PHYSICS } from '../core/constants.js';
 import { createRng, hashSeed } from '../util/prng.js';
 import { vec3 } from '../physics/vector.js';
+import { generateCosmicPhenomena } from '../cosmic/phenomenonGenerator.js';
 
 const STAR_NAMES = ['Aster', 'Vesper', 'Orison', 'Nadir', 'Eidra', 'Khepri', 'Ilyon', 'Morrow', 'Sable', 'Caelum'];
 const PLANET_TYPES = [
@@ -140,6 +141,42 @@ function moonDefinitions(rng, starMass, planet, basePosition, baseVelocity, plan
   return { planetPosition, planetVelocity, moons };
 }
 
+
+function cometDefinitions(rng, starMass, starName, count = 2) {
+  const comets = [];
+  for (let i = 0; i < count; i += 1) {
+    const eccentricity = rng.range(0.72, 0.94);
+    const periapsis = PHYSICS.AU * rng.range(0.38, 1.85);
+    const semiMajorAxis = periapsis / (1 - eccentricity);
+    const anomaly = rng.range(Math.PI * 0.72, Math.PI * 1.28);
+    const inclination = rng.range(-0.42, 0.42);
+    const node = rng.range(0, Math.PI * 2);
+    const radius = rng.range(2_000, 15_000);
+    const density = rng.range(450, 850);
+    const mass = massFromRadiusDensity(radius, density);
+    const state = orbitalState(PHYSICS.G * (starMass + mass), semiMajorAxis, eccentricity, anomaly, inclination, node);
+    comets.push({
+      id: `comet-${i + 1}`,
+      kind: BODY_KIND.COMET,
+      name: `${starName} C${i + 1}`,
+      mass,
+      radius,
+      densityKgM3: density,
+      semiMajorAxis,
+      eccentricity,
+      inclinationRad: inclination,
+      color: i % 2 ? 0xc8e8ff : 0xd8f5ff,
+      gravitySource: true,
+      generated: true,
+      materialId: 'ice',
+      scientificWarning: 'Nucleus follows live Newtonian N-body gravity. Dust/ion tail is a visual activity proxy, not a gas/plasma solver.',
+      position: state.position,
+      velocity: state.velocity,
+    });
+  }
+  return comets;
+}
+
 function shiftToBarycentricFrame(bodies) {
   let totalMass = 0, cx = 0, cy = 0, cz = 0, cvx = 0, cvy = 0, cvz = 0;
   for (const body of bodies) {
@@ -246,7 +283,11 @@ export function generateSystem(seedText = 'ORIGIN-001') {
     .sort((a, b) => Math.abs(a.semiMajorAxis / habitableProxy - 1) - Math.abs(b.semiMajorAxis / habitableProxy - 1));
   if (candidates[0]) candidates[0].surfaceProfile = 'selected-future-surface';
 
+  const cometCount = rng.random() < 0.42 ? 1 : 2;
+  bodies.push(...cometDefinitions(rng, starMass, starName, cometCount));
+
   shiftToBarycentricFrame(bodies);
+  const phenomena = generateCosmicPhenomena(seed, bodies);
 
   return {
     schemaVersion: 1,
@@ -255,6 +296,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
     starName,
     homeId: home.id,
     bodies,
+    phenomena,
     metadata: {
       generatedAtRuntime: true,
       starSpectralClass: starClass,
@@ -264,7 +306,9 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       snowLineMeters: snowLine,
       planetCount,
       moonCount: bodies.filter((body) => body.kind === BODY_KIND.MOON).length,
-      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian eccentric planet/moon orbits',
+      cometCount: bodies.filter((body) => body.kind === BODY_KIND.COMET).length,
+      phenomenonCount: phenomena.length,
+      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, high-eccentricity physical comet nuclei, and separately labeled visual population phenomena',
     },
   };
 }

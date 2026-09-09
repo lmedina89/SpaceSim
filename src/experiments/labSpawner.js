@@ -69,6 +69,36 @@ export function registerLabExperiments(registry) {
     },
   });
 
+
+  registry.register({
+    id: 'spawn-neutron-star',
+    name: 'Spawn neutron star / pulsar',
+    scientificStatus: 'Live Newtonian compact-object gravity with visual magnetosphere/radiation-beam proxy; no GR or radiation transport',
+    run(context, params) {
+      const solarMasses = Math.max(1.05, Math.min(Number(params.solarMasses) || 1.4, 2.35));
+      const mass = solarMasses * PHYSICS.SOLAR_MASS;
+      const compactType = params.compactType === 'neutron-star' ? 'neutron-star' : 'pulsar';
+      const spinPeriodSeconds = Math.max(0.02, Math.min(Number(params.spinPeriodSeconds) || 0.65, 20));
+      const magneticFieldTesla = Math.max(1e4, Math.min(Number(params.magneticFieldTesla) || 1e8, 1e11));
+      const placement = spawnInFront(context, 1.8e10, 0);
+      return context.addBody({
+        kind: BODY_KIND.NEUTRON_STAR,
+        name: `${compactType === 'pulsar' ? 'LAB Pulsar' : 'LAB Neutron Star'} ${context.userBodySerial++}`,
+        mass,
+        radius: 12_000,
+        visualRadiusMeters: 3.5e7,
+        color: compactType === 'pulsar' ? 0xb9f1ff : 0xd4e7ff,
+        gravitySource: true,
+        generated: false,
+        compactType,
+        spinPeriodSeconds,
+        magneticFieldTesla,
+        scientificWarning: 'Newtonian compact-object gravity only. Magnetosphere and radiation beams are visual proxies; near-surface GR/radiation physics is not implemented.',
+        ...placement,
+      });
+    },
+  });
+
   registry.register({
     id: 'spawn-black-hole',
     name: 'Spawn black-hole mass',
@@ -86,7 +116,9 @@ export function registerLabExperiments(registry) {
         color: 0x7658ff,
         gravitySource: true,
         generated: false,
-        scientificWarning: 'Newtonian gravity approximation outside the event-horizon visualization.',
+        activeAccretion: true,
+        visualParticleCount: 5200,
+        scientificWarning: 'Newtonian gravity approximation outside the event-horizon visualization. Accretion disk, photon-ring cues, lens halo, and jets are visual proxies rather than GR/plasma simulation.',
         ...placement,
       });
     },

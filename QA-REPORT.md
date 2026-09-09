@@ -1,80 +1,138 @@
-# Universe Lab v0.1.3.2.2 — QA Report
+# Universe Lab v0.1.4 — QA Report
 
-Release: **Particle Warp Runtime Recovery Hotfix**
+## Release identity
 
-## Trigger
+- Version: **0.1.4**
+- Milestone: **Cosmic Phenomena & Deep-Space Exploration**
+- Build marker: **COSMOS-140**
+- Save schema: **1**
+- Three.js: **0.185.0**
+- Deployment: GitHub Pages branch-root
+- Workflow files: intentionally absent
 
-Physical iPhone Safari / GitHub Pages testing of v0.1.3.2.1 surfaced the runtime error:
+## Automated QA
 
-`this.enforceParticleWarpSafety is not a function`
+Final command:
 
-The frame loop still called `enforceParticleWarpSafety()` every frame, but the class method itself had been lost during the earlier navigation integration. The previous static check only searched for the token `enforceParticleWarpSafety`, so the call site falsely satisfied the check.
+```text
+npm run qa
+```
 
-## Repair
+Result: **63/63 automated tests PASS**, plus static structure checks and `node --check` over all JS/MJS source/test files.
 
-- Restored `UniverseLabApp.enforceParticleWarpSafety()` as an actual class method.
-- The method reads `ParticleExperimentManager.recommendedWarpCap`; while particle fields are active, time warp is capped at the configured 60× ceiling.
-- When the cap engages, the simulation clock, LAB time-scale selector, and quick-warp button are synchronized.
-- Existing navigation auto-warp still applies the stricter of its own recommended warp and the particle-experiment cap.
-- v0.1.3.2.1 runtime-error reporting and ship/observation render isolation are retained.
-- Build marker: **OBSNAV-1322**.
+New v0.1.4 coverage includes:
 
-## Regression hardening
+- deterministic physical comets and deterministic local cosmic phenomena,
+- debris-belt and planetary-ring generation,
+- live phenomenon-anchor position/velocity resolution,
+- LAB pulsar/neutron-star physical properties,
+- neutron-star propulsion-safe stand-off,
+- neutron-star near-field Newtonian validity guard.
 
-The test suite now checks class method integrity instead of merely checking for method-name text:
+Retained suites cover:
 
-- Static QA enumerates every direct `this.method()` call in `UniverseLabApp` and requires a corresponding class method definition.
-- `tests/appMethodIntegrity.test.mjs` independently enforces the same invariant.
-- Current audit: **41 class method definitions**, **38 direct `this.method()` call names**, **0 missing definitions**.
-- `enforceParticleWarpSafety`: **1 definition / 1 direct call**.
+- direct Newtonian gravity,
+- velocity-Verlet orbital stability,
+- generator determinism / barycentric correction,
+- trajectory prediction and swept impact,
+- impact/crater/fragment behavior,
+- fragment cascade suppression,
+- physical BRAKE and experimental FLIGHT/CRUISE acceleration,
+- APPROACH/BRAKING/CAPTURE/HOLD,
+- black-hole propulsion-safe stand-off / model guards,
+- adaptive physics substeps,
+- observation camera isolation,
+- runtime error boundary,
+- typed-array particle framework / spatial hash / particle budgets,
+- v0.1.3.2.2 app class-method integrity.
 
-This exact failure can no longer pass QA because its call site exists.
+## App method integrity
 
-## Automated result
+Static audit of `UniverseLabApp`:
 
-`npm run qa` passes completely.
+- class method definitions: **49**
+- unique direct `this.method()` call names: **46**
+- unresolved direct method calls: **0**
 
-- Static structure check: **PASS**
-- JavaScript / MJS syntax checks: **PASS**
-- Node test suite: **58 / 58 PASS**
-- Save schema: **1 (unchanged)**
-- Three.js pin: **0.185.0 (unchanged)**
-- Distributable GitHub workflow files: **none**
+This retains the regression check created after the v0.1.3.2.1 runtime failure.
 
-The 58 tests include all prior gravity/orbit, impact/fragment, flight computer, strong-gravity navigation, simulation clock, particle experiment, observation/rendezvous, renderer-isolation, and runtime-error-boundary regressions plus the new app-method integrity regression.
+## HTML / UI integrity
 
-## Selector / shell audit
-
-- HTML IDs: **111**
-- unique HTML IDs: **111**
+- HTML IDs: **131**
+- unique IDs: **131**
 - duplicate IDs: **0**
-- direct app `querySelector('#id')` references missing from shell: **0**
+- direct JS selector IDs audited: **68**
+- missing selector IDs: **0**
 
-## Static HTTP smoke
+The static suite additionally requires the COSMOS controls, compact-star controls and `COSMOS-140` marker.
 
-A local static HTTP server returned **200** for:
+## Local static-host smoke
 
-- `/`
-- `/styles.css`
-- `/src/main.js`
-- `/src/app/app.js`
-- `/src/experiments/particles/particleExperimentManager.js`
-- `/src/render/threeRenderer.js`
+A local HTTP server returned **200** for:
 
-## Scope
+- `index.html`
+- `styles.css`
+- `src/main.js`
+- `src/app/app.js`
+- `src/cosmic/phenomenonRegistry.js`
+- `src/cosmic/phenomenonGenerator.js`
+- `src/render/cosmicPhenomena.js`
+- `src/render/celestialFactory.js`
+- `src/render/threeRenderer.js`
 
-This is intentionally a narrow blocker hotfix. It does **not** change the scientific models, save schema, particle rules, impact model, observation camera behavior, flight acceleration, or renderer architecture.
+## Long-run generated-system stress
 
-## Physical-device release gate
+Eight deterministic systems were integrated for **30 simulated days each** at **900-second** major-body steps using the direct Newtonian solver and velocity-Verlet integrator.
 
-After deployment on iPhone Safari / GitHub Pages verify in this order:
+Sample results:
 
-1. HUD reports **v0.1.3.2.2** and MORE shows **OBSNAV-1322**.
-2. FPS/PHYSICS/RENDER/SHIP populate instead of `ERR` or `—`, and SIM TIME advances.
-3. No `RUNTIME ERROR` appears during at least 10–20 seconds of untouched normal SHIP VIEW.
-4. Open LAB and spawn a small Gravity Cloud with SPAWN + OBSERVE.
-5. Confirm observation view works and active experiments cap warp at 60× without throwing an error.
-6. Return to SHIP VIEW and verify normal flight controls still work.
-7. Only then test FRAME / TRACK / ORBIT / RENDEZVOUS and larger particle loads.
+| Seed | Major bodies | Planets | Moons | Comets | Phenomena | Spontaneous collisions |
+|---|---:|---:|---:|---:|---:|---:|
+| COSMOS-A | 8 | 5 | 1 | 1 | 2 | 0 |
+| COSMOS-B | 18 | 7 | 9 | 1 | 2 | 0 |
+| COSMOS-C | 20 | 8 | 10 | 1 | 4 | 0 |
+| COSMOS-D | 24 | 9 | 12 | 2 | 4 | 0 |
+| COSMOS-E | 11 | 5 | 3 | 2 | 3 | 0 |
+| COSMOS-F | 14 | 6 | 6 | 1 | 3 | 0 |
+| COSMOS-G | 12 | 6 | 3 | 2 | 4 | 0 |
+| COSMOS-H | 19 | 6 | 10 | 2 | 4 | 0 |
 
-A physical iPhone WebGPU playthrough is still the release gate; no automated container test is represented as equivalent to that device test.
+- Total spontaneous finite-radius collisions: **0**
+- Maximum generated body count in this sample: **24**
+- Non-finite position/velocity state: **0**
+
+This is a stability regression, not proof that physical comet impacts can never occur for every possible seed or long timescale.
+
+## Renderer scope checked statically
+
+The static suite requires the expected visual architecture tokens for:
+
+- stellar corona,
+- active black-hole accretion disk,
+- photon-ring group,
+- visual relativistic jets,
+- pseudo-lensing halo,
+- pulsar beam pivot,
+- comet tail,
+- cosmic phenomenon `THREE.Points` renderer.
+
+The container environment does not provide a reliable iPhone/WebGPU interactive GPU backend, so these checks do **not** establish real device performance or visual correctness.
+
+## Physical iPhone release gate
+
+The user's physical iPhone Safari test of v0.1.3.2.2 established the current stable baseline: normal scene running at 60 FPS in the shown test, sim time advancing, planet visible, no runtime ERR.
+
+v0.1.4 still requires fresh physical validation because it adds substantial new GPU-visible populations.
+
+Recommended release-gate order:
+
+1. verify **v0.1.4 / COSMOS-140**, no runtime error, sim time advances;
+2. COSMOS → scan debris belt/ring → OBSERVE → ORBIT → SHIP VIEW;
+3. monitor FPS while framing the 12k debris belt and ring systems;
+4. physical RENDEZVOUS to a phenomenon;
+5. inspect a generated comet and tail behavior;
+6. spawn pulsar and test safe APPROACH/model guard;
+7. spawn active black hole and inspect accretion/jet rendering;
+8. retest particle experiments and impacts.
+
+Do not treat this QA report as a claim of interactive iPhone performance.

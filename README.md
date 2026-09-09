@@ -1,171 +1,149 @@
-# Universe Lab v0.1.3.2.2 — Particle Warp Runtime Recovery Hotfix
+# Universe Lab v0.1.4 — Cosmic Phenomena & Deep-Space Exploration
 
-Universe Lab is a mobile-first scientific/experimental solar-system sandbox built for static GitHub Pages. One deterministic seeded system is simulated at a time; the spacecraft is both observer and laboratory platform.
+Universe Lab is a mobile-first scientific/experimental space sandbox built for static GitHub Pages. One deterministic seeded system is simulated at a time with authoritative SI-unit state, Float64 positions/velocities, direct Newtonian gravity for major bodies, velocity-Verlet integration, floating-origin rendering, and a Three.js 0.185.0 WebGPU renderer.
 
-v0.1.3.2.2 is a narrow runtime recovery built from v0.1.3.2.1. It restores the particle-warp safety method that the frame loop calls every frame and strengthens automated class-method integrity checks so a missing method cannot be hidden by its call site. Observation cameras, particle experiments, navigation, save schema 1, Three.js 0.185.0, and branch-root GitHub Pages deployment remain unchanged.
+**Build marker:** `COSMOS-140`  
+**Save schema:** 1  
+**Deployment:** GitHub Pages → `main` → `/(root)`  
+**Mobile release gate:** physical iPhone Safari testing
 
+v0.1.4 deliberately improves the *space between the planets* before the landable-planet milestone. The system can now contain physical comets, structured debris belts, planetary ring systems, richer stellar activity, high-detail active black-hole visuals, and LAB-spawned neutron stars/pulsars. A new COSMOS explorer gives those phenomena a discovery and observation workflow.
 
-## v0.1.3.2.1 observation/navigation additions
+## New in v0.1.4
 
-- Particle fields now spawn just outside their own configured extent instead of using a fixed 40,000 km minimum. Particle Life / Species mode changes also suggest smaller 2,000 km fields for easier mobile observation.
-- Spawning a field automatically selects it and enters **OBSERVE / FRAME** view. This is a massless scientific camera only: the spacecraft, velocity, gravity, and experiment state are untouched.
-- **FRAME** fits the current active-particle extent, **TRACK** follows the field centroid from behind its mean motion, and **ORBIT** circles the field. Dragging LOOK while observing manually orbits the camera.
-- **SHIP VIEW** returns instantly. While observing, the main APPROACH button temporarily becomes a one-tap SHIP VIEW return control.
-- Active experiment fields are selectable in the LAB. Status shows ship-to-field distance and approximate active-particle radius.
-- **RENDEZVOUS** returns to SHIP VIEW and treats the selected experiment centroid/mean velocity as a massless navigation target. Existing bounded FLIGHT/CRUISE thrust, braking-safe APPROACH, CAPTURE/HOLD, and the 60× particle warp cap remain in force.
-- Observation-state scans use existing typed arrays and are throttled; a 30,000-particle Node development benchmark averaged well under 1 ms per centroid/radius scan. This is not an iPhone performance claim.
-- Visible build marker **OBSNAV-1322** is included in the system menu/camera HUD to make stale Safari deployments easier to spot.
-## Retained v0.1.3.1 navigation hotfix
+### COSMOS explorer and discovery
 
-- APPROACH no longer switches off merely because stand-off distance was reached. It transitions through **CAPTURE** into persistent thrust-powered **HOLD**.
-- HOLD continuously matches target-relative velocity and counteracts the selected target's local gravity with bounded physical thrust. Manual THRUST/REV/BRAKE/RCS input releases HOLD and returns to 1×.
-- Stand-off distance now includes a propulsion-support constraint derived from `GM/r²`, reserving most engine authority for capture/correction. Black holes therefore cannot be approached to a tiny radius that the selected engine could never hover against.
-- Strong local gravity reduces the maximum physics substep dynamically instead of allowing the normal 300 s ceiling to destabilize close approaches.
-- APPROACH warp is based on distance/time to the **navigation stand-off**, not the target's physical surface alone. CAPTURE is limited to 60× and HOLD to 1×.
-- The Newtonian spacecraft model now has an explicit validity guard: if ship speed reaches 10% of c, or the ship enters the black-hole near-field guard, simulation pauses with a MODEL LIMIT warning instead of continuing into superluminal numerical runaway. No velocity is silently clamped.
+The new **COSMOS** panel lists seeded local phenomena. Sources initially appear as **UNIDENTIFIED SOURCE** until **SCAN SOURCE** classifies them. After discovery the panel exposes the generated type, characteristic radius, anchor body, and scientific-model status.
 
+Controls:
 
-### Reusable particle engine
+- **SCAN SOURCE** — reveal classification/model information.
+- **OBSERVE** — massless FRAME camera centered on the phenomenon.
+- **ORBIT VIEW** — orbit the massless camera around the phenomenon.
+- **NEXT SOURCE** — cycle through local phenomena.
+- **RENDEZVOUS** — physically fly the spacecraft toward the phenomenon using bounded-thrust navigation.
+- **SHIP VIEW** — return instantly to the real spacecraft without changing ship state.
 
-Particle experiments are not implemented as thousands of Three.js objects. Each field owns contiguous typed-array state:
+Phenomena anchored to a planet or star follow that live body's Float64 position/velocity instead of storing a frozen generation coordinate.
 
-- Float64 position and velocity,
-- Uint8 active/dead state,
-- Uint8 species state,
-- Float32 render positions/colors,
-- a single Points draw call per field.
+### Physical comets
 
-The renderer never owns experiment physics. It only receives transformed floating-origin coordinates.
+Every seeded system now contains one or two deterministic high-eccentricity comet nuclei. The nucleus is a real major body:
 
-### Gravity Cloud
+- finite physical radius,
+- finite mass from generated bulk density,
+- high-eccentricity Newtonian orbit,
+- participates in direct major-body gravity,
+- can collide through the existing finite-radius collision system.
 
-A Gravity Cloud contains physical **test particles** in SI coordinates. They:
+The visible dust/ion-style tail is a **rendering proxy**, not a dust/plasma solver. It points away from the current host-star direction and its visible activity changes with star distance.
 
-- inherit the spacecraft's velocity when spawned,
-- feel every active major Newtonian gravity source,
-- are absorbed on finite-radius contact with a star/planet/moon/black hole,
-- do **not** source gravity themselves.
+### Asteroid / debris belts
 
-That last constraint is explicit. Full particle self-gravity would require a Barnes-Hut/FMM/GPU gravity backend rather than pretending a local neighbor approximation is equivalent to long-range Newtonian gravity.
+Each system contains a deterministic circumstellar debris belt, usually placed into a useful gap between generated planets. The belt is represented by **12,000 seeded GPU-visible points in one Points draw call**.
 
-Current mobile-first Gravity Cloud limit: **30,000 particle slots**.
+Those visible points are population proxies only: they do not individually source gravity or participate in collisions. This is intentional so a mobile device can show a rich belt without turning 12,000 rocks into direct N-body gravity sources.
 
-### Particle Life
+### Planetary ring systems
 
-Particle Life is a deliberately artificial continuous-3D cellular-automaton experiment. Particles move through space, but alive/dead transitions are based on occupancy of neighboring spatial-hash cells. The current rules are Conway-inspired rather than canonical Conway Life:
+One to three planets receive deterministic ring phenomena. Ring systems use approximately **4,000–7,000 visual particles per ring system**, with radial structure/gaps and live attachment to the host planet.
 
-- low/crowded populations can die,
-- selected neighborhood populations can survive,
-- dead particle slots can reactivate under birth conditions.
+Again, the particles are a visual population model in this release, not individually integrated ring rocks.
 
-Major-body gravity can be enabled or disabled independently.
+### Richer stars
 
-Current mobile-first Particle Life limit: **6,000 slots**.
+Stars now include a visual corona, moving prominence arcs, and the existing generated stellar color. These effects are rendering layers and do not yet model magnetohydrodynamics, stellar wind, or flare radiation physically.
 
-### Species Forces
+### Active black-hole renderer
 
-Species Forces assigns each active particle one of three species. A short-range attraction/repulsion matrix produces artificial emergent motion. This is **not** a model of real matter.
+LAB black holes keep their live Newtonian mass and Schwarzschild-radius metadata, but the old simple ring presentation has been replaced by a substantially richer real-time visual proxy:
 
-For performance, forces are evaluated against neighboring **cell populations** instead of every particle pair. A typed-array spatial hash makes the work scale with particles and populated neighboring cells rather than naïve O(N²) all-pairs comparisons.
+- black event-horizon core,
+- six photon-ring-style layers,
+- about **5,200 seeded accretion-disk particles**,
+- radial temperature/color gradient,
+- static approaching-side brightness cue,
+- layered disk rings,
+- dual polar-jet cones,
+- about **1,500 jet particles**,
+- pseudo-lensing halo/glow.
 
-Current mobile-first Species Forces limit: **4,000 slots**.
+This is **not** a GR ray tracer and **not** a plasma/MHD solver. Near-field black-hole trajectories remain outside the validity of the Newtonian live model, so the existing model guard pauses before the simulator presents that regime as valid physics.
 
-### Particle Gun
+### Neutron stars and pulsars
 
-The LAB can fire 10–5,000 ballistic luminous test particles from the spacecraft. They inherit ship velocity, receive a configurable launch velocity/spread, feel major-body Newtonian gravity, and disappear on finite-radius body contact.
+LAB can now spawn a live compact star with configurable:
 
-This gives the ship its first true high-count experiment tool without creating thousands of major gravity sources.
+- neutron-star / pulsar type,
+- 1.05–2.35 solar masses,
+- 12 km physical radius,
+- spin period,
+- magnetic-field metadata.
 
-## Spatial-neighbor architecture
+Their mass/radius participate in live Newtonian gravity and collision code. The visible magnetosphere rings and pulsar sweep beams are visualization proxies.
 
-`src/experiments/particles/spatialHashGrid.js` uses open-addressed typed-array storage:
+APPROACH now includes a neutron-star propulsion-safe stand-off, and the Newtonian model guard blocks near-surface compact-object flight where relativistic physics would be required.
 
-- integer cell coordinates,
-- hash table stamps instead of allocating/clearing Maps each step,
-- linked particle indices per populated cell,
-- per-cell population counts,
-- per-species cell counts.
+### Deeper space backdrop
 
-Neighbor modes only inspect the 27 cells surrounding a particle. Species Forces aggregates cell populations, avoiding dense particle-pair loops. This is the CPU reference implementation that a later WebGPU compute backend can replace behind the same experiment interfaces.
+The seeded sky now has the original starfield plus a faint galactic-band population and several low-opacity nebular haze sprites. These are distant visual backdrop only; they are not local gas volumes or navigation bodies.
 
-## Time integration / warp
+## Retained scientific flight and navigation
 
-Particle experiments are local high-resolution simulations. While any experiment is active, global warp is capped at **60×**. At the app's maximum real-frame delta, that keeps a normal frame to roughly three simulated seconds or less and allows the particle solver to subdivide fine-rule modes into bounded steps.
+- **FLIGHT:** 20 m/s² experimental main thrust.
+- **CRUISE:** 120 m/s² experimental main thrust.
+- **BRAKE:** bounded thrust opposite inertial velocity; no hidden velocity deletion.
+- **MATCH VELOCITY:** physically reduces target-relative velocity.
+- **APPROACH:** braking-safe bounded-thrust guidance.
+- **CAPTURE → HOLD:** maintains stand-off and target-relative velocity instead of dropping guidance at arrival.
+- strong gravity adaptively reduces physics substep size.
+- black-hole / neutron-star near-field guards and the 10% of c Newtonian speed guard pause the model instead of silently continuing into invalid physics.
 
-This is intentionally conservative. The simulator does not silently skip minutes of Particle Life evolution just to preserve a high warp number.
+Time warp is a simulation-time tool, not a gas pedal. Active local particle experiments continue to cap warp at 60×.
 
-APPROACH/MATCH remain usable with experiments active, but their usual 600× cruise recommendation is clamped to the particle-safe 60× ceiling until the fields are cleared.
+## Retained v0.1.3 particle laboratory
 
-## Session-local experiment state
+The reusable typed-array particle framework remains intact:
 
-Save schema remains **1**. High-count particle fields are **session-local in v0.1.3.1** and are cleared by new-system generation or save restore.
+- **Gravity Cloud:** up to 30,000 physical test particles affected by major-body Newtonian gravity; they do not source gravity.
+- **Particle Life:** up to 6,000 artificial continuous-3D Conway-inspired particles.
+- **Species Forces:** up to 4,000 artificial short-range species-interaction particles.
+- **Particle Gun:** 10–5,000 luminous ballistic test particles.
+- global experiment budget: 40,000 particle slots.
+- typed-array spatial hash for neighbor modes.
+- one Three.js `Points` draw call per particle field.
+- experiment FRAME/TRACK/ORBIT observation and physical RENDEZVOUS.
 
-This is deliberate: blindly serializing tens of thousands of Float64 particle states into localStorage would be a bad mobile persistence design. The experiment manager already separates deterministic configuration/state so a future snapshot/replay format can be introduced intentionally rather than bloating schema 1.
+Particle experiments remain session-local and are deliberately not written into save schema 1.
 
-## Existing scientific flight foundation retained
+## Impact foundation retained
 
-- FLIGHT engine: 20 m/s² declared experimental propulsion.
-- CRUISE engine: 120 m/s².
-- BRAKE uses bounded physical acceleration opposite inertial velocity.
-- MATCH VELOCITY reduces target-relative velocity with bounded thrust.
-- APPROACH follows a braking-safe target-relative velocity envelope.
-- Flight auto-warp uses simulation-time compression rather than teleportation.
-- Manual takeover returns navigation to 1×.
+The impact system still includes swept finite-radius collision detection, reduced-mass impact telemetry, crater scaling, bounce/merge/absorb/fragment response, persistent damage records, a maximum of two primary resolved fragments per impact, and recursive fragment-family suppression.
 
-## Existing impact foundation retained
+## Scientific boundaries
 
-- swept finite-radius collision detection,
-- reduced-mass impact energy and Q_R,
-- material response classification,
-- approximate Collins/Melosh/Marcus-style crater scaling,
-- persistent damage records,
-- at most two resolved fragments from a primary impact,
-- 16 total active resolved impact-fragment sources,
-- cascade suppression and collision grace,
-- energy-driven visual flash/ejecta effects.
+Universe Lab labels three different categories rather than mixing them:
 
-## Scientific core
+1. **Live physical model** — SI/Newtonian state actually integrated by the simulation.
+2. **Approximate scientific model** — established simplified relations such as crater scaling or osculating two-body telemetry.
+3. **Visual / artificial proxy** — accretion disks, magnetosphere beams, debris populations, nebular backdrop, Particle Life, Species Forces, etc.
 
-- authoritative units: SI meters, kilograms, seconds,
-- authoritative positions/velocities: Float64,
-- major gravity: mutual Newtonian direct solver,
-- major integrator: velocity-Verlet,
-- high-count background minor field: test particles only,
-- floating-origin Three.js rendering,
-- deterministic system seeds,
-- save schema: 1.
+v0.1.4 does not claim general relativity, magnetohydrodynamics, radiative transfer, full comet-tail plasma physics, or individually integrated ring/belt populations.
 
-## GitHub Pages / phone workflow
+## Mobile testing order
 
-The release archive is repository-root-ready. Unzip/upload its contents directly into the repository root.
+After deployment, first confirm the HUD says **v0.1.4** and **COSMOS-140** and runs normally. Then:
 
-GitHub Pages:
+1. Open **COSMOS**, scan the debris belt and a ring system.
+2. Try **OBSERVE** and **ORBIT VIEW**, then **SHIP VIEW**.
+3. Use **RENDEZVOUS** on a phenomenon and verify the spacecraft uses physical guidance.
+4. Find a generated comet and watch its tail orientation/activity.
+5. LAB → spawn a **Pulsar**, but do not manually dive through its surface; test SCAN/APPROACH and confirm the compact-object safety behavior.
+6. LAB → spawn an **Active Black Hole** and inspect the new accretion/photon-ring/jet rendering from a safe distance.
+7. Finally retest particle experiments and impacts to catch regressions.
 
-- Source: **Deploy from a branch**
-- Branch: **main**
-- Folder: **/(root)**
+Automated QA cannot establish real iPhone WebGPU frame rate or thermal behavior; physical device testing remains the release gate.
 
-The archive intentionally contains **no `.github/workflows/*`** files, so mobile OAuth clients do not require workflow scope.
+## Next roadmap
 
-## Not implemented yet
-
-- long-range self-gravity between experiment particles,
-- Barnes-Hut/FMM/GPU gravity,
-- fluids,
-- double-slit/wave probability solver,
-- atmosphere/entry heating,
-- structural spacecraft crash physics,
-- landable terrain,
-- GR black-hole trajectories/lensing.
-
-Those remain separate modules rather than being faked inside the particle framework.
-
-## QA
-
-Run:
-
-```bash
-npm run qa
-```
-
-See `QA-REPORT.md` for automated tests, indicative CPU timings, and the remaining physical-iPhone release gates.
+If v0.1.4 is stable on-device, the next cosmic pass can add magnetars, white dwarfs/brown dwarfs, rogue planets, supernova remnants, Lagrange/Hill/Roche overlays, gravity-field visualization, richer comet populations and more discovery events. The **first landable planet** milestone is intentionally postponed until the surrounding universe feels worth exploring.

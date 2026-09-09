@@ -17,6 +17,7 @@ import { TrajectoryPredictor } from '../physics/trajectoryPredictor.js';
 import { ExperimentRegistry } from '../experiments/experimentRegistry.js';
 import { registerLabExperiments, MATERIALS, asteroidDefinitionFromParams, sphereRadiusFromMassDensity } from '../experiments/labSpawner.js';
 import { ParticleExperimentManager, PARTICLE_MODES } from '../experiments/particles/particleExperimentManager.js';
+import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
 import { UniverseRenderer } from '../render/threeRenderer.js';
 import { Hud } from '../ui/hud.js';
 
@@ -52,6 +53,11 @@ function serializeBody(body) {
     eccentricity: body.eccentricity,
     inclinationRad: body.inclinationRad,
     scientificWarning: body.scientificWarning,
+    compactType: body.compactType,
+    spinPeriodSeconds: body.spinPeriodSeconds,
+    magneticFieldTesla: body.magneticFieldTesla,
+    activeAccretion: body.activeAccretion,
+    visualParticleCount: body.visualParticleCount,
     isImpactFragment: body.isImpactFragment,
     fragmentGenerationDepth: body.fragmentGenerationDepth,
     fragmentFamilyId: body.fragmentFamilyId,
@@ -93,6 +99,7 @@ export class UniverseLabApp {
     this.experiments = new ExperimentRegistry();
     registerLabExperiments(this.experiments);
     this.particleExperiments = new ParticleExperimentManager();
+    this.cosmicPhenomena = new CosmicPhenomenonRegistry();
     this.renderer = new UniverseRenderer(root.querySelector('#viewport'));
     this.system = null;
     this.minorField = null;
@@ -131,7 +138,11 @@ export class UniverseLabApp {
     this.observationYaw = 0;
     this.observationPitch = 0.18;
     this.selectedExperimentId = null;
+    this.selectedPhenomenonId = null;
     this.navigationExperimentId = null;
+    this.navigationPhenomenonId = null;
+    this.observationSource = 'experiment';
+    this.discoveredPhenomena = new Set();
     this._observationState = null;
     this._nextObservationRefreshAt = 0;
   }
@@ -139,7 +150,12 @@ export class UniverseLabApp {
   get bodies() { return this.registry.values(); }
   get target() { return this.targetId ? this.registry.get(this.targetId) : null; }
   get selectedExperiment() { return this.selectedExperimentId ? this.particleExperiments.fields.get(this.selectedExperimentId) ?? null : null; }
-  get navigationTarget() { return this.navigationExperimentId ? this.experimentNavigationTarget(this.navigationExperimentId) : this.target; }
+  get selectedPhenomenon() { return this.selectedPhenomenonId ? this.cosmicPhenomena.get(this.selectedPhenomenonId) : null; }
+  get navigationTarget() {
+    if (this.navigationExperimentId) return this.experimentNavigationTarget(this.navigationExperimentId);
+    if (this.navigationPhenomenonId) return this.phenomenonNavigationTarget(this.navigationPhenomenonId);
+    return this.target;
+  }
 
   rebuildBodyCaches() {
     this.massiveBodies = this.registry.values().filter((body) => body.gravitySource);
@@ -169,7 +185,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.3.2.2 online. Particle-warp runtime method restored; ship/observation isolation retained. Build OBSNAV-1322.');
+    this.hud.notify('v0.1.4 online. Cosmic phenomena, physical comets, and compact-object visuals active. Build COSMOS-140.');
   }
 
   newSystem(seed) {
@@ -177,7 +193,11 @@ export class UniverseLabApp {
     this.particleExperiments.clear();
     this.returnToShipView(false);
     this.selectedExperimentId = null;
+    this.selectedPhenomenonId = null;
+    this.navigationPhenomenonId = null;
+    this.discoveredPhenomena.clear();
     this.system = generateSystem(seed);
+    this.cosmicPhenomena.reset(this.system.phenomena ?? []);
     this.registry.clear();
     for (const body of this.system.bodies) this.registry.create(body);
     this.rebuildBodyCaches();
@@ -194,8 +214,9 @@ export class UniverseLabApp {
     this.hud.setSeed(this.system.seed);
     this.root.querySelector('#seedInput').value = this.system.seed;
     this.selectTarget(this.system.homeId);
+    this.selectPhenomenon(this.cosmicPhenomena.values[0]?.id ?? null, false);
     this.invalidatePredictions();
-    this.hud.notify(`Generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class): ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons.`);
+    this.hud.notify(`Generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class): ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons, ${this.system.metadata.cometCount ?? 0} comets, ${this.system.metadata.phenomenonCount ?? 0} local cosmic phenomena.`);
   }
 
   placeShipNearHome() {
@@ -236,7 +257,7 @@ export class UniverseLabApp {
   selectTarget(id) {
     const body = id ? this.registry.get(id) : null;
     this.targetId = body?.id ?? null;
-    if (body && this.navigationMode === 'manual') this.navigationExperimentId = null;
+    if (body && this.navigationMode === 'manual') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; }
     this.renderer.setTarget(this.targetId);
     if (body) this.hud.notify(`Target locked: ${body.name}. Scanner uses two-body osculating telemetry plus N-body path prediction.`);
     this.invalidatePredictions();
@@ -295,7 +316,7 @@ export class UniverseLabApp {
     this.selectedExperimentId = field?.id ?? null;
     const select = this.root.querySelector('#experimentSelect');
     if (select && field) select.value = field.id;
-    if (!field && this.cameraMode === 'observe') this.returnToShipView(false);
+    if (!field && this.cameraMode === 'observe' && this.observationSource === 'experiment') this.returnToShipView(false);
     if (notify && field) this.hud.notify(`Experiment selected: ${field.label}. OBSERVE moves only the camera; RENDEZVOUS moves the physical ship.`);
     this.updateParticleLabStatus();
     return field;
@@ -312,11 +333,14 @@ export class UniverseLabApp {
 
   refreshObservationState(now = performance.now(), force = false) {
     if (this.cameraMode !== 'observe') return null;
-    if (!force && now < this._nextObservationRefreshAt && this._observationState?.id === this.selectedExperimentId) return this._observationState;
-    const state = this.particleExperiments.observationState(this.selectedExperimentId);
+    const selectedId = this.observationSource === 'cosmic' ? this.selectedPhenomenonId : this.selectedExperimentId;
+    if (!force && now < this._nextObservationRefreshAt && this._observationState?.id === selectedId) return this._observationState;
+    const state = this.observationSource === 'cosmic'
+      ? this.phenomenonState(this.selectedPhenomenonId)
+      : this.particleExperiments.observationState(this.selectedExperimentId);
     if (!state) { this.returnToShipView(false); return null; }
     this._observationState = state;
-    this._nextObservationRefreshAt = now + 180;
+    this._nextObservationRefreshAt = now + (this.observationSource === 'cosmic' ? 300 : 180);
     return state;
   }
 
@@ -341,6 +365,7 @@ export class UniverseLabApp {
     const field = this.selectedExperiment ?? this.particleExperiments.newestField;
     if (!field) { this.hud.notify('Spawn or select a particle experiment first.'); return; }
     this.selectExperiment(field.id, false);
+    this.observationSource = 'experiment';
     this.cameraMode = 'observe';
     this.observationStyle = ['frame', 'track', 'orbit'].includes(style) ? style : 'frame';
     if (style === 'frame') { this.observationYaw = 0.55; this.observationPitch = 0.22; }
@@ -367,10 +392,129 @@ export class UniverseLabApp {
     if (!field) { this.hud.notify('Spawn or select a particle experiment first.'); return; }
     this.selectExperiment(field.id, false);
     this.returnToShipView(false);
+    this.navigationPhenomenonId = null;
     this.navigationExperimentId = field.id;
     this.setNavigationMode('approach');
     this.hud.toggleLab(false);
     this.hud.notify(`RENDEZVOUS engaged toward ${field.label}. This one moves the real ship with bounded thrust and target-relative braking.`);
+  }
+
+  phenomenonState(id = this.selectedPhenomenonId) {
+    return this.cosmicPhenomena.state(id, (bodyId) => this.registry.get(bodyId));
+  }
+
+  phenomenonNavigationTarget(id = this.selectedPhenomenonId) {
+    const state = this.phenomenonState(id);
+    if (!state) return null;
+    const anchor = state.anchorBodyId ? this.registry.get(state.anchorBodyId) : null;
+    return {
+      id: `phenomenon:${state.id}`,
+      phenomenonId: state.id,
+      name: state.label,
+      kind: 'phenomenon',
+      mass: anchor?.mass ?? 0,
+      radius: Math.max(50_000, state.radiusMeters),
+      position: state.center,
+      velocity: state.velocity,
+      gravitySource: false,
+    };
+  }
+
+  selectPhenomenon(id, notify = true) {
+    const phenomenon = id ? this.cosmicPhenomena.get(id) : null;
+    this.selectedPhenomenonId = phenomenon?.id ?? null;
+    const select = this.root.querySelector('#phenomenonSelect');
+    if (select && phenomenon) select.value = phenomenon.id;
+    if (!phenomenon && this.cameraMode === 'observe' && this.observationSource === 'cosmic') this.returnToShipView(false);
+    this.updateCosmosPanel();
+    if (notify && phenomenon) this.hud.notify(`Cosmic source selected: ${this.discoveredPhenomena.has(phenomenon.id) ? phenomenon.label : 'UNIDENTIFIED SOURCE'}. SCAN SOURCE reveals its generated classification and model status.`);
+    return phenomenon;
+  }
+
+  cyclePhenomenon() {
+    const items = this.cosmicPhenomena.values;
+    if (!items.length) { this.hud.notify('No local cosmic phenomena generated in this seed.'); return null; }
+    const index = items.findIndex((item) => item.id === this.selectedPhenomenonId);
+    const item = items[(index + 1 + items.length) % items.length];
+    this.selectPhenomenon(item.id);
+    return item;
+  }
+
+  scanPhenomenon() {
+    const phenomenon = this.selectedPhenomenon;
+    if (!phenomenon) { this.hud.notify('Select a cosmic source first.'); return; }
+    this.discoveredPhenomena.add(phenomenon.id);
+    this.updateCosmosPanel();
+    this.hud.notify(`DISCOVERY: ${phenomenon.label} classified as ${phenomenon.kind}. ${phenomenon.scientificStatus}`);
+  }
+
+  updateCosmosPanel() {
+    const select = this.root.querySelector('#phenomenonSelect');
+    if (!select) return;
+    const items = this.cosmicPhenomena.values;
+    const previous = this.selectedPhenomenonId;
+    select.replaceChildren();
+    if (!items.length) {
+      const option = document.createElement('option'); option.value = ''; option.textContent = 'No local phenomena'; select.appendChild(option);
+      this.selectedPhenomenonId = null;
+    } else {
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = this.discoveredPhenomena.has(item.id) ? item.label : `UNIDENTIFIED SOURCE ${String(i + 1).padStart(2, '0')}`;
+        select.appendChild(option);
+      }
+      if (!previous || !this.cosmicPhenomena.has(previous)) this.selectedPhenomenonId = items[0].id;
+      select.value = this.selectedPhenomenonId;
+    }
+
+    const state = this.phenomenonState(this.selectedPhenomenonId);
+    const discovered = state ? this.discoveredPhenomena.has(state.id) : false;
+    const setText = (id, text) => { const el = this.root.querySelector(id); if (el) el.textContent = text; };
+    if (!state) {
+      setText('#phenomenonDiscovery', '—'); setText('#phenomenonKind', '—'); setText('#phenomenonRadius', '—'); setText('#phenomenonAnchor', '—');
+      const status = this.root.querySelector('#phenomenonStatus'); if (status) status.textContent = 'No local cosmic phenomenon selected.';
+      return;
+    }
+    const anchor = state.anchorBodyId ? this.registry.get(state.anchorBodyId) : null;
+    setText('#phenomenonDiscovery', discovered ? 'CLASSIFIED' : 'UNIDENTIFIED');
+    setText('#phenomenonKind', discovered ? state.kind : 'unknown');
+    setText('#phenomenonRadius', discovered ? formatRadiusMeters(state.radiusMeters) : '—');
+    setText('#phenomenonAnchor', discovered ? (anchor?.name ?? 'free-space') : '—');
+    const status = this.root.querySelector('#phenomenonStatus');
+    if (status) status.textContent = discovered
+      ? `${state.label}: ${state.scientificStatus}`
+      : 'Unclassified local source. SCAN SOURCE reveals its seeded type and whether it is physical, approximate, or visual-only.';
+  }
+
+  enterCosmicObservation(style = 'frame') {
+    const phenomenon = this.selectedPhenomenon ?? this.cosmicPhenomena.values[0];
+    if (!phenomenon) { this.hud.notify('No local cosmic phenomenon is available.'); return; }
+    this.selectPhenomenon(phenomenon.id, false);
+    this.observationSource = 'cosmic';
+    this.cameraMode = 'observe';
+    this.observationStyle = style === 'orbit' ? 'orbit' : 'frame';
+    this.observationYaw = 0.58;
+    this.observationPitch = 0.24;
+    this._nextObservationRefreshAt = 0;
+    const state = this.refreshObservationState(performance.now(), true);
+    this.hud.setCamera('observe', this.discoveredPhenomena.has(phenomenon.id) ? phenomenon.label : 'UNIDENTIFIED SOURCE', this.observationStyle, state);
+    const quickReturn = this.root.querySelector('#approachButton');
+    if (quickReturn) quickReturn.textContent = 'SHIP VIEW';
+    this.hud.toggleCosmos(false);
+    this.hud.notify(`COSMIC OBSERVE: camera framed ${this.discoveredPhenomena.has(phenomenon.id) ? phenomenon.label : 'the selected source'}. The camera is massless; the spacecraft did not teleport.`);
+  }
+
+  rendezvousPhenomenon() {
+    const phenomenon = this.selectedPhenomenon;
+    if (!phenomenon) { this.hud.notify('Select a cosmic source first.'); return; }
+    this.returnToShipView(false);
+    this.navigationExperimentId = null;
+    this.navigationPhenomenonId = phenomenon.id;
+    this.setNavigationMode('approach');
+    this.hud.toggleCosmos(false);
+    this.hud.notify(`COSMIC RENDEZVOUS engaged toward ${this.discoveredPhenomena.has(phenomenon.id) ? phenomenon.label : 'UNIDENTIFIED SOURCE'}. Physical ship thrust is used; no teleportation.`);
   }
 
   predictionHorizonSeconds() {
@@ -486,7 +630,7 @@ export class UniverseLabApp {
 
   setNavigationMode(mode) {
     const navTarget = this.navigationTarget;
-    if (mode !== 'manual' && !navTarget) { this.hud.notify('Select a celestial target or particle experiment first.'); return; }
+    if (mode !== 'manual' && !navTarget) { this.hud.notify('Select a celestial target, particle experiment, or cosmic phenomenon first.'); return; }
     if (mode === 'manual') { this.cancelNavigation(); return; }
     this.ship.throttle = 0;
     this.ship.reverseThrottle = 0;
@@ -601,8 +745,10 @@ export class UniverseLabApp {
       if (pause) pause.textContent = 'RESUME';
       if (limit.reason === 'speed') {
         this.hud.notify(`MODEL LIMIT: ship reached ${(limit.speedMps / 1000).toLocaleString(undefined,{maximumFractionDigits:0})} km/s (>10% c). Newtonian spacecraft integration is no longer scientifically adequate, so the simulation paused instead of allowing superluminal numerical runaway. Use HOME or reduce the state before resuming.`, 0);
-      } else {
+      } else if (limit.reason === 'black-hole-proximity') {
         this.hud.notify(`MODEL LIMIT: ${limit.body.name} is too close for this Newtonian black-hole model (${(limit.distanceMeters / Math.max(1, limit.body.radius)).toFixed(1)} Schwarzschild radii). Simulation paused before pretending this is valid GR.`, 0);
+      } else {
+        this.hud.notify(`MODEL LIMIT: ${limit.body.name} is inside the neutron-star compact-object guard (${(limit.distanceMeters / 1000).toFixed(0)} km from center). Newtonian gravity and the visual magnetosphere are no longer scientifically adequate here, so the simulation paused.`, 0);
       }
     }
     return true;
@@ -647,8 +793,8 @@ export class UniverseLabApp {
     }
     const summaries = this.particleExperiments.summaries();
     if (!summaries.length) {
-      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.3.2.2 and are intentionally not written into schema-1 saves.';
-      if (this.cameraMode === 'observe') this.returnToShipView(false);
+      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.4 and are intentionally not written into schema-1 saves.';
+      if (this.cameraMode === 'observe' && this.observationSource === 'experiment') this.returnToShipView(false);
       return;
     }
     const selectedState = this.particleExperiments.observationState(this.selectedExperimentId);
@@ -749,11 +895,11 @@ export class UniverseLabApp {
     this.refreshPredictions(now);
     const renderStart = performance.now();
     const cameraView = this.currentCameraView(now, realDt);
-    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cameraView });
+    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView });
     this.renderMs = performance.now() - renderStart;
     this.updateTargetTelemetry();
     this.hud.setNavigation(this.navigationStatus, this.navigationTarget, this.ship.engineMode, this.ship.currentMainAcceleration());
-    if (this.cameraMode === 'observe') this.hud.setCamera('observe', this.selectedExperiment?.label ?? 'Experiment', this.observationStyle, this._observationState);
+    if (this.cameraMode === 'observe') this.hud.setCamera('observe', this.observationSource === 'cosmic' ? (this.selectedPhenomenon?.label ?? 'Cosmic phenomenon') : (this.selectedExperiment?.label ?? 'Experiment'), this.observationStyle, this._observationState);
     if (now >= this._nextParticleStatusAt) { this.updateParticleLabStatus(); this._nextParticleStatusAt = now + 500; }
 
     this.fpsFrames += 1;
@@ -801,9 +947,13 @@ export class UniverseLabApp {
       return;
     }
     this.system = generateSystem(payload.seed);
+    this.cosmicPhenomena.reset(this.system.phenomena ?? []);
     this.particleExperiments.clear();
     this.returnToShipView(false);
     this.selectedExperimentId = null;
+    this.selectedPhenomenonId = null;
+    this.navigationPhenomenonId = null;
+    this.discoveredPhenomena.clear();
     this.registry.clear();
     for (const raw of payload.bodies) this.registry.create(restoreBody(raw));
     this.rebuildBodyCaches();
@@ -841,8 +991,10 @@ export class UniverseLabApp {
     this.root.querySelector('#pathToggle').textContent = this.shipPathEnabled ? 'PATH ON' : 'PATH';
     this.hud.setSeed(payload.seed);
     this.selectTarget(payload.targetId && this.registry.has(payload.targetId) ? payload.targetId : this.system.homeId);
+    this.selectPhenomenon(this.cosmicPhenomena.values[0]?.id ?? null, false);
     this.invalidatePredictions();
     this.updateParticleLabStatus();
+    this.updateCosmosPanel();
     this.hud.notify('Save restored. High-count minor field was deterministically regenerated; major-body and spacecraft state were snapshot-restored. Session-local particle experiments were cleared.');
   }
 
@@ -855,11 +1007,20 @@ export class UniverseLabApp {
     $('#labClose').addEventListener('click', () => this.hud.toggleLab(false));
     $('#scienceToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleScience(); });
     $('#scienceClose').addEventListener('click', () => this.hud.toggleScience(false));
+    $('#cosmosToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateCosmosPanel(); this.hud.toggleCosmos(); });
+    $('#cosmosClose').addEventListener('click', () => this.hud.toggleCosmos(false));
     $('#scannerToggle').addEventListener('click', () => this.hud.toggleScanner());
     $('#scannerClose').addEventListener('click', () => this.hud.toggleScanner(false));
+    $('#phenomenonSelect').addEventListener('change', (event) => this.selectPhenomenon(event.target.value, false));
+    $('#scanPhenomenon').addEventListener('click', () => this.scanPhenomenon());
+    $('#observePhenomenon').addEventListener('click', () => this.enterCosmicObservation('frame'));
+    $('#orbitPhenomenon').addEventListener('click', () => this.enterCosmicObservation('orbit'));
+    $('#nextPhenomenon').addEventListener('click', () => this.cyclePhenomenon());
+    $('#rendezvousPhenomenon').addEventListener('click', () => this.rendezvousPhenomenon());
+    $('#shipViewCosmos').addEventListener('click', () => { this.hud.toggleCosmos(false); this.returnToShipView(); });
     $('#targetButton').addEventListener('click', () => this.selectReticleTarget());
-    $('#approachButton').addEventListener('click', () => { if (this.cameraMode === 'observe') { this.returnToShipView(); return; } if (this.navigationMode !== 'approach') this.navigationExperimentId = null; this.setNavigationMode(this.navigationMode === 'approach' ? 'manual' : 'approach'); });
-    $('#matchVelocity').addEventListener('click', () => { if (this.navigationMode !== 'match') this.navigationExperimentId = null; this.setNavigationMode(this.navigationMode === 'match' ? 'manual' : 'match'); });
+    $('#approachButton').addEventListener('click', () => { if (this.cameraMode === 'observe') { this.returnToShipView(); return; } if (this.navigationMode !== 'approach') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; } this.setNavigationMode(this.navigationMode === 'approach' ? 'manual' : 'approach'); });
+    $('#matchVelocity').addEventListener('click', () => { if (this.navigationMode !== 'match') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; } this.setNavigationMode(this.navigationMode === 'match' ? 'manual' : 'match'); });
     $('#engineModeButton').addEventListener('click', (event) => {
       this.ship.engineMode = this.ship.engineMode === 'cruise' ? 'flight' : 'cruise';
       event.currentTarget.textContent = this.ship.engineMode === 'cruise' ? 'ENGINE CRUISE' : 'ENGINE FLIGHT';
@@ -1014,11 +1175,25 @@ export class UniverseLabApp {
         this.hud.notify(`Launch rejected: ${error.message}`);
       }
     });
+    $('#spawnNeutronStar').addEventListener('click', () => {
+      try {
+        const body = this.experiments.run('spawn-neutron-star', this, {
+          compactType: $('#compactObjectType').value,
+          solarMasses: $('#neutronStarMass').value,
+          spinPeriodSeconds: $('#pulsarSpinPeriod').value,
+          magneticFieldTesla: $('#pulsarMagneticField').value,
+        });
+        this.selectTarget(body.id);
+        this.hud.notify(`${body.name} spawned: ${(body.mass / PHYSICS.SOLAR_MASS).toFixed(2)} M☉, physical radius ${(body.radius / 1000).toFixed(1)} km, spin ${body.spinPeriodSeconds.toFixed(3)} s. Gravity is live Newtonian; magnetosphere/beams are visual proxies.`);
+      } catch (error) {
+        this.hud.notify(`Compact-object spawn rejected: ${error.message}`);
+      }
+    });
     $('#spawnBlackHole').addEventListener('click', () => {
       try {
         const body = this.experiments.run('spawn-black-hole', this, { solarMasses: $('#blackHoleMass').value });
         this.selectTarget(body.id);
-        this.hud.notify(`${body.name} spawned. WARNING: live gravity is Newtonian; near-horizon GR is not implemented.`);
+        this.hud.notify(`${body.name} spawned with active accretion visuals. Live gravity remains Newtonian; photon-ring/lensing/jet graphics are visual proxies and the model guard still blocks invalid near-horizon states.`);
       } catch (error) {
         this.hud.notify(`Spawn rejected: ${error.message}`);
       }
