@@ -17,6 +17,7 @@ export function createSurfaceSession(region, snapshot = null) {
     lastMoveSpeedMps: 0,
     scannedPoiIds: new Set(restoredIds),
     selectedPoiId: snapshot?.selectedPoiId ?? null,
+    hudExpanded: snapshot?.hudExpanded === true,
     weather: createSurfaceWeatherState(region, snapshot?.weather ?? null),
   };
 }
@@ -33,6 +34,7 @@ export function serializeSurfaceSession(session) {
     pitch: session.pitch,
     scannedPoiIds: [...session.scannedPoiIds],
     selectedPoiId: session.selectedPoiId ?? null,
+    hudExpanded: session.hudExpanded === true,
     weather: serializeSurfaceWeather(session.weather),
   };
 }

@@ -1,8 +1,8 @@
-# Universe Lab v0.1.4.4 — Planetary Environments & Surface Weather
+# Universe Lab v0.1.4.4.1 — Surface HUD & Mobile Exploration Polish
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `ENVWX-144`  
+**Build marker:** `SURFHUD-1441`  
 **Save schema:** 1 (unchanged; surface/weather state, selected landing region and cockpit preference remain optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
@@ -11,6 +11,15 @@ Universe Lab is a mobile-first scientific/experimental space sandbox for static 
 v0.1.4.3 is built directly from v0.1.4.2 System Map + Discovery & Anomalies. It preserves System Map/discovery, persistent space weather, stellar rendering, Newtonian flight, BOOST, TRANSIT, impacts, experiments, compact objects and scientific overlays while introducing the first deliberately bounded planetary surface architecture.
 
 v0.1.4.3.1 is built directly from v0.1.4.3 Planetary Landing Foundation. It preserves the surface landing architecture and adds a **default-on, low-obstruction ship cockpit overlay** so SHIP VIEW feels like the player is inside an actual spacecraft without sacrificing the wide forward view.
+
+
+## v0.1.4.4.1 surface exploration UI
+
+v0.1.4.4.1 is a focused mobile UX pass built directly from v0.1.4.4. It does not redesign the surface renderer or environment model. The default landed view now uses a small top-right exploration strip rather than the full scientific panel.
+
+Compact view keeps the information/actions needed while moving: current world/region, weather, nearest signal, discoveries, **SCAN** and **SPRINT**. Tap **DETAILS** to reveal the full gravity/temperature/atmosphere/coordinates/weather/archive panel plus **SAVE** and **TAKEOFF / ORBIT**. Tap **HIDE** to collapse it again. The expanded/collapsed preference is stored with an active surface-session save without changing schema 1.
+
+The WALK pad is also smaller and sits tighter against the bottom-right safe edge to preserve more of the planetary view.
 
 ## v0.1.4.4 environment layer
 

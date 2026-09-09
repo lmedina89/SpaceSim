@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.4.4.1 — Surface HUD & Mobile Exploration Polish
+
+- Reworked the planetary surface HUD into a **compact-by-default exploration strip** so terrain and anomaly visuals remain visible on iPhone landscape.
+- Compact view keeps planet/region, weather, nearest signal, discovery count, **SCAN** and **SPRINT** immediately available.
+- Added **DETAILS / HIDE** expansion for gravity, temperature, atmosphere, coordinates, wind, ship distance, weather detail and scan archive text.
+- Moved **SAVE** and **TAKEOFF / ORBIT** into the expanded details section because they are not constant exploration controls.
+- Reduced the WALK pad footprint and tightened it to the safe bottom-right edge.
+- Added backward-compatible persistence for the expanded/collapsed HUD preference inside the optional schema-1 surface session payload.
+- No terrain generation, anomaly visuals, weather state, parked-ship rendering, orbital physics or landing logic was redesigned.
+- Automated QA: **106/106 tests passing** plus static/syntax checks.
+
 ## v0.1.4.4 — Planetary Environments & Surface Weather
 
 - Added **three deterministic landing regions** to the first landable home world: Shatterfall Basin, Glasswind Flats and Frostscar Rise.

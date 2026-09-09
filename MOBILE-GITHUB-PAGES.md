@@ -1,4 +1,4 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.4
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.4.1
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -17,7 +17,7 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 After upload/reload verify:
 
 - title/HUD says **v0.1.4.4**,
-- MORE help shows **ENVWX-144**,
+- MORE help shows **SURFHUD-1441**,
 - FPS/physics/render telemetry populate in orbit,
 - no `RUNTIME ERROR` banner appears.
 
@@ -46,3 +46,12 @@ Container/Node QA cannot prove physical iPhone WebGPU FPS, touch feel, browser t
 4. Save during a non-clear event, reload, and confirm the same event resumes rather than rerolling.
 5. Test at least one second region and confirm terrain/environment emphasis changes without a runtime `ERR`.
 6. Check iPhone landscape thermals/FPS during dust/frost/lightning events; weather uses bounded point/line/sprite layers and must not cause sustained runaway draw cost.
+
+## Compact surface HUD acceptance
+
+- Land on Shatterfall in landscape and confirm the default surface HUD is a small top-right strip, not the full telemetry drawer.
+- Confirm SCAN and SPRINT remain directly accessible.
+- Tap DETAILS and confirm full telemetry plus SAVE and TAKEOFF / ORBIT appear without covering the WALK pad.
+- Tap HIDE and confirm the compact strip returns.
+- SAVE while expanded, reload the surface save, and confirm the expanded preference is restored.
+- Confirm the smaller WALK pad remains comfortably thumb-usable inside the right safe area.

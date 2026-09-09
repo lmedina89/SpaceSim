@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.4
+# Architecture — Universe Lab v0.1.4.4.1
 
 ## Core invariant
 
@@ -18,6 +18,12 @@ v0.1.4.3.1 adds a lightweight DOM/CSS cockpit presentation layer that sits above
 - preserve the user's cockpit preference through save/load without changing schema 1.
 
 This keeps the effect inexpensive on mobile while restoring a stronger sense of physical spacecraft presence.
+
+## Surface HUD presentation boundary
+
+v0.1.4.4.1 keeps surface UI state separate from simulation state. `surfaceSession.hudExpanded` is a backward-compatible optional UI preference only; it cannot modify local movement, weather, anomalies, rendering physics, spacecraft state or orbital time.
+
+The compact shell keeps scan/sprint controls live during normal exploration. Detailed telemetry, SAVE and TAKEOFF are intentionally hidden until the player expands the panel. CSS reduces the WALK control footprint without changing the pointer/hold-input logic.
 
 ## Planetary environment / weather boundary
 

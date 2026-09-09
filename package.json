@@ -1,6 +1,6 @@
 {
   "name": "universe-lab",
-  "version": "0.1.4.4",
+  "version": "0.1.4.4.1",
   "private": true,
   "type": "module",
   "description": "Scientific mobile-first seeded universe laboratory with persistent seeded planetary environments and local weather, multiple landable regions, a visible parked spacecraft, low-obstruction cockpit ship view, anomaly-rich local exploration, interactive logarithmic system map, layered discovery, persistent seeded space weather, stellar rendering, transit navigation, extreme objects, scientific overlays, cosmic phenomena, and particle experiments.",

@@ -14,9 +14,9 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.4')) throw new Error('Shell version is not v0.1.4.4.');
-if (!html.includes('ENVWX-144')) throw new Error('ENVWX-144 build marker missing.');
-if (pkg.version !== '0.1.4.4') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.4.4.1')) throw new Error('Shell version is not v0.1.4.4.1.');
+if (!html.includes('SURFHUD-1441')) throw new Error('SURFHUD-1441 build marker missing.');
+if (pkg.version !== '0.1.4.4.1') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Secondary mobile control drawer missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -24,7 +24,7 @@ if (!html.includes('>BRAKE</button>')) throw new Error('Physical BRAKE control m
 for (const id of ['velocityMarker','progradeButton','retrogradeButton','turnBurnButton','transitToggle','transitPanel','transitTargetSource','transitTier','transitAutoCapture','transitEngage','cockpitOverlay','cockpitStatus','cockpitToggle']) if (!html.includes(`id="${id}"`)) throw new Error(`Navigation/transit/cockpit control missing: ${id}`);
 for (const id of ['particleMode','particleCount','spawnParticleField','fireParticleGun','clearParticleExperiments','particleStatus','experimentSelect','observeExperiment','trackExperiment','orbitExperiment','rendezvousExperiment','shipViewButton','replayExperiment','cameraChip']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Particle experiment control missing: ${id}`);
 for (const id of ['cosmosToggle','cosmosPanel','phenomenonSelect','phenomenonReality','phenomenonScanDepth','mapToggle','mapPanel','systemMapCanvas','mapZoom','mapUnknownToggle','mapSelectAction','mapScanAction','mapTransitAction','mapCosmosAction','scanPhenomenon','observePhenomenon','orbitPhenomenon','nextPhenomenon','rendezvousPhenomenon','shipViewCosmos','compactObjectType','neutronStarMass','pulsarSpinPeriod','pulsarMagneticField','spawnNeutronStar','extremeObjectType','spawnExtremeObject','spaceWeatherActive','spaceWeatherNext','spaceWeatherStatus','triggerCme','autoWeatherToggle','overlayToggle','overlayPanel','overlayMaster','overlayLagrange','overlayHill','overlayRoche','overlayGravity','overlayOrbitPlane']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Cosmic exploration control missing: ${id}`);
-for (const id of ['landTarget','surfaceLandButton','mapLandAction','surfaceHud','surfaceWorldName','surfaceBiome','surfaceGravity','surfaceTemperature','surfaceAtmosphere','surfaceCoords','surfaceDiscoveries','surfaceNearest','surfaceScanStatus','surfaceScanButton','surfaceSprintButton','surfaceSaveButton','surfaceTakeoffButton','surfaceMovePad','surfaceForward','surfaceBack','surfaceLeft','surfaceRight','surfaceWeather','surfaceWind','surfaceShipDistance','surfaceClock','surfaceWeatherStatus','surfaceRegionSelect','surfaceRegionLabel']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Surface foundation control missing: ${id}`);
+for (const id of ['landTarget','surfaceLandButton','mapLandAction','surfaceHud','surfaceWorldName','surfaceBiome','surfaceGravity','surfaceTemperature','surfaceAtmosphere','surfaceCoords','surfaceDiscoveries','surfaceNearest','surfaceScanStatus','surfaceScanButton','surfaceSprintButton','surfaceSaveButton','surfaceTakeoffButton','surfaceMovePad','surfaceForward','surfaceBack','surfaceLeft','surfaceRight','surfaceWeather','surfaceWind','surfaceShipDistance','surfaceClock','surfaceWeatherStatus','surfaceRegionSelect','surfaceRegionLabel','surfaceHudToggle','surfaceHudDetails']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Surface foundation control missing: ${id}`);
 const surfaceGenerator = await readFile(new URL('../src/surface/surfaceGenerator.js', import.meta.url), 'utf8');
 for (const token of ['Shatterfall Basin','Glasswind Flats','Frostscar Rise','fracture-gate','gravity-knot','frozen-lightning','reverse-shadow','vacuum-bloom','ghost-ruin','chronal-shear','IMPOSSIBLE / FICTIONAL']) if (!surfaceGenerator.includes(token)) throw new Error(`Surface generator token missing: ${token}`);
 const surfaceSession = await readFile(new URL('../src/surface/surfaceSession.js', import.meta.url), 'utf8');
@@ -100,12 +100,16 @@ if (!renderer.includes('spaceWeatherVisuals') || !renderer.includes('scientificO
 if (!css.includes('.cockpit-overlay') || !css.includes('.ship-cockpit-enabled')) throw new Error('Cockpit overlay CSS missing.');
 if (!app.includes('toggleCockpit') || !app.includes('updateCockpitUi') || !app.includes('syncViewClasses') || !app.includes('cockpitEnabled')) throw new Error('Cockpit view app integration missing.');
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'ENVWX-144') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'SURFHUD-1441') throw new Error('VERSION.json build marker mismatch.');
 if (!String(versionJson.cockpitView || '').includes('default-on')) throw new Error('VERSION.json cockpit capability missing.');
 
 const surfaceWeather = await readFile(new URL('../src/surface/surfaceWeather.js', import.meta.url), 'utf8');
 for (const token of ['createSurfaceWeatherState','stepSurfaceWeather','serializeSurfaceWeather','surfaceWeatherReading','upward-rain','shadow-fog','suspended-lightning','sky-fracture']) if (!surfaceWeather.includes(token)) throw new Error(`Surface weather token missing: ${token}`);
 for (const token of ['availableSurfaceRegions','selectedSurfaceRegionId','surfaceWeatherReading','stepSurfaceWeather']) if (!app.includes(token)) throw new Error(`Surface environment app token missing: ${token}`);
+
+if (!css.includes('.surface-compact-bar') || !css.includes('.surface-hud.expanded') || !css.includes('.surface-compact-metrics')) throw new Error('Compact surface HUD CSS missing.');
+if (!app.includes('setSurfaceHudExpanded') || !app.includes('toggleSurfaceHud')) throw new Error('Surface HUD collapse/expand integration missing.');
+if (!String(versionJson.surfaceHud || '').includes('compact-by-default')) throw new Error('VERSION.json surface HUD capability missing.');
 const anomalyGenerator = await readFile(new URL('../src/cosmic/anomalyGenerator.js', import.meta.url), 'utf8');
 for (const token of ['generateAnomalies','impossible','anomaly-phase-rift','anomaly-orbital-knot']) if (!anomalyGenerator.includes(token)) throw new Error(`Anomaly generator token missing: ${token}`);
 const systemMap = await readFile(new URL('../src/ui/systemMap.js', import.meta.url), 'utf8');

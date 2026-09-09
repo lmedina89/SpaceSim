@@ -1,6 +1,6 @@
 {
-  "version": "0.1.4.4",
-  "name": "Planetary Environments & Surface Weather",
+  "version": "0.1.4.4.1",
+  "name": "Surface HUD & Mobile Exploration Polish",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,7 @@
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "ENVWX-144",
+  "buildMarker": "SURFHUD-1441",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric approximate L1-L5 + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples",
   "transitDrive": "explicitly fictional 1c/10c/100c/500c/1000c reference-frame translation; local Newtonian spacecraft velocity is preserved; automatic tier step-down and optional BOOST+APPROACH physical capture",
@@ -70,5 +70,6 @@
     "shatterfall-basin",
     "glasswind-flats",
     "frostscar-rise"
-  ]
+  ],
+  "surfaceHud": "compact-by-default mobile exploration HUD with persistent expanded/collapsed state, always-available scan/sprint controls, details-only save/takeoff controls, and reduced WALK-pad footprint"
 }

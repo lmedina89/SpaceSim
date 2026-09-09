@@ -213,7 +213,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.4 online. Planetary environments, persistent local weather, anomalous weather, multiple seeded landing regions and a visible parked spacecraft are active. Build ENVWX-144.');
+    this.hud.notify('v0.1.4.4.1 online. Compact-by-default surface HUD and mobile exploration polish are active while planetary environments, weather, anomalies and parked spacecraft remain unchanged. Build SURFHUD-1441.');
   }
 
   newSystem(seed) {
@@ -400,6 +400,7 @@ export class UniverseLabApp {
     const hud = this.root.querySelector('#surfaceHud'); if (hud) hud.hidden = false;
     const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = false;
     const velocity = this.root.querySelector('#velocityMarker'); if (velocity) velocity.hidden = true;
+    this.setSurfaceHudExpanded(this.surfaceSession.hudExpanded === true, false);
     this.selectTarget(body.id);
     this.updateSurfaceHud();
     if (options.notify !== false) this.hud.notify(`LANDED: ${body.name} · ${this.surfaceRegion.name}. The parked spacecraft is behind/near the landing point. Orbital N-body time is held; local seeded weather now advances on its own persistent surface clock. LOOK + movement explore the region; SCAN identifies geology and anomalies.`, 7600);
@@ -436,6 +437,29 @@ export class UniverseLabApp {
     stepSurfaceMovement(this.surfaceSession, this.surfaceRegion, this.surfaceInput, realDt);
     stepSurfaceWeather(this.surfaceSession.weather, this.surfaceRegion, realDt);
     this.updateSurfaceHud();
+  }
+
+  setSurfaceHudExpanded(expanded, notify = false) {
+    const value = expanded === true;
+    if (this.surfaceSession?.active) this.surfaceSession.hudExpanded = value;
+    const hud = this.root.querySelector('#surfaceHud');
+    const details = this.root.querySelector('#surfaceHudDetails');
+    const toggle = this.root.querySelector('#surfaceHudToggle');
+    if (hud) {
+      hud.classList.toggle('expanded', value);
+      hud.classList.toggle('compact', !value);
+    }
+    if (details) details.hidden = !value;
+    if (toggle) {
+      toggle.textContent = value ? 'HIDE' : 'DETAILS';
+      toggle.setAttribute('aria-expanded', value ? 'true' : 'false');
+    }
+    if (notify) this.hud.notify(value ? 'Surface details expanded.' : 'Surface HUD collapsed to exploration view.');
+    return value;
+  }
+
+  toggleSurfaceHud() {
+    return this.setSurfaceHudExpanded(!(this.surfaceSession?.hudExpanded === true), false);
   }
 
   scanSurface() {
@@ -1809,6 +1833,7 @@ export class UniverseLabApp {
     $('#surfaceRegionSelect').addEventListener('change', (event) => { this.selectedSurfaceRegionId = event.target.value || 'shatterfall-basin'; this.updateLandingUi(); });
     $('#landTarget').addEventListener('click', () => { this.hud.toggleScanner(false); this.enterSurface(this.targetId); });
     $('#surfaceLandButton').addEventListener('click', () => { this.hud.toggleMore(false); this.enterSurface(this.targetId); });
+    $('#surfaceHudToggle').addEventListener('click', () => this.toggleSurfaceHud());
     $('#phenomenonSelect').addEventListener('change', (event) => this.selectPhenomenon(event.target.value, false));
     $('#scanPhenomenon').addEventListener('click', () => this.scanPhenomenon());
     $('#observePhenomenon').addEventListener('click', () => this.enterCosmicObservation('frame'));
