@@ -169,7 +169,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.3.2.1 online. Ship renderer isolated from observation mode. Build OBSNAV-1321.');
+    this.hud.notify('v0.1.3.2.2 online. Particle-warp runtime method restored; ship/observation isolation retained. Build OBSNAV-1322.');
   }
 
   newSystem(seed) {
@@ -564,6 +564,31 @@ export class UniverseLabApp {
     }
   }
 
+  enforceParticleWarpSafety() {
+    const cap = this.particleExperiments?.recommendedWarpCap ?? Infinity;
+    if (!Number.isFinite(cap) || this.clock.timeScale <= cap) return;
+
+    this.clock.setTimeScale(cap);
+    const select = this.root.querySelector('#timeScale');
+    if (select) {
+      if (![...select.options].some((option) => Number(option.value) === cap)) {
+        const option = document.createElement('option');
+        option.value = String(cap);
+        option.textContent = `${cap.toLocaleString()}×`;
+        select.appendChild(option);
+      }
+      select.value = String(cap);
+    }
+    const button = this.root.querySelector('#warpQuick');
+    if (button) button.textContent = `LAB ${cap.toLocaleString()}×`;
+
+    const now = performance.now();
+    if (now - this._particleWarpNoticeAt > 1800) {
+      this.hud.notify(`Particle experiment active: global warp capped at ${cap.toLocaleString()}× so local neighbor/particle integration remains resolved.`);
+      this._particleWarpNoticeAt = now;
+    }
+  }
+
   checkNewtonianModelLimit() {
     const limit = newtonianModelLimit(this.ship, this.massiveBodies, 0.1);
     if (!limit) { this._modelLimitLatched = false; return false; }
@@ -622,7 +647,7 @@ export class UniverseLabApp {
     }
     const summaries = this.particleExperiments.summaries();
     if (!summaries.length) {
-      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.3.2.1 and are intentionally not written into schema-1 saves.';
+      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.3.2.2 and are intentionally not written into schema-1 saves.';
       if (this.cameraMode === 'observe') this.returnToShipView(false);
       return;
     }

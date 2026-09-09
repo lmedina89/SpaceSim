@@ -1,6 +1,6 @@
 {
-  "version": "0.1.3.2.1",
-  "name": "Startup Runtime Recovery & Observation Isolation Hotfix",
+  "version": "0.1.3.2.2",
+  "name": "Particle Warp Runtime Recovery Hotfix",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -28,5 +28,5 @@
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
   "observationCamera": "massless frame/track/orbit experiment views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "OBSNAV-1321"
+  "buildMarker": "OBSNAV-1322"
 }

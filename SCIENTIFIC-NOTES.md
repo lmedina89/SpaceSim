@@ -1,4 +1,4 @@
-# Scientific Model Boundaries — Universe Lab v0.1.3.2.1
+# Scientific Model Boundaries — Universe Lab v0.1.3.2.2
 
 Universe Lab explicitly distinguishes physical models, approximations, visualization layers, and intentionally artificial experiments.
 
@@ -20,7 +20,7 @@ They do not source gravity. Therefore the cloud is valid for studying trajectori
 
 Particle integration currently uses bounded semi-implicit Euler substeps rather than the major-body velocity-Verlet kernel. This is a performance/architecture reference implementation; smaller local time steps and test-particle status make the tradeoff explicit.
 
-Finite-radius contact with a major body deactivates a test particle. Individual micro-impacts do not add mass, craters, heat, or ejecta to the target in v0.1.3.2.1.
+Finite-radius contact with a major body deactivates a test particle. Individual micro-impacts do not add mass, craters, heat, or ejecta to the target in v0.1.3.2.2.
 
 ## Particle Life
 

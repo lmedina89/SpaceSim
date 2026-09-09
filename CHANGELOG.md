@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.1.3.2.2 — Particle Warp Runtime Recovery Hotfix
+
+Triggered by the iPhone runtime diagnostic in v0.1.3.2.1: `this.enforceParticleWarpSafety is not a function`.
+
+### Fixed
+
+- restored the missing `UniverseLabApp.enforceParticleWarpSafety()` class method while retaining its existing per-frame call,
+- active particle experiments once again cap simulation warp at the configured 60× ceiling outside navigation as intended,
+- the warp selector/button are synchronized when the particle cap engages,
+- the runtime error boundary from v0.1.3.2.1 is retained.
+
+### Regression hardening
+
+- static QA now enumerates every direct `this.method()` call in `UniverseLabApp` and verifies a corresponding class method definition exists,
+- a dedicated Node regression test enforces the same invariant, so the specific missing-method failure that reached Safari can no longer pass QA merely because the method name appears at a call site,
+- build marker: **OBSNAV-1322**.
+
+No physics model, save schema, particle rules, observation behavior, or renderer architecture is intentionally changed in this hotfix.
+
 ## v0.1.3.2.1 — Startup Runtime Recovery & Observation Isolation Hotfix
 
 - Repairs a physical-iPhone blocker where v0.1.3.2 could initialize WebGPU and the UI shell but fail before the first simulation/HUD frame.

@@ -140,7 +140,7 @@ export class Hud {
     }
     this.cameraChip.hidden = false;
     const active = state?.activeCount != null ? Number(state.activeCount).toLocaleString() : '—';
-    this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD OBSNAV-1321`;
+    this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD OBSNAV-1322`;
     this.cameraChip.classList.add('observing');
   }
 
