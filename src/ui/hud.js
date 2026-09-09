@@ -63,6 +63,7 @@ export class Hud {
     this.cosmos = root.querySelector('#cosmosPanel');
     this.overlays = root.querySelector('#overlayPanel');
     this.transit = root.querySelector('#transitPanel');
+    this.map = root.querySelector('#mapPanel');
     this._messageTimer = null;
     this.targetChip = root.querySelector('#targetChip');
     this.navChip = root.querySelector('#navChip');
@@ -103,6 +104,7 @@ export class Hud {
   toggleCosmos(force) { this.cosmos.hidden = typeof force === 'boolean' ? !force : !this.cosmos.hidden; }
   toggleOverlays(force) { this.overlays.hidden = typeof force === 'boolean' ? !force : !this.overlays.hidden; }
   toggleTransit(force) { if (this.transit) this.transit.hidden = typeof force === 'boolean' ? !force : !this.transit.hidden; }
+  toggleMap(force) { if (this.map) this.map.hidden = typeof force === 'boolean' ? !force : !this.map.hidden; }
   notify(text, holdMs = 4400) {
     this.message.hidden = false;
     this.message.textContent = text;
@@ -160,9 +162,9 @@ export class Hud {
     this.cameraChip.hidden = false;
     if (state?.activeCount != null) {
       const active = Number(state.activeCount).toLocaleString();
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD STELLAR-1412`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD DISCOVERY-142`;
     } else {
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD STELLAR-1412`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD DISCOVERY-142`;
     }
     this.cameraChip.classList.add('observing');
   }

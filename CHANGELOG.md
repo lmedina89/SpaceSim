@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.4.2 — System Map + Discovery & Anomalies
+
+- Added interactive mobile-first logarithmic SYSTEM MAP with live body/ship/COSMOS markers and target/scan/transit handoff.
+- Added persistent 0–3 layered discovery depth for cosmic sources.
+- Added 9–15 deterministic anomaly signals per seeded system across speculative, anomalous and intentionally impossible/fictional reality classes.
+- Added anomaly visual families: curvature rings, phase rifts, interference lattices, orbital knots, dark mirrors, frozen filaments, temporal echoes, ghost stars, vacuum blooms, reverse shadows, resonant shells and fracture gates.
+- Added explicit reality-class UI so impossible anomalies are not presented as solved science.
+- Persisted discovery records and scan depth through save/load without changing save schema 1.
+- Persisted space-weather AUTO state, next-event schedule, active CME fronts, front progression and deterministic RNG progress through save/load.
+- Preserved v0.1.4.1.2 stellar rendering/perceptual LOD and all existing navigation/physics systems.
+- Automated QA: 93/93 tests passing plus static/syntax checks.
+
 ## v0.1.4.1.2 — Stellar Rendering & Approach Polish
 
 Built directly from v0.1.4.1.1 Navigation & Experiment Lifecycle Polish. Save schema remains 1 and Three.js remains pinned to 0.185.0.

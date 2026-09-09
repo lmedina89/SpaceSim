@@ -1,6 +1,6 @@
 {
-  "version": "0.1.4.1.2",
-  "name": "Stellar Rendering & Approach Polish",
+  "version": "0.1.4.2",
+  "name": "System Map + Discovery & Anomalies",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -31,7 +31,9 @@
     "neutron-star/pulsar/magnetar compact-object lab spawner",
     "white-dwarf and brown-dwarf physical lab presets",
     "traveling kinematic CME space-weather fronts",
-    "target-centric Lagrange/Hill/Roche/orbital-plane/gravity-vector overlays"
+    "target-centric Lagrange/Hill/Roche/orbital-plane/gravity-vector overlays",
+    "seeded speculative/anomalous/impossible discovery signals",
+    "interactive logarithmic system-map projection"
   ],
   "compactObjectSafety": "propulsion-safe stand-off + adaptive strong-gravity steps + black-hole/neutron-star model guards + 10% c speed guard",
   "cosmicObservation": "massless frame/orbit views + physical bounded-thrust rendezvous to anchored phenomena",
@@ -44,8 +46,8 @@
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "STELLAR-1412",
-  "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, and no MHD/radiation damage model",
+  "buildMarker": "DISCOVERY-142",
+  "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric approximate L1-L5 + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples",
   "transitDrive": "explicitly fictional 1c/10c/100c/500c/1000c reference-frame translation; local Newtonian spacecraft velocity is preserved; automatic tier step-down and optional BOOST+APPROACH physical capture",
   "boostDrive": "explicitly speculative bounded 5,000 m/s\u00b2 local propulsion mode; manual BOOST selection drops time warp to 1\u00d7",
@@ -54,5 +56,8 @@
   "stellarRendering": "layered seeded photosphere/granulation + additive corona + filament prominences + active regions + rare visual flare proxies",
   "stellarPerceptualLod": "preserve macro stellar phenomena at distance; reduce only sub-pixel/noisy micro detail and shift emphasis into scale-appropriate halo/prominence cues",
   "stellarExposure": "gentle apparent-angular-size exposure adaptation with close-star background suppression; HUD remains unaffected",
-  "transitArrivalVisual": "short exponential release of fictional transit FOV/streak cues after disengage/arrival; physical Newtonian position and velocity are unchanged"
+  "transitArrivalVisual": "short exponential release of fictional transit FOV/streak cues after disengage/arrival; physical Newtonian position and velocity are unchanged",
+  "systemMap": "interactive mobile-first logarithmic X/Z system projection of live bodies, spacecraft and cosmic/anomaly sources with target, scan and transit handoff",
+  "discovery": "persistent 0-3 layered scan depth per cosmic source; classification, signal/stability detail and final scientific/fictional status unlock progressively",
+  "anomalyLayer": "9-15 deterministic seeded free-space anomaly signals per system spanning speculative, anomalous and intentionally impossible/fictional reality classes; visuals never secretly become gravity sources"
 }

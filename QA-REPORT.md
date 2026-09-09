@@ -1,75 +1,65 @@
-# Universe Lab v0.1.4.1.2 — Stellar Rendering & Approach Polish QA Report
+# Universe Lab v0.1.4.2 — System Map + Discovery & Anomalies QA Report
 
-## Release identity
+## Build identity
 
-- Version: **0.1.4.1.2**
-- Release: **Stellar Rendering & Approach Polish**
-- Build marker: **STELLAR-1412**
-- Immediate baseline: **v0.1.4.1.1 — Navigation & Experiment Lifecycle Polish**
-- Save schema: **1** (unchanged)
-- Three.js: **0.185.0** (unchanged)
-- Deployment: GitHub Pages `main` → `/(root)`
-- `.github/workflows/*`: intentionally absent from the mobile distributable
+- Version: **0.1.4.2**
+- Build marker: **DISCOVERY-142**
+- Source baseline: **v0.1.4.1.2 — Stellar Rendering & Approach Polish**
+- Save schema: **1 (unchanged)**
+- Three.js: **0.185.0 (pinned)**
+- Target deployment: GitHub Pages `main` → `/(root)`
 
-## Current automated QA result
+## Automated status
 
-Final working-tree `npm run qa` result: **91/91 tests PASS**, plus the static structure audit and `node --check` on all JavaScript/MJS source and test files.
+`npm run qa` passes **93/93 tests** plus the static file/shell/syntax validation.
 
-New v0.1.4.1.2 coverage verifies:
+New v0.1.4.2 coverage verifies:
 
-- perceptual stellar LOD reduces only distant micro-detail while preserving macro stellar phenomena,
-- close stellar views progressively reveal surface detail rather than collapsing to a flat disk,
-- stellar apparent angular radius grows smoothly with approach,
-- layered stellar presentation includes photosphere/granulation, corona, thin prominence filaments, active regions and flare proxies,
-- the old thick TorusGeometry prominence treatment is absent,
-- renderer exposure and deep-space-background adaptation are tied to apparent stellar size,
-- active CME macro visuals are no longer hard distance-culled,
-- dynamic near-plane handling is present for close finite-radius approaches,
-- TRANSIT visual release decays smoothly after arrival,
-- the TRANSIT visual release does not modify authoritative Newtonian velocity.
+- deterministic seeded anomaly generation,
+- 9–15 anomaly signals per tested seed,
+- explicit impossible/fictional anomaly entries,
+- deterministic repeat generation for the same seed,
+- space-weather snapshot restoration preserving scheduled event time and active-front progression,
+- required SYSTEM MAP/COSMOS discovery UI wiring,
+- required anomaly/system-map source modules and build identity.
 
-All pre-existing navigation, gravity, orbit, impact, compact-object, cosmic-phenomenon, space-weather, scientific-overlay, particle-experiment, observation, save/runtime and model-limit regression tests remain enabled in the same 91-test run.
+All inherited physics/navigation/stellar/experiment/impact/compact-object tests remain passing.
 
-## Static structure / integration checks
+## Compatibility guards
 
-The static suite requires the v0.1.4.1.2 shell identity and `STELLAR-1412` marker, plus the new `src/render/stellarPerception.js` module and its renderer/celestial/space-weather integration points.
+v0.1.4.2 does **not** change:
 
-The current source tree passes the existing application method-resolution audit, unique DOM-ID / app-selector checks and required-file structure guard. This release does not add a save migration or alter the existing GitHub Pages root layout.
+- `SIMULATION.schemaVersion` (still 1),
+- direct Newtonian major-body gravity,
+- velocity-Verlet major integrator,
+- FLIGHT / CRUISE / BOOST acceleration values,
+- the fictional TRANSIT coordinate-rate tiers,
+- propulsion-safe APPROACH/HOLD logic,
+- particle experiment global budget/warp cap,
+- stellar perceptual-LOD policy from v0.1.4.1.2.
 
-## Scientific separation checked
+New save fields are optional. Loading an older schema-1 save without discovery/weather snapshots remains valid; its weather manager receives a fresh timeline because no prior timeline exists to restore.
 
-- Stellar granulation, limb darkening, corona, prominences, active regions and rare flare sites are **visual proxies**, not MHD, radiative-transfer or convection solvers.
-- Perceptual LOD changes presentation only; it does not alter stellar radius, luminosity, mass, gravity or event state.
-- Close-star exposure/background adaptation is a renderer/camera response only.
-- CME fronts retain the existing directional kinematic space-weather model; this release changes their visual-distance treatment, not their propagation physics.
-- Camera near-plane adjustment changes rendering only; finite-radius collision and scientific model guards remain intact.
-- FLIGHT / CRUISE / BOOST remain bounded local accelerations; BOOST remains explicitly speculative.
-- TRANSIT remains fictional coordinate translation and never adds its displayed 1–1,000 c rate to local Newtonian velocity.
-- The new post-arrival transit visual decay is render-only.
+## Model-boundary checks
 
-## Baseline numerical regression retained
+- Anomalies live in `CosmicPhenomenonRegistry`, not the massive-body registry.
+- They do not silently contribute Newtonian gravity.
+- Impossible/fictional anomalies are explicitly labeled after discovery.
+- SYSTEM MAP is an interface projection of live data, not a second physics solver.
+- CME continuity persistence does not upgrade the kinematic CME approximation into MHD/radiation simulation.
 
-The v0.1.4.1.1 baseline previously exercised eight seeded systems (`NAVLIFE-A` … `NAVLIFE-H`) for 30 simulated days each using the live direct Newtonian gravity solver, velocity-Verlet integration and swept finite-radius collision monitor. That baseline reported no spontaneous finite-radius collisions or non-finite body states. v0.1.4.1.2 does not modify the major-body gravity/integration path.
+## Browser/device QA caveat
 
-This inherited stress result is useful regression provenance, not a claim that v0.1.4.1.2 adds astrophysical formation/stability modeling.
+Automated tests are source/math/state tests. They do not establish physical iPhone Safari touch quality, WebGPU frame rate, drawer safe-area fit, or subjective anomaly visual quality. Physical iPhone Safari remains the release gate.
 
-## Physical iPhone / Safari release gate
+## Recommended physical iPhone path
 
-Automated/container QA cannot prove the actual WebGPU appearance, mobile GPU thermals, Safari compositing, perceived brightness or touch behavior. The user screenshots that motivated this release make physical visual acceptance especially important.
-
-Recommended device sequence:
-
-1. Confirm **v0.1.4.1.2 / STELLAR-1412**, no runtime ERR, normal HUD updates and stable 60-FPS behavior where the device permits it.
-2. Observe the primary star from long range. It should read as a compact luminous star with a smooth halo; it should no longer resemble a dense cotton-ball particle shell.
-3. Approach through medium range. Major prominences/flare/CME spectacle should remain visible when visually significant; there should be no obvious FX pop-out just because distance changes.
-4. Move into close stellar range. Surface granulation/active-region detail should emerge smoothly and the photosphere should not become a flat uniform cream disk.
-5. Inspect prominences. They should read as thin luminous plasma filaments/arcs rather than thick opaque brown ribbons.
-6. Check the galactic band behind the star from several angles. It should remain a background structure and be less likely to masquerade as an accretion disk.
-7. Move extremely close without intentionally crossing the finite stellar surface. Confirm no obvious near-plane clipping through corona/photosphere layers and verify the target HUD shows the appropriate R★ proximity cue.
-8. Approach/leave the star and watch exposure recovery. The star should increasingly dominate the camera when close while the deep-space background recovers smoothly as apparent stellar size shrinks.
-9. Use TRANSIT to the star and verify the arrival streak/FOV presentation eases out instead of snapping off, while local ship velocity remains physically continuous.
-10. Regress one CME, compact object, particle experiment, impact and ordinary planet approach to ensure this visual release did not disturb unrelated systems.
-
-## Acceptance caveat
-
-**91/91 automated tests passing is not a claim that the new stellar art direction is visually approved on iPhone.** The final acceptance criterion is the physical Safari pass above, especially the photosphere, prominence thickness, exposure curve and long-range preservation of dramatic stellar phenomena.
+1. Confirm **v0.1.4.2 / DISCOVERY-142** and no runtime ERR.
+2. Open SYSTEM MAP and verify landscape fit/touch markers.
+3. Select a normal planet from the map and verify TARGET/scanner handoff.
+4. Select an unidentified anomaly diamond and scan to 1/3, then 2/3, then 3/3.
+5. Confirm reality labels include SPECULATIVE / ANOMALOUS / IMPOSSIBLE-FICTIONAL where applicable.
+6. Open TRANSIT from a map-selected signal and verify normal transit/capture behavior.
+7. Save/reload discovery progress.
+8. Save/reload with a known SPACE WEATHER countdown or active CME and verify continuity.
+9. Regress stellar close approach, distant stellar spectacle, BOOST, APPROACH/HOLD, TRANSIT arrival, COSMOS observation, overlays, compact objects, impacts and particle experiments.

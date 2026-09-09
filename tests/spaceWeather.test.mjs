@@ -39,3 +39,21 @@ test('CME swept-front crossing is not missed when one simulation step moves the 
   assert.ok(notices.some((n)=>n.type==='ship-hit'));
   assert.equal(e.hitShip,true);
 });
+
+test('space-weather save snapshot restores auto timer and active front continuity', () => {
+  const a = new SpaceWeatherManager(); a.reset('WEATHER-SAVE', 1234); a.autoEnabled = true;
+  const star={id:'star-0',kind:BODY_KIND.STAR,radius:PHYSICS.SOLAR_RADIUS,position:new Float64Array([0,0,0]),velocity:new Float64Array([0,0,0])};
+  const e = a.triggerCme(star, 2000, {direction:[0,0,1], speedMps:900_000, halfAngleRad:.55});
+  a.step(4200, star, null);
+  const snap = a.serialize();
+  const b = new SpaceWeatherManager();
+  assert.equal(b.restore(snap, 'WEATHER-SAVE', 4200), true);
+  assert.equal(b.autoEnabled, a.autoEnabled);
+  assert.equal(b.nextAutoEventSeconds, a.nextAutoEventSeconds);
+  assert.equal(b.events.length, 1);
+  assert.equal(b.events[0].id, e.id);
+  assert.equal(b.events[0].previousRadiusMeters, a.events[0].previousRadiusMeters);
+  const before = b.eventState(b.events[0], star, 4200).radiusMeters;
+  const after = b.eventState(b.events[0], star, 5200).radiusMeters;
+  assert.equal(after - before, 900_000_000);
+});

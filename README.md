@@ -1,156 +1,167 @@
-# Universe Lab v0.1.4.1.2 — Stellar Rendering & Approach Polish
+# Universe Lab v0.1.4.2 — System Map + Discovery & Anomalies
 
-Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative local simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and Three.js 0.185.0 for presentation.
+Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative local simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `STELLAR-1412`  
-**Save schema:** 1 (unchanged)  
+**Build marker:** `DISCOVERY-142`  
+**Save schema:** 1 (unchanged; new fields are backward-compatible optional payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
 
-v0.1.4.1.2 is a focused visual/approach polish release built directly from **v0.1.4.1.1 — Navigation & Experiment Lifecycle Polish**. It does not rewrite the working physics, save system, experiment lifecycle, transit mechanics, or cosmic-object architecture.
+v0.1.4.2 is built directly from the physically tested/development-approved v0.1.4.1.2 stellar-rendering baseline. It preserves the working Newtonian flight, BOOST, TRANSIT, impact, experiment, compact-object, stellar-rendering and scientific-overlay systems while adding a genuine exploration/discovery layer.
 
-## Why this release exists
+## Major additions
 
-Physical iPhone testing near the seeded primary star exposed a presentation mismatch: the distant star looked dramatic, but the close view read as a flat cream sphere surrounded by a dense fuzzy particle shell. The old prominence geometry also appeared as thick translucent ribbons, and the narrow galactic-band backdrop could visually resemble an accretion disk when aligned behind a star.
+### Interactive System Map
 
-The goal of this release is to make stellar approach visually coherent **without optimizing away the spectacle at distance**.
+`MORE → SYSTEM MAP` opens a mobile-first logarithmic X/Z projection of the live generated system.
 
-## Stellar rendering rebuild
+The map shows:
 
-### Layered photosphere
+- the primary star and generated physical bodies,
+- moons/comets/rogue planets and spawned major objects,
+- the live spacecraft position,
+- normal COSMOS phenomena,
+- unidentified seeded signals,
+- discovered anomaly classifications.
 
-Stars now use a layered visual presentation:
+The map is logarithmically compressed so an inner planet and a 20–30 AU signal can coexist in a usable iPhone view. It reads the live simulation state; it is not a second physics simulation.
 
-- seeded procedural photosphere/granulation texture,
-- higher sphere tessellation for close approaches,
-- view-facing limb-darkening overlay,
-- persistent star-color base layer,
-- active-region glow patches,
-- rare visual flare proxies.
+Tap a marker to:
 
-The surface treatment is visual only. Universe Lab does not claim to solve stellar convection, radiative transfer, or magnetohydrodynamics.
+- select/target a physical body,
+- select a COSMOS source,
+- scan an unidentified signal,
+- hand the selection to TRANSIT,
+- open the relevant COSMOS/scanner panel.
 
-### Corona cleanup
+### Deeper discovery instead of one-click identification
 
-The former dense 1,600-point shell was replaced with:
+COSMOS discovery now has persistent **0–3 scan depth** per source:
 
-- smooth additive inner/outer coronal halos,
-- a much sparser filamentary micro-corona,
-- reduced visual noise at long range,
-- stronger close-range detail when the star occupies a meaningful apparent angle.
+- **0/3 — UNIDENTIFIED:** location/signal exists, classification hidden.
+- **1/3 — CLASSIFIED:** label, broad type/reality class and first description are revealed.
+- **2/3 — DEEP SCAN:** detection signature/stability details are added when available.
+- **3/3 — ARCHIVED:** the complete generated scientific/model-status note is exposed.
 
-This specifically avoids the previous “cotton-ball” appearance.
+Discovery records and scan depth now survive save/load.
 
-### Prominence rebuild
+### Much larger anomaly layer
 
-The previous thick torus/ribbon prominences were removed. Prominences now use seeded curved tube filaments with:
+Each seeded system now receives roughly **9–15 deterministic anomaly signals** in addition to the normal astronomical COSMOS population. The pool currently includes families such as:
 
-- thin bright cores,
-- softer additive halos,
-- irregular heights/orientations,
-- slow independent motion.
+- Gravitational Scar / Curvature Wake
+- Phase Rift / Vacuum Seam
+- Quantum Echo Lattice / Interference Cathedral
+- Impossible Orbital Knot / Kepler Violation
+- Dark Mirror / Negative Reflection
+- Frozen Lightning / Arrested Discharge
+- Chronal Shear / Temporal Wake
+- Ghost Star Echo / Orphan Photosphere
+- Vacuum Bloom / Probability Flower
+- Reverse Shadow / Anti-Umbra
+- Resonant Shell / Harmonic Bubble
+- Fracture Gate / Nonlocal Window
 
-They remain visual proxies rather than an MHD solution.
+Not all anomalies are meant to make literal scientific sense. That is intentional.
 
-## Perceptual stellar LOD — preserve the wow
+Universe Lab explicitly labels anomaly reality classes after discovery:
 
-This release does **not** use a conventional “far away = turn effects off” rule.
+1. **KNOWN PHYSICS / modeled** — ordinary physical/cosmic sources.
+2. **SPECULATIVE** — inspired by theoretical or exotic ideas but not actually solved.
+3. **ANOMALOUS** — deliberately unexplained/uncanny.
+4. **IMPOSSIBLE / FICTIONAL** — intentionally violates the current physical model.
 
-The new perceptual LOD policy is:
+Anomaly visuals never silently become gravity sources, teleporters, causal effects, or hidden physics modifiers.
 
-- **macro phenomena stay visible** — prominences, large coronal structure, flares and CME-scale events are not distance-culled simply for being far away;
-- **medium detail simplifies smoothly** — noisy corona detail gives way to cleaner halo/prominence cues;
-- **micro detail fades first** — sub-pixel granulation and tiny particle noise are the only layers intentionally reduced at range;
-- **distant macro cues may be boosted slightly** so large stellar activity still reads against the background;
-- **no hard visual pop-in/pop-out** is introduced by the stellar LOD profile.
+### New anomaly visuals
 
-In other words: optimization targets invisible complexity, not the pretty stellar sights.
+The anomaly layer has deterministic render proxies including:
 
-## Exposure and background behavior
+- nested curvature rings,
+- luminous vacuum seams,
+- wireframe interference lattices,
+- crossed orbital-knot loops,
+- dark-mirror spheres/rims,
+- frozen filament/lightning structures,
+- temporal echo shells,
+- ghost-star shells,
+- vacuum-bloom petals,
+- reverse-shadow cones,
+- resonant nested shells,
+- fracture-gate frames.
 
-When a star occupies a large apparent angle:
+They animate slowly and remain large enough to make long-range exploration visually worthwhile.
 
-- ACES tone mapping uses a gentle visual exposure reduction,
-- deep-space stars dim gradually,
-- the galactic band dims more aggressively than the rest of the sky,
-- background nebulae remain visible but subordinate,
-- HUD/UI brightness is unaffected because the HUD is HTML rather than scene-rendered.
+## Space-weather continuity fix
 
-The galactic band itself was broadened, made less perfectly planar, reduced in point size, and lowered in opacity so it is less likely to resemble a circumstellar/accretion disk when crossing behind a target star.
+Automatic space weather still uses the same seeded scheduling ranges:
 
-## Close-approach cues
+- first automatic event: **0.7–2.4 simulated days** after a fresh system starts,
+- later automatic events: **1.2–4.5 simulated days** apart.
 
-Target telemetry now adds stellar proximity language when within 25 stellar radii:
+The important fix is save/load continuity. The save payload now preserves:
 
-- **STELLAR VICINITY**
-- **INNER CORONA**
-- **LOW CORONA**
-- **PHOTOSPHERE**
+- AUTO WEATHER on/off,
+- next scheduled event time,
+- active CME fronts,
+- launch times/speeds/directions/cone angles,
+- front progression state,
+- ship-crossed state,
+- deterministic weather RNG progress.
 
-The target chip reports distance in `R★`, while the scanner/type readout includes spectral class and temperature when available.
+Loading a save therefore no longer silently rerolls the weather countdown. Old schema-1 saves without a weather snapshot remain valid; they receive a new timeline on load.
 
-The renderer also adapts the camera near clip plane when very close to a finite-radius body to reduce visual clipping during extreme approaches.
+## Retained stellar presentation from v0.1.4.1.2
 
-## Transit arrival visual polish
+The previous stellar-polish work remains intact:
 
-TRANSIT physics are unchanged. The ship still preserves local Newtonian velocity and transit remains explicitly fictional reference-frame translation.
+- seeded photosphere/granulation,
+- limb treatment and active regions,
+- additive corona,
+- thin filament prominences,
+- rare visual flare proxies,
+- perceptual stellar LOD that preserves macro spectacle at distance,
+- close-star exposure/background adaptation,
+- stellar-proximity HUD cues,
+- smooth visual release from TRANSIT arrival.
 
-The visual-only transit FOV/streak state now decays exponentially for a short moment after arrival/disengage instead of snapping to zero on one frame. This makes the handoff into BOOST/APPROACH visually smoother while leaving spacecraft position and velocity logic untouched.
+Large stellar phenomena are intentionally not optimized away just because they are distant.
 
-## Space-weather visibility
+## Retained navigation/physics foundation
 
-CME visual proxies are no longer hidden by the old renderer-scale cutoff near the end of their valid lifetime. Their fixed-particle macro representation remains available while the underlying space-weather event is active.
+- FLIGHT 20 m/s²
+- CRUISE 120 m/s²
+- explicit speculative BOOST 5,000 m/s²
+- inertial velocity marker, PROGRADE / RETROGRADE, TURN & BURN
+- STOP RELATIVE
+- propulsion-safe APPROACH → BRAKING → CAPTURE → HOLD
+- fictional 1c / 10c / 100c / 500c / 1000c TRANSIT with local Newtonian velocity preservation
+- transit swept-body safety guards and optional physical BOOST capture
+- direct Newtonian major-body gravity + velocity-Verlet integration
+- adaptive strong-gravity substeps + 10% c Newtonian model guard
+- compact-object spawners, impacts, crater/fragment response
+- particle experiments and deterministic replay
+- scientific Lagrange/Hill/Roche/orbital-plane/gravity-vector overlays
 
-The physical/approximation boundary remains the same: CME fronts use kinematic propagation and geometric crossing tests; plasma, magnetic reconnection, radiation transport and MHD are not solved.
+## Recommended physical iPhone acceptance
 
-## Retained v0.1.4.1.1 systems
+1. Confirm **v0.1.4.2 / DISCOVERY-142** and no runtime `ERR`.
+2. Open `MORE → SYSTEM MAP`; verify the canvas fits landscape without clipping and marker taps are reliable.
+3. Confirm the star, physical worlds, spacecraft and numerous `?` signals are visible in the logarithmic map.
+4. Tap a body, use `SELECT / TARGET`, then confirm the normal target/scanner pipeline receives it.
+5. Tap an unknown diamond, press `SCAN SIGNAL`, and verify the first discovery layer appears.
+6. Scan the same anomaly two more times and verify 1/3 → 2/3 → 3/3 progression.
+7. Verify some anomaly classifications explicitly say SPECULATIVE, ANOMALOUS or IMPOSSIBLE / FICTIONAL.
+8. Use `OPEN TRANSIT` from a map-selected anomaly and verify the existing fictional transit system targets that source without adding transit speed to local Newtonian velocity.
+9. Save with an active or upcoming weather event, note `Next seeded event`, reload, and confirm the timeline is not rerolled.
+10. Save after scanning several anomalies, reload, and confirm names/scan depth remain discovered.
+11. Regress stellar approach visuals, BOOST, APPROACH/HOLD, TRANSIT, COSMOS observation, compact objects, overlays, impacts and particle experiments.
 
-This build preserves the already-tested navigation/lifecycle foundation:
+## Automated QA
 
-- FLIGHT 20 m/s², CRUISE 120 m/s², speculative BOOST 5,000 m/s²,
-- inertial `V⃗` velocity marker,
-- PROGRADE / RETROGRADE attitude aids,
-- TURN & BURN,
-- STOP RELATIVE,
-- propulsion-safe APPROACH → BRAKING → CAPTURE → HOLD,
-- speculative 1c / 10c / 100c / 500c / 1000c TRANSIT,
-- swept transit clearance guards and optional BOOST auto-capture,
-- active/complete particle experiment lifecycle,
-- deterministic REPLAY FIELD,
-- completed-field final-frame retention and automatic warp-cap release,
-- magnetars, white dwarfs, brown dwarfs and physical rogue planets,
-- black-hole accretion/photon-ring/jet visual proxies,
-- comets, debris belts, planetary rings and supernova-remnant visual sources,
-- CME/space-weather fronts,
-- L1–L5, Hill, Roche, orbital-plane and gravity-vector overlays,
-- impacts, crater/fragment logic and cascade suppression,
-- Gravity Cloud, Particle Life, Species Forces and Particle Gun,
-- isolated SHIP/OBSERVE render paths and runtime-error HUD boundary.
+`npm run qa` currently passes **93/93 tests** plus the static structure/syntax check. New coverage includes deterministic anomaly generation and space-weather snapshot continuity. Physical iPhone Safari remains the release gate for touch/layout/render acceptance.
 
-## Scientific model categories
+## Next likely milestone
 
-Universe Lab continues to separate:
-
-1. **Live physical state** — Newtonian bodies/particles and bounded local thrust integrated in SI units.
-2. **Scientific approximation** — osculating elements, crater scaling, CME fronts, Hill/Roche/Lagrange diagnostics.
-3. **Visual/artificial proxy** — stellar granulation/corona/prominences/flares, nebulae, remnants, magnetosphere art, accretion graphics, Particle Life and Species Forces.
-4. **Explicitly fictional navigation** — BOOST as speculative high-acceleration propulsion and TRANSIT as reference-frame FTL exploration travel.
-
-## Recommended physical iPhone validation
-
-1. Confirm **v0.1.4.1.2 / STELLAR-1412** and no runtime `ERR`.
-2. From a normal distant system view, confirm the primary star still looks bright/dramatic and large stellar cues were not visually neutered.
-3. Approach the primary star through roughly 25 R★ → 8 R★ → 2 R★ → near photosphere and watch the surface/corona transition remain smooth.
-4. At close range, confirm the surface has visible granulation/variation rather than a flat cream disk.
-5. Confirm prominences read as thin plasma loops/filaments rather than thick brown ribbons.
-6. Confirm the old fuzzy cotton-ball corona is gone and the corona reads as glow + sparse filaments.
-7. Align the galactic band behind the star and confirm it no longer strongly resembles an accretion disk.
-8. Confirm close-star exposure adaptation dims the rendered sky gradually while the HTML HUD remains crisp/readable.
-9. Trigger a CME and confirm the macro event remains visually available across large scales instead of disappearing from a renderer-scale cutoff.
-10. Run a 100 c TRANSIT arrival with AUTO CAPTURE and confirm the streak/FOV presentation releases smoothly rather than snapping off.
-11. Regress BOOST, APPROACH/HOLD, STOP RELATIVE, TURN & BURN, particle experiment completion/replay, COSMOS, overlays, compact objects, impacts and save/load.
-
-## Next roadmap
-
-If this build passes physical iPhone testing, the planned feature milestone remains **v0.1.4.2 — System Map + Deeper Discovery/Anomalies**, followed later by the first landable-planet foundation.
+After physical acceptance of v0.1.4.2, the next major direction is the **first landable-planet / surface foundation**, while continuing to deepen discovery content and anomaly behavior without turning unexplained visuals into undocumented physics.

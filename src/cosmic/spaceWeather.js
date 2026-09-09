@@ -8,9 +8,59 @@ function unit(v){const m=mag(v)||1;return [v[0]/m,v[1]/m,v[2]/m];}
 export class SpaceWeatherManager {
   constructor(){ this.reset('ORIGIN-001',0); }
 
+  _initRng(seed, drawCount=0){
+    this._rngDrawCount=0;
+    const base=createRng(`${seed}:space-weather-v1`);
+    for(let i=0;i<Math.max(0,Math.floor(drawCount));i+=1) base.random();
+    this._rngDrawCount=Math.max(0,Math.floor(drawCount));
+    this.rng={
+      random:()=>{this._rngDrawCount+=1;return base.random();},
+      range:(min,max)=>{this._rngDrawCount+=1;return min+(max-min)*base.random();},
+      int:(min,maxInclusive)=>{this._rngDrawCount+=1;return Math.floor(min+(maxInclusive+1-min)*base.random());},
+      pick:(list)=>{this._rngDrawCount+=1;return list[Math.floor(base.random()*list.length)];},
+    };
+  }
+
   reset(seed='ORIGIN-001', elapsedSeconds=0){
-    this.seed=String(seed); this.rng=createRng(`${this.seed}:space-weather-v1`); this.events=[]; this.serial=1;
+    this.seed=String(seed); this._initRng(this.seed,0); this.events=[]; this.serial=1;
     this.autoEnabled=true; this.nextAutoEventSeconds=elapsedSeconds+this.rng.range(0.7,2.4)*PHYSICS.DAY; this.lastShipHitEventId=null;
+  }
+
+  serialize(){
+    return {
+      version:1,
+      seed:this.seed,
+      rngDrawCount:this._rngDrawCount,
+      serial:this.serial,
+      autoEnabled:this.autoEnabled,
+      nextAutoEventSeconds:this.nextAutoEventSeconds,
+      lastShipHitEventId:this.lastShipHitEventId,
+      events:this.events.filter((event)=>!event.expired).map((event)=>({
+        id:event.id,kind:event.kind,label:event.label,anchorBodyId:event.anchorBodyId,launchTimeSeconds:event.launchTimeSeconds,
+        speedMps:event.speedMps,halfAngleRad:event.halfAngleRad,direction:[...event.direction],startRadiusMeters:event.startRadiusMeters,
+        thicknessMeters:event.thicknessMeters,scientificStatus:event.scientificStatus,previousRadiusMeters:event.previousRadiusMeters,
+        expired:Boolean(event.expired),hitShip:Boolean(event.hitShip),
+      })),
+    };
+  }
+
+  restore(snapshot, seed='ORIGIN-001', elapsedSeconds=0){
+    if(!snapshot || snapshot.version!==1 || String(snapshot.seed)!==String(seed)) { this.reset(seed,elapsedSeconds); return false; }
+    this.seed=String(seed);
+    this._initRng(this.seed,Number(snapshot.rngDrawCount)||0);
+    this.serial=Math.max(1,Math.floor(Number(snapshot.serial)||1));
+    this.autoEnabled=snapshot.autoEnabled!==false;
+    this.nextAutoEventSeconds=Number.isFinite(Number(snapshot.nextAutoEventSeconds))?Number(snapshot.nextAutoEventSeconds):elapsedSeconds+this.rng.range(0.7,2.4)*PHYSICS.DAY;
+    this.lastShipHitEventId=typeof snapshot.lastShipHitEventId==='string'?snapshot.lastShipHitEventId:null;
+    this.events=Array.isArray(snapshot.events)?snapshot.events.map((raw)=>({
+      id:String(raw.id),kind:'cme',label:String(raw.label||raw.id),anchorBodyId:String(raw.anchorBodyId||'star-0'),
+      launchTimeSeconds:Number(raw.launchTimeSeconds)||0,speedMps:Math.max(250_000,Math.min(Number(raw.speedMps)||800_000,3_000_000)),
+      halfAngleRad:Math.max(.18,Math.min(Number(raw.halfAngleRad)||.6,1.25)),direction:unit(Array.isArray(raw.direction)?raw.direction:[1,0,0]),
+      startRadiusMeters:Math.max(1,Number(raw.startRadiusMeters)||1e9),thicknessMeters:Math.max(1,Number(raw.thicknessMeters)||2.5e8),
+      scientificStatus:String(raw.scientificStatus||'Restored kinematic CME front.'),previousRadiusMeters:Math.max(1,Number(raw.previousRadiusMeters)||Number(raw.startRadiusMeters)||1e9),
+      expired:Boolean(raw.expired),hitShip:Boolean(raw.hitShip),
+    })).filter((event)=>!event.expired):[];
+    return true;
   }
 
   triggerCme(star, elapsedSeconds, options={}){

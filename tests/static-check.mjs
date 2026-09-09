@@ -6,24 +6,24 @@ const required = [
   'src/physics/gravity/directGravitySolver.js','src/physics/integrators/velocityVerlet.js','src/physics/orbitalMetrics.js',
   'src/physics/trajectoryPredictor.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
-  'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
-  'src/render/threeRenderer.js','src/render/observationCamera.js','src/render/stellarPerception.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
+  'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/anomalyGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
+  'src/render/threeRenderer.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
 ];
 for (const file of required) await access(new URL(`../${file}`, import.meta.url), constants.R_OK);
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.1.2')) throw new Error('Shell version is not v0.1.4.1.2.');
-if (!html.includes('STELLAR-1412')) throw new Error('STELLAR-1412 build marker missing.');
-if (pkg.version !== '0.1.4.1.2') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.4.2')) throw new Error('Shell version is not v0.1.4.2.');
+if (!html.includes('DISCOVERY-142')) throw new Error('DISCOVERY-142 build marker missing.');
+if (pkg.version !== '0.1.4.2') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Secondary mobile control drawer missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
 if (!html.includes('>BRAKE</button>')) throw new Error('Physical BRAKE control missing.');
 for (const id of ['velocityMarker','progradeButton','retrogradeButton','turnBurnButton','transitToggle','transitPanel','transitTargetSource','transitTier','transitAutoCapture','transitEngage']) if (!html.includes(`id="${id}"`)) throw new Error(`Navigation/transit control missing: ${id}`);
 for (const id of ['particleMode','particleCount','spawnParticleField','fireParticleGun','clearParticleExperiments','particleStatus','experimentSelect','observeExperiment','trackExperiment','orbitExperiment','rendezvousExperiment','shipViewButton','replayExperiment','cameraChip']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Particle experiment control missing: ${id}`);
-for (const id of ['cosmosToggle','cosmosPanel','phenomenonSelect','scanPhenomenon','observePhenomenon','orbitPhenomenon','nextPhenomenon','rendezvousPhenomenon','shipViewCosmos','compactObjectType','neutronStarMass','pulsarSpinPeriod','pulsarMagneticField','spawnNeutronStar','extremeObjectType','spawnExtremeObject','spaceWeatherActive','spaceWeatherNext','spaceWeatherStatus','triggerCme','autoWeatherToggle','overlayToggle','overlayPanel','overlayMaster','overlayLagrange','overlayHill','overlayRoche','overlayGravity','overlayOrbitPlane']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Cosmic exploration control missing: ${id}`);
+for (const id of ['cosmosToggle','cosmosPanel','phenomenonSelect','phenomenonReality','phenomenonScanDepth','mapToggle','mapPanel','systemMapCanvas','mapZoom','mapUnknownToggle','mapSelectAction','mapScanAction','mapTransitAction','mapCosmosAction','scanPhenomenon','observePhenomenon','orbitPhenomenon','nextPhenomenon','rendezvousPhenomenon','shipViewCosmos','compactObjectType','neutronStarMass','pulsarSpinPeriod','pulsarMagneticField','spawnNeutronStar','extremeObjectType','spawnExtremeObject','spaceWeatherActive','spaceWeatherNext','spaceWeatherStatus','triggerCme','autoWeatherToggle','overlayToggle','overlayPanel','overlayMaster','overlayLagrange','overlayHill','overlayRoche','overlayGravity','overlayOrbitPlane']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Cosmic exploration control missing: ${id}`);
 const app = await readFile(new URL('../src/app/app.js', import.meta.url), 'utf8');
 
 // Direct shell/UI integrity: all HTML ids must be unique and every literal #id selector used by
@@ -81,14 +81,19 @@ for (const token of ['NEUTRON_STAR','WHITE_DWARF','BROWN_DWARF','ROGUE_PLANET','
 const phenomenonGenerator = await readFile(new URL('../src/cosmic/phenomenonGenerator.js', import.meta.url), 'utf8');
 for (const token of ['asteroid-belt','planetary-rings','supernova-remnant','rogue-planet','scientificStatus']) if (!phenomenonGenerator.includes(token)) throw new Error(`Phenomenon generator token missing: ${token}`);
 const phenomenonRenderer = await readFile(new URL('../src/render/cosmicPhenomena.js', import.meta.url), 'utf8');
-if (!phenomenonRenderer.includes('THREE.Points') || !phenomenonRenderer.includes('supernova-remnant') || !phenomenonRenderer.includes('updateCosmicPhenomenonVisual')) throw new Error('Cosmic phenomenon GPU proxy renderer missing.');
+if (!phenomenonRenderer.includes('THREE.Points') || !phenomenonRenderer.includes('supernova-remnant') || !phenomenonRenderer.includes('anomaly-') || !phenomenonRenderer.includes('updateCosmicPhenomenonVisual')) throw new Error('Cosmic phenomenon GPU proxy renderer missing.');
 const spaceWeather = await readFile(new URL('../src/cosmic/spaceWeather.js', import.meta.url), 'utf8');
-for (const token of ['SpaceWeatherManager','triggerCme','ship-hit','nextAutoEventSeconds']) if (!spaceWeather.includes(token)) throw new Error(`Space weather token missing: ${token}`);
+for (const token of ['SpaceWeatherManager','triggerCme','ship-hit','nextAutoEventSeconds','serialize','restore']) if (!spaceWeather.includes(token)) throw new Error(`Space weather token missing: ${token}`);
 const stellarPerception = await readFile(new URL('../src/render/stellarPerception.js', import.meta.url), 'utf8');
 for (const token of ['stellarPerceptualProfile','distantMacroBoost','galacticBandFactor','apparentAngularRadius']) if (!stellarPerception.includes(token)) throw new Error(`Stellar perceptual LOD token missing: ${token}`);
 const overlayMath = await readFile(new URL('../src/cosmic/scientificOverlays.js', import.meta.url), 'utf8');
 for (const token of ['hillRadiusMeters','rocheLimitMeters','lagrangePointEstimates','gravityVectorSamples','orbitalPlaneBasis']) if (!overlayMath.includes(token)) throw new Error(`Scientific overlay math token missing: ${token}`);
 for (const token of ['triggerSpaceWeather','updateSpaceWeatherPanel','setOverlaySetting','updateOverlayPanel','spawn-extreme-star']) if (!app.includes(token)) throw new Error(`Extreme-space app integration missing: ${token}`);
 if (!renderer.includes('spaceWeatherVisuals') || !renderer.includes('scientificOverlayHolder') || !renderer.includes('syncScientificOverlays')) throw new Error('Space-weather/scientific-overlay renderer integration missing.');
+
+const anomalyGenerator = await readFile(new URL('../src/cosmic/anomalyGenerator.js', import.meta.url), 'utf8');
+for (const token of ['generateAnomalies','impossible','anomaly-phase-rift','anomaly-orbital-knot']) if (!anomalyGenerator.includes(token)) throw new Error(`Anomaly generator token missing: ${token}`);
+const systemMap = await readFile(new URL('../src/ui/systemMap.js', import.meta.url), 'utf8');
+for (const token of ['SystemMapController','Math.log1p','scanCurrent','transitCurrent','UNIDENTIFIED SIGNAL']) if (!systemMap.includes(token)) throw new Error(`System map token missing: ${token}`);
 if (!app.includes('showRuntimeError') || !app.includes('_runtimeFaulted')) throw new Error('Runtime freeze diagnostic boundary missing.');
 console.log(`Static structure OK (${required.length} required files).`);

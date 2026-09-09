@@ -1,4 +1,4 @@
-# Scientific Notes — Universe Lab v0.1.4.1.2
+# Scientific Notes — Universe Lab v0.1.4.2
 
 ## Newtonian state remains authoritative locally
 
@@ -82,3 +82,14 @@ The renderer also adapts the camera near clipping plane close to finite-radius b
 ## Transit arrival presentation
 
 The TRANSIT streak/FOV cue now releases smoothly after coordinate transit ends instead of visually snapping to zero on the capture frame. This decay changes render-only state. The spacecraft's Newtonian position and velocity handoff remain governed by the same transit arrival envelope and BOOST-powered physical APPROACH logic described above.
+
+
+## Discovery/anomaly truth labels — v0.1.4.2
+
+The anomaly layer intentionally goes beyond strict realism. This is a creative exploration feature, not an attempt to disguise fictional effects as established science. Discovered sources are labeled as modeled/catalogued, speculative, anomalous, or impossible/fictional.
+
+Anomaly visuals do not add hidden mass, modify the Newtonian force solver, bend simulation time, teleport the spacecraft, or create real wormhole/quantum/causal behavior. The labels and `scientificStatus` text are part of the model boundary.
+
+The SYSTEM MAP is a logarithmically compressed X/Z interface projection. It is useful for navigation/discovery but is not a metric-space or relativistic map.
+
+Space-weather persistence changes chronology/save behavior only; the CME model remains a kinematic cone/front approximation without MHD, radiation transport, reconnection, hardware damage or biological dose.

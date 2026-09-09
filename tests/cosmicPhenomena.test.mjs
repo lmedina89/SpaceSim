@@ -39,3 +39,20 @@ test('cosmic phenomenon registry resolves a live anchor position instead of free
   assert.deepEqual([...state.center], [99, 2, 3]);
   assert.deepEqual([...state.velocity], [4, 5, -12]);
 });
+
+test('seeded anomaly layer is deterministic, plentiful, and explicitly labels impossible entries', () => {
+  const a = generateSystem('ANOMALY-DEPTH-142');
+  const b = generateSystem('ANOMALY-DEPTH-142');
+  const anomalies = a.phenomena.filter((entry) => entry.anomaly);
+  assert.ok(anomalies.length >= 9 && anomalies.length <= 15);
+  assert.deepEqual(anomalies, b.phenomena.filter((entry) => entry.anomaly));
+  assert.ok(anomalies.some((entry) => entry.realityClass === 'impossible'));
+  assert.ok(anomalies.some((entry) => entry.realityClass === 'speculative' || entry.realityClass === 'anomalous'));
+  for (const entry of anomalies) {
+    assert.match(entry.kind, /^anomaly-/);
+    assert.ok(entry.radiusMeters > 0);
+    assert.equal(entry.navigable, true);
+    assert.ok(typeof entry.scientificStatus === 'string' && entry.scientificStatus.length > 20);
+  }
+  assert.equal(a.metadata.anomalyCount, anomalies.length);
+});

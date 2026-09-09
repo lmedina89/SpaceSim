@@ -2,6 +2,7 @@ import { BODY_KIND, PHYSICS } from '../core/constants.js';
 import { createRng, hashSeed } from '../util/prng.js';
 import { vec3 } from '../physics/vector.js';
 import { generateCosmicPhenomena } from '../cosmic/phenomenonGenerator.js';
+import { generateAnomalies } from '../cosmic/anomalyGenerator.js';
 
 const STAR_NAMES = ['Aster', 'Vesper', 'Orison', 'Nadir', 'Eidra', 'Khepri', 'Ilyon', 'Morrow', 'Sable', 'Caelum'];
 const PLANET_TYPES = [
@@ -318,7 +319,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
   if (rng.random() < 0.62) bodies.push(roguePlanetDefinition(rng, starName));
 
   shiftToBarycentricFrame(bodies);
-  const phenomena = generateCosmicPhenomena(seed, bodies);
+  const phenomena = [...generateCosmicPhenomena(seed, bodies), ...generateAnomalies(seed, bodies)];
 
   return {
     schemaVersion: 1,
@@ -340,7 +341,8 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       cometCount: bodies.filter((body) => body.kind === BODY_KIND.COMET).length,
       roguePlanetCount: bodies.filter((body) => body.kind === BODY_KIND.ROGUE_PLANET).length,
       phenomenonCount: phenomena.length,
-      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, high-eccentricity physical comet nuclei, optional physical rogue planets, and separately labeled visual population phenomena',
+      anomalyCount: phenomena.filter((entry) => entry.anomaly).length,
+      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, high-eccentricity physical comet nuclei, optional physical rogue planets, and separately labeled visual population phenomena plus an explicitly labeled speculative/fictional anomaly layer',
     },
   };
 }

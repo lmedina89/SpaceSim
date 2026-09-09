@@ -19,9 +19,11 @@ import { registerLabExperiments, MATERIALS, asteroidDefinitionFromParams, sphere
 import { ParticleExperimentManager, PARTICLE_MODES } from '../experiments/particles/particleExperimentManager.js';
 import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
 import { SpaceWeatherManager } from '../cosmic/spaceWeather.js';
+import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition } from '../physics/transitDrive.js';
 import { UniverseRenderer } from '../render/threeRenderer.js';
 import { Hud } from '../ui/hud.js';
+import { SystemMapController } from '../ui/systemMap.js';
 
 function safeNumber(value, fallback) {
   const n = Number(value);
@@ -105,6 +107,7 @@ export class UniverseLabApp {
     this.spaceWeather = new SpaceWeatherManager();
     this.scientificOverlays = { enabled: false, lagrange: true, hill: true, roche: true, gravity: false, orbitPlane: true };
     this.renderer = new UniverseRenderer(root.querySelector('#viewport'));
+    this.systemMap = new SystemMapController(this, root);
     this.system = null;
     this.minorField = null;
     this.userBodySerial = 1;
@@ -152,9 +155,11 @@ export class UniverseLabApp {
     this.navigationPhenomenonId = null;
     this.observationSource = 'experiment';
     this.discoveredPhenomena = new Set();
+    this.discoveryScanDepth = new Map();
     this._observationState = null;
     this._nextObservationRefreshAt = 0;
     this._nextSpaceWeatherPanelAt = 0;
+    this._nextMapUpdateAt = 0;
   }
 
   get bodies() { return this.registry.values(); }
@@ -195,7 +200,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4.1.2 online. Stellar rendering, perceptual LOD, close-approach exposure, and smooth transit arrival visuals active. Build STELLAR-1412.');
+    this.hud.notify('v0.1.4.2 online. System Map, persistent space weather, layered discovery, and seeded speculative/impossible anomalies active. Build DISCOVERY-142.');
   }
 
   newSystem(seed) {
@@ -210,6 +215,8 @@ export class UniverseLabApp {
     this.selectedPhenomenonId = null;
     this.navigationPhenomenonId = null;
     this.discoveredPhenomena.clear();
+    this.discoveryScanDepth.clear();
+    this.systemMap.selection = null;
     this.system = generateSystem(seed);
     this.cosmicPhenomena.reset(this.system.phenomena ?? []);
     this.spaceWeather.reset(this.system.seed, 0);
@@ -231,7 +238,7 @@ export class UniverseLabApp {
     this.selectTarget(this.system.homeId);
     this.selectPhenomenon(this.cosmicPhenomena.values[0]?.id ?? null, false);
     this.invalidatePredictions();
-    this.hud.notify(`Generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class): ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons, ${this.system.metadata.cometCount ?? 0} comets, ${this.system.metadata.roguePlanetCount ?? 0} rogue planets, ${this.system.metadata.phenomenonCount ?? 0} local cosmic phenomena.`);
+    this.hud.notify(`Generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class): ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons, ${this.system.metadata.cometCount ?? 0} comets, ${this.system.metadata.roguePlanetCount ?? 0} rogue planets, and ${this.system.metadata.anomalyCount ?? 0} seeded anomaly signals among ${this.system.metadata.phenomenonCount ?? 0} cosmic sources.`);
     this.updateSpaceWeatherPanel();
     this.updateOverlayPanel();
   }
@@ -691,9 +698,22 @@ export class UniverseLabApp {
   scanPhenomenon() {
     const phenomenon = this.selectedPhenomenon;
     if (!phenomenon) { this.hud.notify('Select a cosmic source first.'); return; }
+    const previousDepth = this.discoveryScanDepth.get(phenomenon.id) ?? 0;
+    const depth = Math.min(3, previousDepth + 1);
+    this.discoveryScanDepth.set(phenomenon.id, depth);
     this.discoveredPhenomena.add(phenomenon.id);
     this.updateCosmosPanel();
-    this.hud.notify(`DISCOVERY: ${phenomenon.label} classified as ${phenomenon.kind}. ${phenomenon.scientificStatus}`);
+    this.systemMap.updateSelectionText();
+    this.systemMap.draw();
+    if (depth === 1) {
+      const reality = phenomenon.anomaly ? (ANOMALY_REALITY_LABELS[phenomenon.realityClass] ?? 'ANOMALOUS') : 'CATALOGUED COSMIC SOURCE';
+      this.hud.notify(`DISCOVERY 1/3: ${phenomenon.label} · ${reality}. ${phenomenon.scanSummary ?? phenomenon.scientificStatus}`);
+    } else if (depth === 2) {
+      const signal = phenomenon.detectionClass ? ` Sensor signature: ${phenomenon.detectionClass}; stability: ${phenomenon.stability}.` : '';
+      this.hud.notify(`DISCOVERY 2/3: ${phenomenon.label}.${signal} Deeper classification recorded.`);
+    } else {
+      this.hud.notify(`DISCOVERY COMPLETE 3/3: ${phenomenon.label}. ${phenomenon.scientificStatus}`);
+    }
   }
 
   updateCosmosPanel() {
@@ -710,7 +730,8 @@ export class UniverseLabApp {
         const item = items[i];
         const option = document.createElement('option');
         option.value = item.id;
-        option.textContent = this.discoveredPhenomena.has(item.id) ? item.label : `UNIDENTIFIED SOURCE ${String(i + 1).padStart(2, '0')}`;
+        const discovered = this.discoveredPhenomena.has(item.id);
+        option.textContent = discovered ? `${item.anomaly ? '⚠ ' : ''}${item.label}` : `UNIDENTIFIED SIGNAL ${String(i + 1).padStart(2, '0')}`;
         select.appendChild(option);
       }
       if (!previous || !this.cosmicPhenomena.has(previous)) this.selectedPhenomenonId = items[0].id;
@@ -719,21 +740,28 @@ export class UniverseLabApp {
 
     const state = this.phenomenonState(this.selectedPhenomenonId);
     const discovered = state ? this.discoveredPhenomena.has(state.id) : false;
+    const depth = state ? (this.discoveryScanDepth.get(state.id) ?? (discovered ? 1 : 0)) : 0;
     const setText = (id, text) => { const el = this.root.querySelector(id); if (el) el.textContent = text; };
     if (!state) {
       setText('#phenomenonDiscovery', '—'); setText('#phenomenonKind', '—'); setText('#phenomenonRadius', '—'); setText('#phenomenonAnchor', '—');
+      setText('#phenomenonReality', '—'); setText('#phenomenonScanDepth', '0/3');
       const status = this.root.querySelector('#phenomenonStatus'); if (status) status.textContent = 'No local cosmic phenomenon selected.';
       return;
     }
     const anchor = state.anchorBodyId ? this.registry.get(state.anchorBodyId) : null;
-    setText('#phenomenonDiscovery', discovered ? 'CLASSIFIED' : 'UNIDENTIFIED');
+    setText('#phenomenonDiscovery', discovered ? (depth >= 3 ? 'ARCHIVED' : 'CLASSIFIED') : 'UNIDENTIFIED');
     setText('#phenomenonKind', discovered ? state.kind : 'unknown');
     setText('#phenomenonRadius', discovered ? formatRadiusMeters(state.radiusMeters) : '—');
     setText('#phenomenonAnchor', discovered ? (anchor?.name ?? 'free-space') : '—');
+    setText('#phenomenonReality', discovered ? (state.anomaly ? (ANOMALY_REALITY_LABELS[state.realityClass] ?? 'ANOMALOUS') : 'MODELED / CATALOGUED') : '—');
+    setText('#phenomenonScanDepth', `${depth}/3`);
     const status = this.root.querySelector('#phenomenonStatus');
-    if (status) status.textContent = discovered
-      ? `${state.label}: ${state.scientificStatus}`
-      : 'Unclassified local source. SCAN SOURCE reveals its seeded type and whether it is physical, approximate, or visual-only.';
+    if (status) {
+      if (!discovered) status.textContent = 'Unclassified local signal. SCAN SOURCE reveals the first layer. Repeated scans deepen the record instead of instantly dumping every detail.';
+      else if (depth === 1) status.textContent = `${state.label}: ${state.scanSummary ?? state.scientificStatus}`;
+      else if (depth === 2) status.textContent = `${state.label}: ${state.scanSummary ?? state.scientificStatus}${state.detectionClass ? ` Signature: ${state.detectionClass}; stability: ${state.stability}.` : ''}`;
+      else status.textContent = `${state.label}: ${state.scientificStatus}`;
+    }
   }
 
   enterCosmicObservation(style = 'frame') {
@@ -1302,6 +1330,7 @@ export class UniverseLabApp {
     if (this.cameraMode === 'observe') this.hud.setCamera('observe', this.observationSource === 'cosmic' ? (this.selectedPhenomenon?.label ?? 'Cosmic phenomenon') : (this.selectedExperiment?.label ?? 'Experiment'), this.observationStyle, this._observationState);
     if (now >= this._nextParticleStatusAt) { this.updateParticleLabStatus(); this._nextParticleStatusAt = now + 500; }
     if (now >= this._nextSpaceWeatherPanelAt) { this.updateSpaceWeatherPanel(); if (this.scientificOverlays.enabled) this.updateOverlayPanel(); this._nextSpaceWeatherPanelAt = now + 700; }
+    if (!this.root.querySelector('#mapPanel')?.hidden && now >= this._nextMapUpdateAt) { this.systemMap.draw(); this._nextMapUpdateAt = now + 500; }
 
     this.fpsFrames += 1;
     if (now - this.fpsClock >= 500) {
@@ -1338,6 +1367,10 @@ export class UniverseLabApp {
       shipPathEnabled: this.shipPathEnabled,
       trajectoryHorizon: this.predictionHorizonSeconds(),
       navigationMode: this.navigationMode,
+      selectedPhenomenonId: this.selectedPhenomenonId,
+      discoveredPhenomena: [...this.discoveredPhenomena],
+      discoveryScanDepth: [...this.discoveryScanDepth.entries()],
+      spaceWeather: this.spaceWeather.serialize(),
     };
   }
 
@@ -1359,6 +1392,8 @@ export class UniverseLabApp {
     this.selectedPhenomenonId = null;
     this.navigationPhenomenonId = null;
     this.discoveredPhenomena.clear();
+    this.discoveryScanDepth.clear();
+    this.systemMap.selection = null;
     this.registry.clear();
     for (const raw of payload.bodies) this.registry.create(restoreBody(raw));
     this.rebuildBodyCaches();
@@ -1370,7 +1405,12 @@ export class UniverseLabApp {
     this.ship.restore(payload.ship);
     this.updateEngineUi();
     this.clock.elapsedSimSeconds = safeNumber(payload.elapsedSimSeconds, 0);
-    this.spaceWeather.reset(this.system.seed, this.clock.elapsedSimSeconds);
+    const weatherRestored = this.spaceWeather.restore(payload.spaceWeather, this.system.seed, this.clock.elapsedSimSeconds);
+    if (Array.isArray(payload.discoveredPhenomena)) for (const id of payload.discoveredPhenomena) if (this.cosmicPhenomena.has(id)) this.discoveredPhenomena.add(id);
+    if (Array.isArray(payload.discoveryScanDepth)) for (const entry of payload.discoveryScanDepth) {
+      if (!Array.isArray(entry) || entry.length < 2 || !this.cosmicPhenomena.has(entry[0])) continue;
+      this.discoveryScanDepth.set(entry[0], Math.max(0, Math.min(3, Math.floor(Number(entry[1]) || 0))));
+    }
     this.clock.setTimeScale(payload.timeScale ?? 60);
     const timeSelect = this.root.querySelector('#timeScale');
     if (![...timeSelect.options].some((option) => Number(option.value) === this.clock.timeScale)) {
@@ -1394,13 +1434,14 @@ export class UniverseLabApp {
     this.root.querySelector('#pathToggle').textContent = this.shipPathEnabled ? 'PATH ON' : 'PATH';
     this.hud.setSeed(payload.seed);
     this.selectTarget(payload.targetId && this.registry.has(payload.targetId) ? payload.targetId : this.system.homeId);
-    this.selectPhenomenon(this.cosmicPhenomena.values[0]?.id ?? null, false);
+    this.selectPhenomenon(payload.selectedPhenomenonId && this.cosmicPhenomena.has(payload.selectedPhenomenonId) ? payload.selectedPhenomenonId : (this.cosmicPhenomena.values[0]?.id ?? null), false);
     this.invalidatePredictions();
     this.updateParticleLabStatus();
     this.updateCosmosPanel();
     this.updateSpaceWeatherPanel();
     this.updateOverlayPanel();
-    this.hud.notify('Save restored. High-count minor field was deterministically regenerated; major-body and spacecraft state were snapshot-restored. Session-local particle experiments were cleared.');
+    this.systemMap.draw();
+    this.hud.notify(`Save restored. Major-body/ship state, discovery records and ${weatherRestored ? 'space-weather timeline' : 'a newly scheduled space-weather timeline'} are active. Session-local particle experiments were cleared.`);
   }
 
   bindUi() {
@@ -1429,6 +1470,20 @@ export class UniverseLabApp {
     $('#scienceToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleScience(); });
     $('#scienceClose').addEventListener('click', () => this.hud.toggleScience(false));
     $('#cosmosToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateCosmosPanel(); this.hud.toggleCosmos(); });
+    $('#mapToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleMap(true); this.systemMap.updateSelectionText(); requestAnimationFrame(() => this.systemMap.draw()); });
+    $('#mapClose').addEventListener('click', () => this.hud.toggleMap(false));
+    $('#mapZoom').addEventListener('change', (event) => this.systemMap.setZoom(event.target.value));
+    $('#mapUnknownToggle').addEventListener('change', (event) => { this.systemMap.includeUnknown = event.target.checked; this.systemMap.draw(); });
+    $('#mapSelectAction').addEventListener('click', () => { if (!this.systemMap.selectCurrent()) this.hud.notify('Tap a body or cosmic marker on the SYSTEM MAP first.'); });
+    $('#mapScanAction').addEventListener('click', () => { if (!this.systemMap.scanCurrent()) this.hud.notify('SCAN SIGNAL applies to a cosmic/anomaly marker. Tap one of those map markers first.'); });
+    $('#mapTransitAction').addEventListener('click', () => { if (!this.systemMap.transitCurrent()) this.hud.notify('Tap a body or cosmic marker before opening TRANSIT.'); });
+    $('#mapCosmosAction').addEventListener('click', () => {
+      const marker = this.systemMap.currentMarker();
+      if (!marker) { this.hud.notify('Tap a map marker first.'); return; }
+      this.systemMap.selectCurrent(); this.hud.toggleMap(false);
+      if (marker.type === 'phenomenon') { this.updateCosmosPanel(); this.hud.toggleCosmos(true); }
+      else if (marker.type === 'body') this.hud.toggleScanner(true);
+    });
     $('#cosmosClose').addEventListener('click', () => this.hud.toggleCosmos(false));
     $('#overlayToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateOverlayPanel(); this.hud.toggleOverlays(); });
     $('#overlayClose').addEventListener('click', () => this.hud.toggleOverlays(false));

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.1.2</title>
+  <title>Universe Lab v0.1.4.2</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.1.2</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.2</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -83,13 +83,36 @@
         <button id="rcsToggle" type="button">RCS PANEL</button>
         <button id="scienceToggle" type="button">SCIENCE</button>
         <button id="cosmosToggle" type="button">COSMOS</button>
+        <button id="mapToggle" class="void" type="button">SYSTEM MAP</button>
         <button id="overlayToggle" type="button">OVERLAYS</button>
         <button id="homeButton" type="button">HOME / ORBIT</button>
         <button id="pauseToggle" type="button">PAUSE</button>
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>STELLAR-1412</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. TRANSIT is a separate explicitly fictional reference-frame travel layer and does not add transit speed to the Newtonian ship velocity. Build marker: <b>DISCOVERY-142</b>.</p>
+    </aside>
+
+    <aside id="mapPanel" class="drawer system-map-panel" hidden>
+      <header><div><b>SYSTEM MAP</b><small>Logarithmic tactical astronomy · bodies · signals · anomalies</small></div><button id="mapClose" type="button" aria-label="Close system map">×</button></header>
+      <div class="map-copy">
+        <p class="help">Tap a marker. Physical bodies are solid circles, the spacecraft is a triangle, known cosmic sources are outlined markers, and unidentified signals show ?. Anomalies are diamonds. Distances are logarithmically compressed so the whole generated system remains usable on iPhone.</p>
+        <canvas id="systemMapCanvas" class="system-map-canvas" width="760" height="500" aria-label="Interactive logarithmic map of the generated star system"></canvas>
+        <div class="map-toolbar">
+          <label>Map zoom<select id="mapZoom"><option value="0.7">Wide</option><option value="1" selected>System</option><option value="1.6">Inner system</option><option value="2.5">Close</option></select></label>
+          <label class="inline-check"><input id="mapUnknownToggle" type="checkbox" checked><span>SHOW UNIDENTIFIED SIGNALS</span></label>
+        </div>
+        <div class="scanner-title"><b id="mapSelectionName">Tap a map marker</b><small id="mapSelectionKind">—</small></div>
+        <div class="scan-grid"><span>Star-relative distance</span><b id="mapSelectionDistance">—</b><span>Map model</span><b>LOG X/Z PROJECTION</b></div>
+        <p id="mapSelectionStatus" class="prediction">Bodies are physical targets. Cosmic markers may be known phenomena or unidentified anomaly signatures.</p>
+        <div class="observation-grid">
+          <button id="mapSelectAction" type="button">SELECT / TARGET</button>
+          <button id="mapScanAction" type="button">SCAN SIGNAL</button>
+          <button id="mapTransitAction" class="void" type="button">OPEN TRANSIT</button>
+          <button id="mapCosmosAction" type="button">OPEN COSMOS</button>
+        </div>
+        <p class="warning">The map is an interface projection, not a second physics simulation. It reads the live spacecraft/body state and the seeded cosmic registry. Fictional anomalies remain explicitly labeled after discovery and do not secretly alter Newtonian gravity or causality.</p>
+      </div>
     </aside>
 
     <aside id="transitPanel" class="drawer science-panel" hidden>
@@ -187,13 +210,15 @@
     <aside id="cosmosPanel" class="drawer cosmos-panel" hidden>
       <header><div><b>COSMIC EXPLORER</b><small>Seeded local phenomena · discovery · massless observation</small></div><button id="cosmosClose" type="button" aria-label="Close cosmic explorer">×</button></header>
       <div class="scanner-copy">
-        <p class="help">The local system now includes structured debris belts, planetary ring systems, physical high-eccentricity comets, occasional physical rogue planets, and a seeded ancient supernova-remnant visual proxy. Distant nebular haze in the sky is visual backdrop only. Sources begin unclassified so SCAN SOURCE has an exploration purpose.</p>
+        <p class="help">The local system includes modeled astronomical phenomena plus a much larger seeded anomaly layer. Some anomalies are plausible or speculative; others are intentionally impossible. Sources begin unclassified and repeated SCAN SOURCE passes reveal deeper information instead of instantly exposing the whole record.</p>
         <label class="cosmos-select-label">Local source<select id="phenomenonSelect"><option value="">Loading sources…</option></select></label>
         <div class="scan-grid">
           <span>Discovery</span><b id="phenomenonDiscovery">—</b>
           <span>Classification</span><b id="phenomenonKind">—</b>
           <span>Characteristic radius</span><b id="phenomenonRadius">—</b>
           <span>Anchor body</span><b id="phenomenonAnchor">—</b>
+          <span>Reality class</span><b id="phenomenonReality">—</b>
+          <span>Scan depth</span><b id="phenomenonScanDepth">0/3</b>
         </div>
         <p id="phenomenonStatus" class="prediction">No source selected.</p>
         <div class="observation-grid">
@@ -210,7 +235,7 @@
         <div class="scan-grid"><span>Active fronts</span><b id="spaceWeatherActive">0</b><span>Next seeded event</span><b id="spaceWeatherNext">—</b></div>
         <p id="spaceWeatherStatus" class="prediction">No active CME fronts.</p>
         <div class="button-row"><button id="triggerCme" class="void" type="button">TRIGGER CME</button><button id="autoWeatherToggle" type="button">AUTO WEATHER ON</button></div>
-        <p class="warning">OBSERVE/ORBIT move only the massless camera. RENDEZVOUS moves the physical spacecraft with the same bounded-thrust APPROACH/BRAKING/CAPTURE/HOLD computer. Belt/ring/remnant point populations are visual proxies rather than individually integrated gravity/collision bodies.</p>
+        <p class="warning">OBSERVE/ORBIT move only the massless camera. RENDEZVOUS moves the physical spacecraft with bounded thrust. Known-physics, speculative, anomalous and impossible/fictional classifications are displayed explicitly after discovery; anomaly visuals do not silently become gravity sources.</p>
       </div>
     </aside>
 

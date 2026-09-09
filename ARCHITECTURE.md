@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.1.2
+# Architecture — Universe Lab v0.1.4.2
 
 ## Core invariant
 
@@ -114,3 +114,13 @@ Generated per-star surface textures are explicitly marked for disposal when thei
 Dynamic camera near-plane adjustment and stellar exposure are renderer-only operations. They do not change collision radii, safety envelopes, gravitational sources, integration step sizes or navigation decisions.
 
 Similarly, `transitVisualFactor` now decays for a short period after TRANSIT exits. That decay is render-only and intentionally preserves the authoritative Newtonian position/velocity handoff. The normal transit drive still owns coordinate translation and AUTO CAPTURE still returns control to bounded local propulsion.
+
+
+## System map + discovery architecture — v0.1.4.2
+
+- `src/ui/systemMap.js` is an interface projection over live state, not a physics subsystem. It logarithmically compresses star-relative X/Z positions and exposes body/COSMOS selection handoff.
+- `src/cosmic/anomalyGenerator.js` deterministically creates 9–15 free-space anomaly definitions per seed. Definitions carry explicit `realityClass`, scan summary and scientific/model-boundary text.
+- Anomalies remain entries in `CosmicPhenomenonRegistry`; they are not inserted into the massive-body registry and therefore do not silently source Newtonian gravity.
+- `discoveredPhenomena` plus `discoveryScanDepth` (0–3) are persisted as optional save-payload fields.
+- Space weather now serializes its future schedule, active fronts and RNG progress so loading a save continues the same weather chronology instead of rerolling it.
+- Save schema remains 1 because all new payload fields are optional and old schema-1 saves remain loadable.

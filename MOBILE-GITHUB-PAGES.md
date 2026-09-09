@@ -1,4 +1,4 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.1.2
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.2
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -16,8 +16,8 @@ The distributable intentionally contains **no `.github/workflows/*` files** and 
 
 After upload/reload verify:
 
-- title/HUD says **v0.1.4.1.2**,
-- MORE help shows **STELLAR-1412**,
+- title/HUD says **v0.1.4.2**,
+- MORE help shows **DISCOVERY-142**,
 - FPS/physics/render/ship telemetry populate,
 - SIM TIME advances,
 - no `RUNTIME ERROR` banner appears.
@@ -38,3 +38,12 @@ If an older marker appears, GitHub Pages/Safari is serving stale files.
 10. Recheck COSMOS, space weather, overlays, black holes/compact objects, impacts and normal particle experiments.
 
 Container/Node QA cannot prove real iPhone WebGPU frame rate, touch feel or thermal behavior. Physical Safari remains the release gate.
+
+
+## v0.1.4.2 iPhone-specific acceptance
+
+- Open MORE → SYSTEM MAP in landscape and verify the drawer/canvas fits within safe areas.
+- Tap physical and anomaly markers; selection should not require desktop hover behavior.
+- Verify map zoom and SHOW UNIDENTIFIED SIGNALS controls remain touch-readable.
+- Scan one anomaly three times and verify 1/3 → 2/3 → 3/3 persistence after SAVE/LOAD.
+- Note SPACE WEATHER `Next seeded event`, SAVE/LOAD, and verify the timer/front chronology continues rather than rerolls.
