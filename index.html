@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.2</title>
+  <title>Universe Lab v0.1.2.1</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.2</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.2.1</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -32,6 +32,7 @@
 
     <div class="seed-chip">SEED <b id="seedValue">ORIGIN-001</b> · MAJOR <b id="bodyCountValue">—</b> · TEST <b id="minorCountValue">—</b> · DRAW <b id="drawCallsValue">—</b> · PRED <b id="predictionMsValue">—</b></div>
     <div id="targetChip" class="target-chip" hidden>NO TARGET</div>
+    <div id="navChip" class="nav-chip" hidden>NAV MANUAL</div>
     <div class="reticle" aria-hidden="true"><span></span><i></i></div>
 
     <div id="lookPad" class="look-pad" aria-label="Drag to change spacecraft attitude">
@@ -39,9 +40,9 @@
     </div>
 
     <div class="flight-controls" aria-label="Main thrusters">
-      <button id="thrustButton" class="hold-button thrust" type="button">THRUST</button>
+      <button id="thrustButton" class="hold-button thrust" type="button">THRUST 20</button>
       <button id="reverseButton" class="hold-button reverse" type="button">REV</button>
-      <button id="brakeButton" class="hold-button brake" type="button">DAMP</button>
+      <button id="brakeButton" class="hold-button brake" type="button">BRAKE</button>
     </div>
 
     <div id="rcsPanel" class="rcs-panel" hidden aria-label="Reaction-control system">
@@ -60,7 +61,7 @@
       <button id="labToggle" type="button">LAB</button>
       <button id="targetButton" type="button">TARGET</button>
       <button id="scannerToggle" type="button">SCAN</button>
-      <button id="pathToggle" type="button">PATH ON</button>
+      <button id="approachButton" type="button">APPROACH</button>
       <button id="warpQuick" type="button">WARP 60×</button>
       <button id="moreToggle" type="button">MORE</button>
     </nav>
@@ -70,6 +71,9 @@
     <aside id="morePanel" class="drawer quick-panel" hidden>
       <header><div><b>FLIGHT / SYSTEM</b><small>Secondary controls</small></div><button id="moreClose" type="button" aria-label="Close flight menu">×</button></header>
       <div class="quick-grid">
+        <button id="engineModeButton" type="button">ENGINE FLIGHT</button>
+        <button id="matchVelocity" type="button">MATCH VELOCITY</button>
+        <button id="pathToggle" type="button">PATH ON</button>
         <button id="rcsToggle" type="button">RCS PANEL</button>
         <button id="scienceToggle" type="button">SCIENCE</button>
         <button id="homeButton" type="button">HOME / ORBIT</button>
@@ -77,7 +81,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">HOME restores the seeded orbital demonstration position. WARP changes simulation time, not the laws of motion: holding thrust at 600× means the engine is modeled as firing for 600 simulated seconds per real second.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s² experimental propulsion. APPROACH and MATCH use bounded real thrust. BRAKE applies thrust opposite current inertial velocity. APPROACH/MATCH automatically use safe 600×/60×/1× simulation-time compression and step it down near the target, so you do not have to manage warp by hand.</p>
     </aside>
 
     <aside id="labPanel" class="drawer lab-panel" hidden>
@@ -149,7 +153,7 @@
         <p><strong>Trajectory path:</strong> an N-body forward integration of the current massive system plus the ship/projectile. Future thrust and minor-particle gravity are excluded.</p>
         <p><strong>Scanner orbit:</strong> osculating two-body elements around the selected target. Other-body perturbations are intentionally ignored in those displayed elements.</p>
         <p><strong>Minor field:</strong> 1k–20k typed-array test particles feel major gravity but intentionally contribute no gravity.</p>
-        <p><strong>Ship:</strong> forward/reverse and RCS accelerations are explicit experimental propulsion. DAMP is a fictional inertial-damping navigation aid.</p>
+        <p><strong>Ship:</strong> FLIGHT thrust is 20 m/s²; CRUISE thrust is 120 m/s² experimental propulsion. BRAKE applies bounded physical thrust opposite inertial velocity. APPROACH/MATCH are target-relative guidance controllers that command the same bounded propulsion; they do not teleport or delete velocity.</p>
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Black holes:</strong> Schwarzschild radius metadata + visualization, but Newtonian trajectories only. GR/lensing is future work.</p>
       </div>

@@ -1,4 +1,4 @@
-# Third-Party / Scientific References — Universe Lab v0.1.2
+# Third-Party / Scientific References — Universe Lab v0.1.2.1
 
 ## Runtime library
 

@@ -7,12 +7,16 @@ export class CollisionMonitor {
     this.active = new Set();
   }
 
-  scan(bodies, previousPositions = null) {
+  scan(bodies, previousPositions = null, simTimeSeconds = 0) {
     const events = [];
     const current = new Set();
     for (let i = 0; i < bodies.length; i += 1) {
       for (let j = i + 1; j < bodies.length; j += 1) {
         const a = bodies[i], b = bodies[j];
+        if (a.fragmentFamilyId && a.fragmentFamilyId === b.fragmentFamilyId) continue;
+        const aGrace = Number(a.collisionGraceUntil) || 0;
+        const bGrace = Number(b.collisionGraceUntil) || 0;
+        if (simTimeSeconds < aGrace || simTimeSeconds < bGrace) continue;
         const limit = (a.radius + b.radius) * SIMULATION.collisionSafetyFactor;
         let dx = b.position[0] - a.position[0];
         let dy = b.position[1] - a.position[1];

@@ -1,125 +1,119 @@
-# Universe Lab v0.1.2 QA Report
+# Universe Lab v0.1.2.1 — QA Report
 
-Date: 2026-09-08
+## Release
 
-## Result
+**Impact Stability & Scientific Flight Navigation Polish**
 
-Automated foundation QA: **PASS**.
+This build is derived directly from the physically tested v0.1.2 baseline. It is a focused repair/polish release for (1) runaway resolved-fragment cascades/performance and (2) impractical manual travel/time-warp control.
 
-Physical iPhone Safari remains the interactive release gate for WebGPU body-color readability, impact FX visibility, continuous touch controls, and real-device performance.
+## Automated result
 
-## Automated checks completed
+`npm run qa` — **PASS**
 
-### Static / syntax
+- static repository structure check: PASS
+- all JavaScript/MJS `node --check`: PASS
+- Node numerical/unit tests: **34/34 PASS**
 
-- repository-root structure validated
-- pinned Three.js 0.185.0 import verified
-- v0.1.2 shell/package version alignment verified
-- mobile VisualViewport and iOS hold-input protections retained
-- impact preset controls present
-- impact resolver module present
-- renderer-independent body-color exposure floor present
-- all JS/MJS files passed `node --check`
-- HTML id → JS `querySelector` audit: 80 HTML ids, 46 unique referenced ids, 0 missing
+### New v0.1.2.1 regression coverage
 
-### Numerical/unit tests
+- stopping distance uses `v²/(2a)`
+- MATCH VELOCITY acceleration is target-relative and capped
+- far APPROACH accelerates toward target within the selected engine cap
+- high-speed near-target APPROACH commands braking
+- BRAKE produces bounded acceleration opposite inertial velocity rather than deleting velocity
+- auto-warp recommendation collapses near precision-sensitive target states
+- simplified 1 Gm APPROACH regression reaches the configured stand-off without target crossing in ~32 real-time-equivalent seconds using automatic 600×/60× guidance warp
+- CRUISE engine integrates the declared 120 m/s² acceleration
+- setting the BRAKE flag alone no longer damps velocity inside ShipDynamics
+- same-family impact fragments are collision-filtered
+- fresh impact fragments honor collision grace
+- secondary resolved-fragment impacts can be resolved with zero new gravity fragments
+- primary planet-impact resolved fragment mass remains <= about 8% of impactor mass and <= 2 bodies
 
-**22/22 passed**.
+### Retained science regressions
 
-Coverage includes:
+Gravity, velocity-Verlet orbit boundedness, seeded determinism/barycentric initialization, ship basis, impact energy/Q_R, impact angle, crater sanity range, mass conservation, low-speed bounce momentum conservation, trajectory prediction, swept trajectory contact, renderer body-color exposure floor, and launcher radius tests all remain passing.
 
-- solar gravity `GM/r²`
-- reduced-mass impact energy
-- `Q_R` / reduced-mass momentum telemetry
-- head-on impact-angle convention
-- Chicxulub-class crater estimate sanity range
-- resolved-fragment mass budget
-- represented gravitational-mass conservation through energetic impact response
-- low-speed bounce linear-momentum conservation
-- swept collision detection for a projectile crossing a target between endpoints
-- one-year near-circular velocity-Verlet orbit boundedness
-- launcher mass/density/radius relation
-- circular osculating metrics
-- deterministic PRNG
-- WebGPU stellar-light + body exposure-floor regression
-- spacecraft orthonormal basis with roll
-- declared 20 m/s² main-thrust acceleration
-- 60-second thrust delta-v/displacement regression
-- deterministic seeded generation
-- barycentric initial momentum
-- metadata planet/moon counts
-- bounded low-Earth trajectory prediction
-- swept finite-radius predicted collision
+## Generated-system stress
 
-### Generated-system stress
+Eight deterministic generated systems were each integrated for **30 simulated days** with 900 s major-body steps and swept collision monitoring.
 
-Eight deterministic systems were integrated for 30 simulated days using 900-second steps and the new swept major-body collision monitor.
+Result:
 
-- spontaneous generated-system collision events: **0**
-- maximum generated major-body count observed: **25**
+- systems: 8
+- simulated days/system: 30
+- spontaneous major-body collisions: **0**
+- maximum generated gravity-source count observed: **23**
 
-This is a regression/stability sample, not a proof that every possible seed is stable indefinitely.
+This is a numerical stress check, not evidence of long-term astrophysical stability.
 
-### Static HTTP smoke
+## Static browser-resource smoke
 
-Local static HTTP requests returned 200 for:
+Local HTTP serving returned **200** for:
 
 - `index.html`
 - `styles.css`
 - `src/main.js`
 - `src/app/app.js`
+- `src/physics/flightComputer.js`
 - `src/physics/impactResolver.js`
 - `src/render/threeRenderer.js`
 
-## Scientific-model checks
+HTML/control audit:
 
-- authoritative physics remains SI / Float64
-- direct mutual Newtonian gravity retained
-- velocity-Verlet retained
-- save schema remains 1
-- impact FX are visual-only and cannot add mass/forces
-- resolved fragments obey the current direct-gravity source budget
-- unresolved fragment mass is accreted into the surviving authoritative target rather than double-counted as visual debris
-- crater model is explicitly documented as scaling-law approximation, not hydrocode
-- black-hole trajectories remain explicitly Newtonian
+- unique HTML IDs: PASS
+- JavaScript `#id` references missing from shell: **0**
 
-## v0.1.2 impact-specific notes
+## Impact-stability architecture checks
 
-### Swept contact
+- per-primary-event resolved fragment cap: **2**
+- active resolved impact-fragment sub-budget: **16**
+- secondary impact fragment generation: **0 new gravity fragments**
+- same breakup-family recursive collision suppression: active
+- fresh-fragment collision grace: active
+- planet/moon resolved fragment mass share: approximately <= 8% of projectile mass
+- unresolved mass remains represented through target accretion under the current approximation
+- resolved fragment minimum render size reduced substantially from v0.1.2
+- simultaneous impact presentation effects bounded to prevent additive flash accumulation
 
-The live collision monitor now checks minimum pair separation over the relative straight segment between pre-step and post-step positions. This substantially reduces high-warp/high-speed tunneling compared with endpoint-only overlap detection.
+## Scientific flight checks
 
-It remains an approximation because the actual trajectories curve continuously under gravity during a long step.
+Declared propulsion:
 
-### Crater model
+- FLIGHT main acceleration: **20 m/s²**
+- CRUISE main acceleration: **120 m/s²**
+- FLIGHT reverse acceleration: **12 m/s²**
+- CRUISE reverse acceleration: **72 m/s²**
+- RCS: **6 m/s²**
 
-The implementation uses a Collins/Melosh/Marcus-style gravity-regime transient diameter relation and simple/complex final-diameter handling. Tests validate only numerical sanity and expected scale; they do not claim hydrocode accuracy.
+BRAKE, MATCH and APPROACH create bounded acceleration vectors that are integrated by the spacecraft velocity-Verlet step. They do not directly edit position/velocity.
 
-### Fragmentation
+APPROACH uses a braking-safe target-relative desired-velocity envelope based on remaining distance and available acceleration. APPROACH/MATCH automatically select 600× / 60× / 1× simulated-time compression as appropriate and return control at 1× after guidance completes or is manually interrupted.
 
-A small number of fragments is intentionally resolved as full gravity sources. The partition model is heuristic and isolated for replacement by a future calibrated disruption model.
+The propulsion model remains explicitly experimental/fictitious technology. The numerical kinematics are integrated; the drive technology is not claimed to represent an existing spacecraft propulsion system.
 
-## Real-device checks still required
+## Packaging/deployment checks
 
-On deployed GitHub Pages / iPhone Safari:
+Final distributable must satisfy:
 
-1. HUD must read `v0.1.2`.
-2. Caelum-4361 d should show its tan/orange seeded body color instead of a featureless black sphere.
-3. Night-side contrast should remain visibly darker than the exposed/day side.
-4. THRUST/REV/DAMP sustained holds must not trigger selection handles/callouts.
-5. LAB impact presets must fit and remain editable.
-6. A predicted asteroid contact should become a live resolved impact without tunneling at moderate warp.
-7. Impact flash/ring/ejecta should be visible without obscuring the entire scene.
-8. Scanner recorded-impact count and last-impact telemetry should update.
-9. Save/load should preserve target `damageRecords`.
-10. Real FPS/render/physics timing should be observed at 4k, 10k, and 20k minor particles.
+- GitHub repository files at ZIP root, no wrapper directory
+- no `.github/workflows/*`
+- Three.js pinned to `0.185.0`
+- save schema remains `1`
+- GitHub Pages mode remains `main` → `/(root)`
 
-## Packaging contract
+## Physical-device gate
 
-The final distributable must:
+Automated tests do **not** substitute for the user's real iPhone Safari/WebGPU test. The release gate remains physical verification of:
 
-- unzip directly into repository root
-- contain no wrapper directory
-- contain no `.github/workflows/*`
-- pass ZIP integrity testing
-- be suitable for GitHub Pages `main` → `/(root)` deployment
+1. no long-press selection regression,
+2. CRUISE/APPROACH feel practical,
+3. auto-warp steps down before target overshoot,
+4. manual takeover returns to 1×,
+5. BRAKE/MATCH visibly reduce velocity over simulated time rather than instantly,
+6. Chicxulub-class impact produces restrained large chunks rather than a fragment-body cascade,
+7. major-body count stays far below the direct 128-source ceiling after the impact settles,
+8. FPS recovers after impact effects expire,
+9. planet colors remain readable on iPhone WebGPU.
+
+No automated interactive 3D/browser playthrough is claimed for this release.

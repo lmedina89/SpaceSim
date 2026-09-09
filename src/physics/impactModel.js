@@ -181,16 +181,18 @@ function pseudoRandom(seed) {
 export function generateFragments(analysis, options = {}) {
   const { target, impactor, contactNormal } = analysis;
   const crater = options.crater ?? null;
-  const fragmentCount = Math.max(3, Math.min(10, Math.round(3 + Math.log10(analysis.centerOfMassEnergyJ + 10) * 0.4)));
+  const fragmentCount = Math.max(0, Math.min(2, Number.isFinite(options.maxFragments) ? options.maxFragments : 2));
   const sourceMass = impactor.mass;
-  const largeMassShare = 0.42;
-  const gravitationalFragmentBudget = Math.max(0, Math.min(fragmentCount, 6, Number.isFinite(options.maxFragments) ? options.maxFragments : 6));
+  // Only a small fraction of impactor mass is promoted to expensive, mutually gravitating fragments.
+  // Most ejecta is intentionally represented by the cheaper visual debris field / target accretion.
+  const largeMassShare = [BODY_KIND.PLANET, BODY_KIND.MOON].includes(target.kind) ? 0.08 : 0.14;
+  const gravitationalFragmentBudget = fragmentCount;
   const totalRenderDebrisMass = Math.max(0, sourceMass * (1 - largeMassShare));
   const largeMass = gravitationalFragmentBudget > 0 ? sourceMass * largeMassShare : 0;
   const masses = [];
   let remaining = largeMass;
   for (let i = 0; i < gravitationalFragmentBudget; i += 1) {
-    const weight = 1 / (i + 1.2);
+    const weight = 1 / (i + 1.35);
     masses.push(weight);
   }
   const sum = masses.reduce((acc, value) => acc + value, 0);
@@ -217,6 +219,8 @@ export function generateFragments(analysis, options = {}) {
     const speed = ejectaSpeed * localScale * (index === 0 ? 1.3 : 0.55 + r2 * 0.85);
     return {
       name: `Fragment ${index + 1}`,
+      isImpactFragment: true,
+      fragmentGenerationDepth: (impactor.fragmentGenerationDepth ?? 0) + 1,
       mass,
       radius,
       densityKgM3: analysis.impactorDensityKgM3,

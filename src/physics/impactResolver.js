@@ -83,8 +83,13 @@ export function resolveImpact(event, options = {}) {
   target.mass += accretedMass;
   target.visualVersion = (target.visualVersion ?? 0) + 1;
   result.deleteIds.push(impactor.id);
+  const fragmentFamilyId = `impact-family-${impactor.id}-${Math.floor(event.timeSeconds ?? 0)}`;
+  const graceUntil = (event.timeSeconds ?? 0) + Math.max(0, Number(options.fragmentGraceSeconds) || 0);
   result.createBodies = generated.fragments.map((fragment) => ({
     ...fragment,
+    fragmentFamilyId,
+    fragmentParentTargetId: target.id,
+    collisionGraceUntil: graceUntil,
     position: new Float64Array(fragment.position),
     velocity: new Float64Array(fragment.velocity),
   }));

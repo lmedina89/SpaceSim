@@ -1,8 +1,35 @@
-# Universe Lab v0.1.2 — Impact, Fragmentation & Explosion Foundation
+# Universe Lab v0.1.2.1 — Impact Stability & Scientific Flight Navigation Polish
 
 Universe Lab is a mobile-first scientific sandbox built for GitHub Pages. The current design simulates one deterministic seeded solar system at a time while rendering an effectively unbounded deep-space backdrop. The spacecraft is the observer and experiment platform.
 
-## v0.1.2 headline
+## v0.1.2.1 headline
+
+Physical iPhone testing of v0.1.2 showed two concrete problems: resolved impact fragments could cascade until the direct-gravity budget was nearly saturated, and manual travel forced the pilot to choose between very slow 1× flight and overshooting targets under high time warp.
+
+v0.1.2.1 therefore tightens the impact representation and adds a target-relative flight computer without changing the underlying Newtonian universe model.
+
+### Flight/navigation changes
+
+- **FLIGHT engine:** 20 m/s² declared experimental main acceleration.
+- **CRUISE engine:** 120 m/s² declared experimental main acceleration for practical interplanetary travel.
+- **BRAKE:** applies bounded physical acceleration opposite the ship's current inertial velocity. It no longer deletes velocity with fictional damping.
+- **MATCH VELOCITY:** commands bounded acceleration to reduce target-relative velocity toward zero.
+- **APPROACH:** commands a braking-safe target-relative velocity envelope derived from remaining distance and available acceleration.
+- **Navigation auto-warp:** APPROACH/MATCH automatically choose 600×, 60×, or 1× simulation-time compression based on target distance/closing conditions and step down before braking becomes sensitive. Time still advances normally inside the simulation; this is not teleportation or a spatial speed multiplier.
+- A dedicated navigation HUD reports approach phase, remaining distance, closing speed, and estimated stopping distance.
+
+### Impact-stability changes
+
+- Primary impacts can promote at most **2** large resolved gravity fragments instead of 6.
+- Planet/moon impacts allocate at most about **8% of the impactor mass** to resolved fragments; most material remains unresolved ejecta/accreted represented mass.
+- A separate global budget caps active resolved impact fragments at **16**, below the 128-source direct-gravity ceiling.
+- Secondary impacts from already-resolved impact fragments generate **zero additional gravity fragments**.
+- Fragments from the same representative breakup family do not recursively collide with one another.
+- Newly created impact fragments receive a short collision grace interval.
+- Resolved impact-fragment visual minimum size was reduced sharply so a few representative chunks no longer dominate the screen.
+- Simultaneous impact FX are bounded and the additive flash is less aggressive while retaining the energy-scaled ejecta effect.
+
+## v0.1.2 foundation retained
 
 This release turns finite-radius contacts between massive simulation bodies into an explicit response pipeline:
 
@@ -66,7 +93,7 @@ The final simple crater is `1.25 D_tc`. For complex craters, the project applies
 
 ### Fragments
 
-The resolver keeps only a small number of large fragments as full Newtonian gravity sources. This is a performance architecture decision, not a claim that real impacts make only a handful of fragments. Unresolved material is retained in the surviving target's represented mass while dense visual ejecta remains non-authoritative.
+The resolver keeps only a very small number of large representative fragments as full Newtonian gravity sources. v0.1.2.1 caps a primary event at two and prevents secondary resolved fragments from recursively spawning more gravity fragments. This is a performance architecture decision, not a claim that real impacts make only a handful of fragments. Unresolved material is retained in the surviving target's represented mass while dense visual ejecta remains non-authoritative.
 
 This lets a surviving fragment actually leave, fall back, enter another trajectory, or hit something later without turning one impact into hundreds of expensive gravity sources.
 
@@ -122,7 +149,7 @@ The second layer is intentionally visual-only. It prevents generated color from 
 
 ## Mobile input
 
-The v0.1.1.2 iOS hold-control hardening remains:
+The v0.1.1.2 iOS hold-control hardening remains, and v0.1.2.1 adds the target-relative flight computer described above:
 
 - `touch-action:none` on continuous controls,
 - pointer capture,

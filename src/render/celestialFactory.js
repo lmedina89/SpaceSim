@@ -7,7 +7,8 @@ function renderRadius(body) {
   if (body.kind === BODY_KIND.BLACK_HOLE) return Math.max(physical, 8);
   if (body.kind === BODY_KIND.PLANET) return Math.max(physical, 0.85);
   if (body.kind === BODY_KIND.MOON) return Math.max(physical, 0.34);
-  return Math.max(physical, 0.16);
+  if (body.kind === BODY_KIND.ASTEROID) return Math.max(physical, body.isImpactFragment ? 0.007 : 0.025);
+  return Math.max(physical, 0.025);
 }
 
 function makeGlowTexture() {

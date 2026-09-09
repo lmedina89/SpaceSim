@@ -1,6 +1,6 @@
 {
-  "version": "0.1.2",
-  "name": "Impact, Fragmentation & Explosion Foundation",
+  "version": "0.1.2.1",
+  "name": "Impact Stability & Scientific Flight Navigation Polish",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -13,5 +13,7 @@
   "motionCue": "visual-only logarithmic inertial velocity reference",
   "deploymentMode": "github-pages-branch-root",
   "mobileInput": "pointer-capture + document-release fallback + selection/callout suppression",
-  "pilotLayout": "thumb-safe separated navigation/thruster zones"
+  "pilotLayout": "thumb-safe separated navigation/thruster zones",
+  "flightComputer": "target-relative approach + velocity match + physical inertial brake",
+  "fragmentPolicy": "max 2 primary resolved fragments, 16 total resolved impact fragments, family cascade suppression"
 }

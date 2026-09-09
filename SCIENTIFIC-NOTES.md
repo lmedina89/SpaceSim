@@ -1,4 +1,4 @@
-# Scientific Model Boundaries — Universe Lab v0.1.2
+# Scientific Model Boundaries — Universe Lab v0.1.2.1
 
 Universe Lab intentionally separates authoritative physical state from visual effects and from experimental/fictional controls.
 
@@ -68,7 +68,7 @@ These response modes are intentionally isolated in `src/physics/impactResolver.j
 
 ## Fragment mass accounting
 
-A bounded number of large fragments becomes authoritative gravity sources. Their masses sum to a controlled fraction of the impactor mass. The surviving target accretes the unresolved remainder, keeping represented gravitational mass conserved in the current approximation.
+Only a bounded number of representative large fragments becomes authoritative gravity sources. v0.1.2.1 permits at most two from a primary event, uses a separate 16-fragment global budget, suppresses same-family recursive collisions, and generates no new resolved gravity fragments from secondary fragment impacts. For planet/moon impacts, resolved fragments receive at most about 8% of projectile mass. The surviving target accretes the unresolved remainder, keeping represented gravitational mass conserved in the current approximation.
 
 The visual ejecta particle field has no independent mass. It is a visual proxy for unresolved debris and must never be interpreted as additional material on top of the authoritative mass budget.
 
@@ -84,7 +84,7 @@ Black-hole gravity remains Newtonian. Schwarzschild radius metadata is calculate
 
 ## Ship
 
-Main/reverse/RCS accelerations are declared experimental propulsion parameters. DAMP remains a fictional inertial damping aid and is marked as such. Celestial impact response in v0.1.2 does not yet provide detailed spacecraft structural crash mechanics.
+Main/reverse/RCS accelerations are declared experimental propulsion parameters. FLIGHT mode provides 20 m/s² main acceleration; CRUISE mode provides 120 m/s². The old fictional DAMP velocity deletion is removed. BRAKE, MATCH VELOCITY, and APPROACH instead generate bounded acceleration commands that are integrated by the spacecraft solver. APPROACH/MATCH may automatically change simulation time scale between 600×, 60×, and 1× for usability and braking resolution; this advances simulated time rather than multiplying spatial motion. Guidance completion or manual override returns time scale to 1×. Celestial impact response still does not provide detailed spacecraft structural crash mechanics.
 
 ## Future scientific upgrades
 

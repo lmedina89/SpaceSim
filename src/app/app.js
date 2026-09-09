@@ -9,6 +9,7 @@ import { VelocityVerletIntegrator } from '../physics/integrators/velocityVerlet.
 import { CollisionMonitor } from '../physics/collisionMonitor.js';
 import { TestParticleField } from '../physics/testParticleField.js';
 import { ShipDynamics } from '../physics/shipDynamics.js';
+import { computeApproachAcceleration, computeMatchVelocityAcceleration, computeAbsoluteBrakeAcceleration, recommendedWarpCap, targetRelativeState } from '../physics/flightComputer.js';
 import { formatEnergy } from '../physics/impactModel.js';
 import { resolveImpact } from '../physics/impactResolver.js';
 import { osculatingMetrics, angularAlignment } from '../physics/orbitalMetrics.js';
@@ -50,6 +51,11 @@ function serializeBody(body) {
     eccentricity: body.eccentricity,
     inclinationRad: body.inclinationRad,
     scientificWarning: body.scientificWarning,
+    isImpactFragment: body.isImpactFragment,
+    fragmentGenerationDepth: body.fragmentGenerationDepth,
+    fragmentFamilyId: body.fragmentFamilyId,
+    fragmentParentTargetId: body.fragmentParentTargetId,
+    collisionGraceUntil: body.collisionGraceUntil,
     position: [...body.position],
     velocity: [...body.velocity],
   };
@@ -109,6 +115,9 @@ export class UniverseLabApp {
     this._lookLast = [0, 0];
     this._viewportTap = null;
     this._rollDirection = 0;
+    this.navigationMode = 'manual';
+    this.navigationStatus = null;
+    this._lastWarpSafetyNotice = 0;
   }
 
   get bodies() { return this.registry.values(); }
@@ -124,10 +133,11 @@ export class UniverseLabApp {
     this.bindUi();
     this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
     this.renderer.renderer.setAnimationLoop((time) => this.frame(time));
-    this.hud.notify('v0.1.2 online. Impact, fragmentation, crater telemetry, and explosion FX foundation active.');
+    this.hud.notify('v0.1.2.1 online. Stable impact fragments + physical approach/braking flight computer active.');
   }
 
   newSystem(seed) {
+    this.cancelNavigation();
     this.system = generateSystem(seed);
     this.registry.clear();
     for (const body of this.system.bodies) this.registry.create(body);
@@ -301,11 +311,104 @@ export class UniverseLabApp {
     this.hud.setTarget(target, metrics, this.shipPrediction);
   }
 
+  engineAcceleration() {
+    return this.ship.currentMainAcceleration();
+  }
+
+  cancelNavigation(message = null) {
+    const wasAutomatic = this.navigationMode !== 'manual';
+    this.navigationMode = 'manual';
+    this.navigationStatus = null;
+    this.ship.clearNavigationAcceleration();
+    if (wasAutomatic) {
+      this.clock.setTimeScale(1);
+      const select = this.root.querySelector('#timeScale');
+      if (select) select.value = '1';
+    }
+    const button = this.root.querySelector('#approachButton');
+    if (button) button.textContent = 'APPROACH';
+    const matchButton = this.root.querySelector('#matchVelocity');
+    if (matchButton) matchButton.textContent = 'MATCH VELOCITY';
+    const warpButton = this.root.querySelector('#warpQuick');
+    if (warpButton) warpButton.textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`;
+    if (message) this.hud.notify(message);
+  }
+
+
+  finishNavigation(message) {
+    this.clock.setTimeScale(1);
+    const select = this.root.querySelector('#timeScale');
+    if (select) select.value = '1';
+    const warpButton = this.root.querySelector('#warpQuick');
+    if (warpButton) warpButton.textContent = 'WARP 1×';
+    this.cancelNavigation(message);
+  }
+
+  setNavigationMode(mode) {
+    if (mode !== 'manual' && !this.target) { this.hud.notify('Select a target first.'); return; }
+    if (mode === 'manual') { this.cancelNavigation(); return; }
+    this.ship.throttle = 0;
+    this.ship.reverseThrottle = 0;
+    this.ship.braking = false;
+    this.ship.clearNavigationAcceleration();
+    this.navigationMode = mode;
+    this.root.querySelector('#approachButton').textContent = mode === 'approach' ? 'APPROACH ON' : 'APPROACH';
+    this.root.querySelector('#matchVelocity').textContent = mode === 'match' ? 'MATCHING…' : 'MATCH VELOCITY';
+    if (mode === 'approach') this.hud.notify(`Approach computer engaged toward ${this.target.name}. Uses real thrust and braking; no teleportation.`);
+    if (mode === 'match') this.hud.notify(`Matching velocity with ${this.target.name} using bounded physical thrust.`);
+  }
+
+  updateNavigation(dt) {
+    this.ship.clearNavigationAcceleration();
+    const maxAccel = this.engineAcceleration();
+    if (this.ship.braking) {
+      const command = computeAbsoluteBrakeAcceleration(this.ship, maxAccel, dt);
+      this.ship.setNavigationAcceleration(command.acceleration);
+      this.navigationStatus = { mode: 'brake', phase: command.complete ? 'stopped' : 'braking', relativeSpeedMps: command.speedMps };
+      return;
+    }
+    const target = this.target;
+    if (!target || this.navigationMode === 'manual') { this.navigationStatus = null; return; }
+    if (this.navigationMode === 'match') {
+      const command = computeMatchVelocityAcceleration(this.ship, target, maxAccel, dt);
+      this.ship.setNavigationAcceleration(command.acceleration);
+      this.navigationStatus = { mode: 'match', phase: command.complete ? 'matched' : 'matching', ...command.state };
+      if (command.complete) this.finishNavigation('Target-relative velocity matched. Navigation returned to 1×.');
+      return;
+    }
+    const command = computeApproachAcceleration(this.ship, target, maxAccel, dt);
+    this.ship.setNavigationAcceleration(command.acceleration);
+    this.navigationStatus = { mode: 'approach', ...command, ...command.state };
+    if (command.phase === 'arrived') this.finishNavigation(`Approach complete near ${target.name}; relative velocity matched and navigation returned to 1×.`);
+  }
+
+  enforceNavigationWarpSafety() {
+    if (this.navigationMode === 'manual' || !this.target) return;
+    const state = targetRelativeState(this.ship, this.target);
+    const desiredWarp = recommendedWarpCap({ mode: this.navigationMode, targetState: state, targetRadius: this.target.radius });
+    if (!Number.isFinite(desiredWarp) || this.clock.timeScale === desiredWarp) return;
+    this.clock.setTimeScale(desiredWarp);
+    const select = this.root.querySelector('#timeScale');
+    if (![...select.options].some((option) => Number(option.value) === desiredWarp)) {
+      const option = document.createElement('option'); option.value = String(desiredWarp); option.textContent = `${desiredWarp.toLocaleString()}×`; select.appendChild(option);
+    }
+    select.value = String(desiredWarp);
+    this.root.querySelector('#warpQuick').textContent = `AUTO ${desiredWarp.toLocaleString()}×`;
+    const now = performance.now();
+    if (now - this._lastWarpSafetyNotice > 1500) {
+      this.hud.notify(`Navigation auto-warp ${desiredWarp.toLocaleString()}×. The flight computer will step it down as braking becomes sensitive.`);
+      this._lastWarpSafetyNotice = now;
+    }
+  }
+
   applyImpactResolution(event) {
     if (!this.registry.has(event.a.id) || !this.registry.has(event.b.id)) return;
     event.timeSeconds ??= this.clock.elapsedSimSeconds;
-    const maxGravityFragments = Math.max(0, SIMULATION.directGravityBodyLimit - this.massiveBodies.length + 1);
-    const resolution = resolveImpact(event, { maxGravityFragments });
+    const activeImpactFragments = this.massiveBodies.filter((body) => body.isImpactFragment).length;
+    const fragmentBudgetRemaining = Math.max(0, SIMULATION.impactResolvedFragmentLimit - activeImpactFragments);
+    const secondaryImpact = (event.a.fragmentGenerationDepth ?? 0) > 0 || (event.b.fragmentGenerationDepth ?? 0) > 0;
+    const maxGravityFragments = secondaryImpact ? 0 : Math.max(0, Math.min(SIMULATION.impactFragmentsPerEvent, fragmentBudgetRemaining, SIMULATION.directGravityBodyLimit - this.massiveBodies.length + 1));
+    const resolution = resolveImpact(event, { maxGravityFragments, fragmentGraceSeconds: SIMULATION.impactFragmentGraceSeconds });
     const { analysis, classification, crater } = resolution;
 
     for (const id of resolution.deleteIds) this.registry.delete(id);
@@ -341,10 +444,11 @@ export class UniverseLabApp {
     const sources = this.massiveBodies;
     const previousPositions = new Map(sources.map((body) => [body.id, new Float64Array(body.position)]));
     this.integrator.step(sources, dt);
+    this.updateNavigation(dt);
     this.ship.step(dt, sources);
     this.minorField?.step(dt, sources);
 
-    const collisions = this.collisionMonitor.scan(sources, previousPositions);
+    const collisions = this.collisionMonitor.scan(sources, previousPositions, this.clock.elapsedSimSeconds + dt);
     for (const event of collisions) {
       event.timeSeconds = this.clock.elapsedSimSeconds + dt * (event.stepFraction ?? 1);
       this.applyImpactResolution(event);
@@ -370,6 +474,7 @@ export class UniverseLabApp {
     const realDt = Math.min(SIMULATION.maxFrameDeltaSeconds, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
     const physicsStart = performance.now();
+    this.enforceNavigationWarpSafety();
     if (this.running) this.clock.advance(realDt, (dt) => this.physicsStep(dt));
     this.physicsMs = performance.now() - physicsStart;
     if (this._rollDirection) { this.ship.rotateRoll(this._rollDirection * realDt * 1.4); this.invalidatePredictions(); }
@@ -379,6 +484,7 @@ export class UniverseLabApp {
     this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField });
     this.renderMs = performance.now() - renderStart;
     this.updateTargetTelemetry();
+    this.hud.setNavigation(this.navigationStatus, this.target, this.ship.engineMode, this.ship.currentMainAcceleration());
 
     this.fpsFrames += 1;
     if (now - this.fpsClock >= 500) {
@@ -412,6 +518,7 @@ export class UniverseLabApp {
       targetId: this.targetId,
       shipPathEnabled: this.shipPathEnabled,
       trajectoryHorizon: this.predictionHorizonSeconds(),
+      navigationMode: this.navigationMode,
     };
   }
 
@@ -431,6 +538,10 @@ export class UniverseLabApp {
     this.minorField = new TestParticleField(payload.seed, star, payload.minorCount ?? SIMULATION.defaultMinorBodyCount);
     this.renderer.setMinorField(this.minorField);
     this.ship.restore(payload.ship);
+    const engineModeButton = this.root.querySelector('#engineModeButton');
+    if (engineModeButton) engineModeButton.textContent = this.ship.engineMode === 'cruise' ? 'ENGINE CRUISE' : 'ENGINE FLIGHT';
+    const thrustButton = this.root.querySelector('#thrustButton');
+    if (thrustButton) thrustButton.textContent = this.ship.engineMode === 'cruise' ? 'THRUST 120' : 'THRUST 20';
     this.clock.elapsedSimSeconds = safeNumber(payload.elapsedSimSeconds, 0);
     this.clock.setTimeScale(payload.timeScale ?? 60);
     const timeSelect = this.root.querySelector('#timeScale');
@@ -450,6 +561,8 @@ export class UniverseLabApp {
     const restoredHome = this.bodies.find((body) => body.kind === BODY_KIND.PLANET && body.landable) ?? this.registry.get(this.system.homeId) ?? this.bodies.find((body) => body.kind === BODY_KIND.PLANET);
     if (restoredHome) this.system.homeId = restoredHome.id;
     this.shipPathEnabled = payload.shipPathEnabled !== false;
+    this.navigationMode = 'manual';
+    this.ship.clearNavigationAcceleration();
     this.root.querySelector('#pathToggle').textContent = this.shipPathEnabled ? 'PATH ON' : 'PATH';
     this.hud.setSeed(payload.seed);
     this.selectTarget(payload.targetId && this.registry.has(payload.targetId) ? payload.targetId : this.system.homeId);
@@ -469,6 +582,14 @@ export class UniverseLabApp {
     $('#scannerToggle').addEventListener('click', () => this.hud.toggleScanner());
     $('#scannerClose').addEventListener('click', () => this.hud.toggleScanner(false));
     $('#targetButton').addEventListener('click', () => this.selectReticleTarget());
+    $('#approachButton').addEventListener('click', () => this.setNavigationMode(this.navigationMode === 'approach' ? 'manual' : 'approach'));
+    $('#matchVelocity').addEventListener('click', () => this.setNavigationMode(this.navigationMode === 'match' ? 'manual' : 'match'));
+    $('#engineModeButton').addEventListener('click', (event) => {
+      this.ship.engineMode = this.ship.engineMode === 'cruise' ? 'flight' : 'cruise';
+      event.currentTarget.textContent = this.ship.engineMode === 'cruise' ? 'ENGINE CRUISE' : 'ENGINE FLIGHT';
+      this.root.querySelector('#thrustButton').textContent = this.ship.engineMode === 'cruise' ? 'THRUST 120' : 'THRUST 20';
+      this.hud.notify(`${this.ship.engineMode === 'cruise' ? 'CRUISE' : 'FLIGHT'} propulsion selected: ${this.ship.currentMainAcceleration().toFixed(0)} m/s² maximum main acceleration.`);
+    });
     $('#nextTarget').addEventListener('click', () => this.cycleTarget());
     $('#aimTarget').addEventListener('click', () => this.aimAtTarget());
     $('#regenerate').addEventListener('click', () => this.newSystem($('#seedInput').value));
@@ -502,7 +623,7 @@ export class UniverseLabApp {
     });
     $('#saveButton').addEventListener('click', () => { this.hud.toggleMore(false); this.saveSystem.save(this.serialize()); this.hud.notify('Saved locally on this device.'); });
     $('#loadButton').addEventListener('click', () => { this.hud.toggleMore(false); this.loadSave(); });
-    $('#homeButton').addEventListener('click', () => { this.hud.toggleMore(false); this.placeShipNearHome(); this.selectTarget(this.system.homeId); this.hud.notify('Ship returned to the seeded orbital demonstration position with a prograde-biased pilot view.'); });
+    $('#homeButton').addEventListener('click', () => { this.hud.toggleMore(false); this.cancelNavigation(); this.placeShipNearHome(); this.selectTarget(this.system.homeId); this.hud.notify('Ship returned to the seeded orbital demonstration position with a prograde-biased pilot view.'); });
     $('#pathToggle').addEventListener('click', (event) => {
       this.shipPathEnabled = !this.shipPathEnabled;
       event.currentTarget.textContent = this.shipPathEnabled ? 'PATH ON' : 'PATH';
@@ -635,13 +756,13 @@ export class UniverseLabApp {
       window.addEventListener('blur', () => release(null, true));
       document.addEventListener('visibilitychange', () => { if (document.hidden) release(null, true); });
     };
-    bindHold($('#thrustButton'), () => { this.ship.throttle = 1; }, () => { this.ship.throttle = 0; });
-    bindHold($('#reverseButton'), () => { this.ship.reverseThrottle = 1; }, () => { this.ship.reverseThrottle = 0; });
-    bindHold($('#brakeButton'), () => { this.ship.braking = true; }, () => { this.ship.braking = false; });
-    bindHold($('#rcsLeft'), () => { this.ship.strafe = -1; }, () => { if (this.ship.strafe < 0) this.ship.strafe = 0; });
-    bindHold($('#rcsRight'), () => { this.ship.strafe = 1; }, () => { if (this.ship.strafe > 0) this.ship.strafe = 0; });
-    bindHold($('#rcsUp'), () => { this.ship.lift = 1; }, () => { if (this.ship.lift > 0) this.ship.lift = 0; });
-    bindHold($('#rcsDown'), () => { this.ship.lift = -1; }, () => { if (this.ship.lift < 0) this.ship.lift = 0; });
+    bindHold($('#thrustButton'), () => { this.cancelNavigation(); this.ship.throttle = 1; }, () => { this.ship.throttle = 0; });
+    bindHold($('#reverseButton'), () => { this.cancelNavigation(); this.ship.reverseThrottle = 1; }, () => { this.ship.reverseThrottle = 0; });
+    bindHold($('#brakeButton'), () => { this.cancelNavigation(); this.ship.braking = true; }, () => { this.ship.braking = false; this.ship.clearNavigationAcceleration(); });
+    bindHold($('#rcsLeft'), () => { this.cancelNavigation(); this.ship.strafe = -1; }, () => { if (this.ship.strafe < 0) this.ship.strafe = 0; });
+    bindHold($('#rcsRight'), () => { this.cancelNavigation(); this.ship.strafe = 1; }, () => { if (this.ship.strafe > 0) this.ship.strafe = 0; });
+    bindHold($('#rcsUp'), () => { this.cancelNavigation(); this.ship.lift = 1; }, () => { if (this.ship.lift > 0) this.ship.lift = 0; });
+    bindHold($('#rcsDown'), () => { this.cancelNavigation(); this.ship.lift = -1; }, () => { if (this.ship.lift < 0) this.ship.lift = 0; });
     bindHold($('#rollLeft'), () => { this._rollDirection = -1; }, () => { if (this._rollDirection < 0) this._rollDirection = 0; });
     bindHold($('#rollRight'), () => { this._rollDirection = 1; }, () => { if (this._rollDirection > 0) this._rollDirection = 0; });
     $('#rcsToggle').addEventListener('click', () => { this.hud.toggleMore(false); $('#rcsPanel').hidden = !$('#rcsPanel').hidden; });
@@ -659,9 +780,9 @@ export class UniverseLabApp {
 
     window.addEventListener('keydown', (event) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
-      if (event.code === 'KeyW') this.ship.throttle = 1;
-      if (event.code === 'KeyX') this.ship.reverseThrottle = 1;
-      if (event.code === 'KeyS') this.ship.braking = true;
+      if (event.code === 'KeyW') { this.cancelNavigation(); this.ship.throttle = 1; }
+      if (event.code === 'KeyX') { this.cancelNavigation(); this.ship.reverseThrottle = 1; }
+      if (event.code === 'KeyS') { this.cancelNavigation(); this.ship.braking = true; }
       if (event.code === 'KeyA') this.ship.strafe = -1;
       if (event.code === 'KeyD') this.ship.strafe = 1;
       if (event.code === 'KeyR') this.ship.lift = 1;

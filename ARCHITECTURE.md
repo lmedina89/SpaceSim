@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.2
+# Architecture — Universe Lab v0.1.2.1
 
 ## Core rule
 
@@ -14,6 +14,8 @@ Universe seed / data
 Entity registry
         ↓
 Simulation clock + scheduler
+        ↓
+Flight computer (bounded propulsion commands)
         ↓
 Direct Newtonian gravity
         ↓
@@ -66,7 +68,7 @@ This separation is deliberate so later hydrocode-derived/cratering/fragmentation
 
 ## Gravity budget
 
-Direct mutual gravity remains capped at 128 sources. Fragment generation is budget-aware and will not intentionally exceed the current direct-source ceiling. High-count ejecta therefore remains visual/unresolved until a faster gravity backend exists.
+Direct mutual gravity remains capped at 128 sources. Impact fragments have a stricter sub-budget: at most 2 resolved fragments from a primary event and at most 16 active impact-fragment gravity sources globally. Secondary resolved-fragment impacts create no new gravity fragments, and same-family representative fragments are collision-filtered to prevent artificial recursive breakup cascades. High-count ejecta remains visual/unresolved until a faster gravity backend exists.
 
 ## Collision continuity
 
@@ -74,9 +76,22 @@ The major-body integrator can take large simulated-time substeps under time warp
 
 This is efficient at the current small direct-source count and preserves the future option to move to broad-phase spatial indexing/continuous solvers when source counts rise.
 
+
+## Scientific flight computer
+
+`flightComputer.js` is pure navigation math. It computes bounded acceleration commands; it does not directly mutate positions or velocities. `ShipDynamics` integrates those accelerations through the same velocity-Verlet spacecraft step used by manual thrust.
+
+- BRAKE commands acceleration opposite inertial velocity.
+- MATCH commands acceleration against target-relative velocity.
+- APPROACH sets a target-relative desired-velocity envelope approximately proportional to `sqrt(2 a s)` so available stopping distance falls as the ship nears the target.
+- Guidance acceleration is capped by the currently selected declared engine mode (20 m/s² FLIGHT or 120 m/s² CRUISE).
+- Navigation auto-warp changes simulation time scale only and chooses 600× / 60× / 1× based on proximity/closing conditions. Guidance completion/manual takeover returns the clock to 1×.
+
+The propulsion itself is an experimental/fictitious technology parameter; the acceleration, delta-v, travel, and braking are numerically integrated rather than teleported.
+
 ## Persistence
 
-Save schema remains 1. Body snapshots now also preserve `damageRecords` and `visualVersion`. This is additive and JSON-compatible with the existing envelope.
+Save schema remains 1. Body snapshots preserve `damageRecords`, `visualVersion`, impact-fragment family/depth/grace metadata, and spacecraft engine mode. This is additive and JSON-compatible with the existing envelope. Navigation autopilot mode is deliberately restored as MANUAL on load so a stale save cannot unexpectedly fire guidance thrust.
 
 Procedural untouched bodies are still seed-derived; the current save continues to snapshot major-body state because experiments can substantially alter the system.
 

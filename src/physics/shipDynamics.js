@@ -13,6 +13,8 @@ export class ShipDynamics {
     this.strafe = 0;
     this.lift = 0;
     this.braking = false;
+    this.engineMode = 'flight';
+    this.navigationAcceleration = new Float64Array(3);
     this.mass = SIMULATION.shipDryMassKg;
     this._forward = new Float64Array(3);
     this._right = new Float64Array(3);
@@ -88,6 +90,24 @@ export class ShipDynamics {
     if (this.roll < -Math.PI) this.roll += Math.PI * 2;
   }
 
+  currentMainAcceleration() {
+    return this.engineMode === 'cruise' ? SIMULATION.shipCruiseAcceleration : SIMULATION.shipThrustAcceleration;
+  }
+
+  currentReverseAcceleration() {
+    return this.engineMode === 'cruise' ? SIMULATION.shipCruiseReverseAcceleration : SIMULATION.shipReverseAcceleration;
+  }
+
+  setNavigationAcceleration(value) {
+    this.navigationAcceleration[0] = Number(value?.[0]) || 0;
+    this.navigationAcceleration[1] = Number(value?.[1]) || 0;
+    this.navigationAcceleration[2] = Number(value?.[2]) || 0;
+  }
+
+  clearNavigationAcceleration() {
+    this.navigationAcceleration.fill(0);
+  }
+
   accelerationAt(position, gravitySources, out) {
     let ax = 0, ay = 0, az = 0;
     for (let i = 0; i < gravitySources.length; i += 1) {
@@ -102,14 +122,17 @@ export class ShipDynamics {
     }
 
     const { forward, right, up } = this.basis();
-    const forwardAccel = SIMULATION.shipThrustAcceleration * Math.min(1, Math.max(0, this.throttle));
-    const reverseAccel = SIMULATION.shipReverseAcceleration * Math.min(1, Math.max(0, this.reverseThrottle));
+    const forwardAccel = this.currentMainAcceleration() * Math.min(1, Math.max(0, this.throttle));
+    const reverseAccel = this.currentReverseAcceleration() * Math.min(1, Math.max(0, this.reverseThrottle));
     const strafeAccel = SIMULATION.shipRcsAcceleration * Math.max(-1, Math.min(1, this.strafe));
     const liftAccel = SIMULATION.shipRcsAcceleration * Math.max(-1, Math.min(1, this.lift));
     const longitudinal = forwardAccel - reverseAccel;
     ax += forward[0] * longitudinal + right[0] * strafeAccel + up[0] * liftAccel;
     ay += forward[1] * longitudinal + right[1] * strafeAccel + up[1] * liftAccel;
     az += forward[2] * longitudinal + right[2] * strafeAccel + up[2] * liftAccel;
+    ax += this.navigationAcceleration[0];
+    ay += this.navigationAcceleration[1];
+    az += this.navigationAcceleration[2];
 
     out[0] = ax; out[1] = ay; out[2] = az;
     return out;
@@ -128,13 +151,6 @@ export class ShipDynamics {
     this.velocity[1] += (this._a0[1] + this._a1[1]) * halfDt;
     this.velocity[2] += (this._a0[2] + this._a1[2]) * halfDt;
 
-    if (this.braking) {
-      // Experimental inertial damping. Deliberately non-physical and labeled as a navigation aid.
-      const damping = Math.exp(-0.65 * dt);
-      this.velocity[0] *= damping;
-      this.velocity[1] *= damping;
-      this.velocity[2] *= damping;
-    }
   }
 
   serialize() {
@@ -144,6 +160,7 @@ export class ShipDynamics {
       yaw: this.yaw,
       pitch: this.pitch,
       roll: this.roll,
+      engineMode: this.engineMode,
     };
   }
 
@@ -154,6 +171,9 @@ export class ShipDynamics {
     this.yaw = Number(data.yaw) || 0;
     this.pitch = Number(data.pitch) || 0;
     this.roll = Number(data.roll) || 0;
+    this.engineMode = data.engineMode === 'cruise' ? 'cruise' : 'flight';
+    this.clearNavigationAcceleration();
+    this.braking = false;
     return true;
   }
 }

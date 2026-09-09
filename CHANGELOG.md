@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.2.1 — Impact Stability & Scientific Flight Navigation Polish — 2026-09-08
+
+- Replaced fictional DAMP velocity deletion with bounded physical BRAKE acceleration opposite inertial velocity.
+- Added FLIGHT (20 m/s²) and CRUISE (120 m/s²) declared experimental propulsion modes.
+- Added target-relative APPROACH and MATCH VELOCITY guidance using bounded acceleration commands.
+- Added braking-safe approach velocity envelope and stopping-distance telemetry.
+- Added navigation auto-warp (600× / 60× / 1×) that automatically steps simulation-time compression down near the target.
+- Added navigation HUD with phase, remaining distance, closing speed, and braking distance.
+- Reduced primary resolved impact fragments from up to six to at most two.
+- Reduced resolved fragment mass share for planet/moon impacts to at most ~8% of impactor mass.
+- Added 16-body active resolved-impact-fragment sub-budget below the 128 direct-gravity ceiling.
+- Secondary resolved-fragment impacts produce no additional resolved gravity fragments.
+- Same breakup-family fragments are collision-filtered; new fragments also receive collision grace.
+- Reduced resolved-fragment minimum render size substantially.
+- Bounded simultaneous impact FX and reduced additive flash stacking.
+- Save schema remains 1; Three.js remains 0.185.0; no GitHub workflow files.
+
 ## v0.1.2 — Impact, Fragmentation & Explosion Foundation — 2026-09-08
 
 - Added swept finite-radius major-body contact detection to reduce high-speed tunneling.

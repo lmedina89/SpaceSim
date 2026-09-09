@@ -249,13 +249,18 @@ export class UniverseRenderer {
   }
 
   addImpactEffect({ position, normal = [0, 1, 0], energyJ = 1e12, color = 0xffb05f }) {
+    while (this.impactEffects.length >= 6) {
+      const old = this.impactEffects.shift();
+      this.impactEffectGroup.remove(old.group);
+      old.points.geometry.dispose(); old.points.material.dispose(); old.ring.geometry.dispose(); old.ring.material.dispose(); old.flash.material.dispose();
+    }
     const group = new THREE.Group();
-    const scaleBase = Math.max(0.24, Math.min(7.5, Math.log10(energyJ + 10) * 0.2));
+    const scaleBase = Math.max(0.24, Math.min(5.2, Math.log10(energyJ + 10) * 0.16));
     const flash = new THREE.Sprite(new THREE.SpriteMaterial({
       map: glowTexture(),
       color,
       transparent: true,
-      opacity: 0.95,
+      opacity: 0.72,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     }));
@@ -270,7 +275,7 @@ export class UniverseRenderer {
     ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(n[0], n[1], n[2]));
     group.add(ring);
 
-    const pointCount = 120;
+    const pointCount = 96;
     const positions = new Float32Array(pointCount * 3);
     const velocities = new Float32Array(pointCount * 3);
     const geometry = new THREE.BufferGeometry();
@@ -338,8 +343,8 @@ export class UniverseRenderer {
         continue;
       }
       const opacity = 1 - t;
-      fx.flash.material.opacity = 0.95 * opacity;
-      const flashScale = fx.flashBase * (1 + t * 5.5);
+      fx.flash.material.opacity = 0.72 * opacity;
+      const flashScale = fx.flashBase * (1 + t * 3.8);
       fx.flash.scale.set(flashScale, flashScale, 1);
       fx.ring.material.opacity = 0.72 * opacity;
       fx.ring.scale.setScalar(1 + t * 9);

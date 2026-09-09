@@ -52,6 +52,7 @@ export class Hud {
     this.more = root.querySelector('#morePanel');
     this._messageTimer = null;
     this.targetChip = root.querySelector('#targetChip');
+    this.navChip = root.querySelector('#navChip');
     this.targetName = root.querySelector('#targetName');
     this.targetKind = root.querySelector('#targetKind');
     this.targetDistance = root.querySelector('#targetDistance');
@@ -114,6 +115,29 @@ export class Hud {
     } else {
       this.predictedApproach.textContent = 'Prediction not active.';
     }
+  }
+
+
+  setNavigation(status, target, engineMode, accelerationMps2) {
+    if (!status || !this.navChip) {
+      if (this.navChip) this.navChip.hidden = true;
+      return;
+    }
+    this.navChip.hidden = false;
+    const engine = engineMode === 'cruise' ? 'CRUISE' : 'FLIGHT';
+    if (status.mode === 'brake') {
+      this.navChip.textContent = `BRAKE · ${engine} ${fmt(accelerationMps2, 0)} m/s² · speed ${speed(status.relativeSpeedMps)}`;
+      return;
+    }
+    if (!target) { this.navChip.hidden = true; return; }
+    if (status.mode === 'match') {
+      this.navChip.textContent = `MATCH ${target.name} · Δv ${speed(status.relativeSpeedMps)} · ${engine} ${fmt(accelerationMps2, 0)} m/s²`;
+      return;
+    }
+    const remaining = Number.isFinite(status.remainingMeters) ? distance(Math.max(0, status.remainingMeters)) : '—';
+    const closing = Number.isFinite(status.closingSpeedMps) ? speed(status.closingSpeedMps) : '—';
+    const stop = Number.isFinite(status.stoppingDistanceMeters) ? distance(status.stoppingDistanceMeters) : '—';
+    this.navChip.textContent = `${String(status.phase || 'approach').toUpperCase()} ${target.name} · remaining ${remaining} · closing ${closing} · brake ${stop}`;
   }
 
   setImpactResolution(resolution) {
