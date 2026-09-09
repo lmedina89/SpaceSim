@@ -1,4 +1,14 @@
-# Architecture — Universe Lab v0.1.4.5.4
+# Architecture — Universe Lab v0.1.4.6
+
+## Canonical astronomical observer
+
+`core/astronomicalObserver.js` is a read-only derivation layer over authoritative `EntityRegistry` and `ShipDynamics` state. It provides inertial observer position, forward/right/up, surface parent and anchor, altitude, local up/east/north, canonical simulation time and stable per-body records containing direction, range, physical angular radius and horizon visibility. It never advances or mutates physics and is reconstructed after schema-1 load.
+
+`core/inertialStarCatalog.js` owns one deterministic typed-array catalog per system seed. `render/starfield.js` creates projected views from that catalog. Space keeps inertial orientation and follows only camera translation; surface projection is cached at entry against the canonical local horizon basis and filters the lower hemisphere.
+
+`render/surfaceWorld.js` consumes the same observer/body solution as the ship renderer. Live body sprites use local directions, the directional light follows the live star, and physical angular diameter is retained separately from bounded visual proxy diameter. Atmospheric daylight and local weather affect opacity/exposure, not catalog existence.
+
+The time boundary is unchanged: orbital N-body time is fixed while landed and the bounded local weather clock remains separate. Surface sky therefore represents the same frozen simulation instant through descent, landing and ascent; body rotation/ephemeris evolution is future explicit time-model work.
 
 ## Renderer backend policy (v0.1.4.5.4)
 

@@ -7,16 +7,16 @@ const required = [
   'src/physics/trajectoryPredictor.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
   'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/anomalyGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
-  'src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/surfaceWorld.js','src/surface/surfaceGenerator.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
+  'src/core/astronomicalObserver.js','src/core/inertialStarCatalog.js','src/render/starfield.js','src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/surfaceWorld.js','src/surface/surfaceGenerator.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
 ];
 for (const file of required) await access(new URL(`../${file}`, import.meta.url), constants.R_OK);
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.5.4')) throw new Error('Shell version is not v0.1.4.5.4.');
-if (!html.includes('RENDER-1454')) throw new Error('RENDER-1454 build marker missing.');
-if (pkg.version !== '0.1.4.5.4') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.4.6')) throw new Error('Shell version is not v0.1.4.6.');
+if (!html.includes('SKYOBS-146')) throw new Error('SKYOBS-146 build marker missing.');
+if (pkg.version !== '0.1.4.6') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Secondary mobile control drawer missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -83,7 +83,7 @@ for (const token of ['enterObservation','currentCameraView','rendezvousExperimen
 const backendPolicy = await readFile(new URL('../src/render/backendPolicy.js', import.meta.url), 'utf8');
 for (const token of ['isAppleMobileWebKit','rendererBackendPolicy','MacIntel','maxTouchPoints','ios-webkit-presentation-isolation']) if (!backendPolicy.includes(token)) throw new Error(`Renderer backend policy token missing: ${token}`);
 const renderer = await readFile(new URL('../src/render/threeRenderer.js', import.meta.url), 'utf8');
-for (const token of ['experimentVisuals','syncParticleExperiments','cosmicVisuals','syncCosmicPhenomena','PointsMaterial','particleExperiments = []','cosmicPhenomena = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(ship.position)']) if (!renderer.includes(token)) throw new Error(`Renderer integration token missing: ${token}`);
+for (const token of ['experimentVisuals','syncParticleExperiments','cosmicVisuals','syncCosmicPhenomena','PointsMaterial','particleExperiments = []','cosmicPhenomena = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(observer?.inertialPosition ?? ship.position)','centerStarfieldOnCamera']) if (!renderer.includes(token)) throw new Error(`Renderer integration token missing: ${token}`);
 if (!renderer.includes('forceWebGL: this.backendPolicy.forceWebGL')) throw new Error('Boot-time WebGL2 force policy is not wired into WebGPURenderer.');
 if (!renderer.includes("return 'WebGL2 iOS'")) throw new Error('Forced iOS WebGL2 backend HUD label missing.');
 for (const token of ['updateStellarPerception','toneMappingExposure','updateCameraClipPlane','galacticBandFactor']) if (!renderer.includes(token)) throw new Error(`Stellar renderer integration token missing: ${token}`);
@@ -104,7 +104,8 @@ if (!renderer.includes('spaceWeatherVisuals') || !renderer.includes('scientificO
 if (!css.includes('.cockpit-overlay') || !css.includes('.ship-cockpit-enabled')) throw new Error('Cockpit overlay CSS missing.');
 if (!app.includes('toggleCockpit') || !app.includes('updateCockpitUi') || !app.includes('syncViewClasses') || !app.includes('cockpitEnabled')) throw new Error('Cockpit view app integration missing.');
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'RENDER-1454') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'SKYOBS-146') throw new Error('VERSION.json build marker mismatch.');
+if (!String(versionJson.astronomicalObserver || '').includes('read-only canonical observer')) throw new Error('VERSION.json astronomical observer capability missing.');
 if (!String(versionJson.cockpitView || '').includes('default-on')) throw new Error('VERSION.json cockpit capability missing.');
 
 const surfaceWeather = await readFile(new URL('../src/surface/surfaceWeather.js', import.meta.url), 'utf8');

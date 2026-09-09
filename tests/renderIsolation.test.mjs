@@ -8,7 +8,7 @@ test('normal SHIP VIEW has an isolated render path and observation is opt-in onl
   assert.match(renderer, /renderObservationView\(/);
   assert.match(renderer, /const observing = Boolean\(cameraView && cameraView\.mode === 'observe' && cameraView\.center\)/);
   assert.match(renderer, /if \(!observing\) \{\s*this\.renderShipView/);
-  assert.match(renderer, /referenceFrame\.centerOn\(ship\.position\)/);
+  assert.match(renderer, /referenceFrame\.centerOn\(observer\?\.inertialPosition \?\? ship\.position\)/);
 });
 
 test('runtime frame failures are surfaced in the HUD instead of silently freezing', async () => {

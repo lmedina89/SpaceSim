@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.4.6 — Astronomical Observer & Sky Continuity Foundation
+
+- Added a canonical read-only observer solution for ship, descent and surface modes with inertial position, orientation, local horizon basis, parent/anchor/altitude and canonical simulation time.
+- Major-body observations now derive direction and range from authoritative live positions and compute physical apparent angular radius separately from visual proxy size.
+- Replaced mode-local star generation with one stable deterministic inertial typed-array catalog reused by space and surface renderers.
+- Surface sky now projects that catalog into the landing horizon basis once, occludes the lower hemisphere, follows player look/heading and consumes live Sun/body directions.
+- Added atmospheric daylight and weather visibility/exposure hooks without deleting stars or body records.
+- Preserved the intentional fixed orbital instant while landed and the separate bounded surface-weather clock; no hidden ephemeris evolution was introduced.
+- Confirmed two separated magnetars mutually accelerate under the existing Newtonian solver; fixed repeated LAB magnetar overlap with deterministic collision-safe golden-angle offsets.
+- Preserved save schema 1, Three.js 0.185.0, velocity-Verlet, ShipDynamics ownership, fictional TRANSIT isolation, landing/ascent hardening and the forced iOS WebGL2 backend policy.
+- Automated QA: 143/143 tests passing plus static/syntax/import checks. Physical iPhone Safari remains the release gate.
+
 ## v0.1.4.5.4 — WebKit Renderer Handoff Reliability Hotfix
 
 - Built directly from the exact v0.1.4.5.3 release after physical iPhone testing proved the CPU/app handoff invariants all reached `ORBIT VERIFIED` while the visible canvas still presented the local surface image.

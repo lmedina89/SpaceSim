@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
-import { createStarfield } from './starfield.js';
+import { createStarfieldView } from './starfield.js';
+import { createInertialStarCatalog } from '../core/inertialStarCatalog.js';
 import { createCelestialVisual, updateCelestialVisual, applyStellarPerceptualProfile } from './celestialFactory.js';
 import { createCosmicPhenomenonVisual, updateCosmicPhenomenonVisual } from './cosmicPhenomena.js';
 import { syncSpaceWeatherVisuals } from './spaceWeatherVisuals.js';
@@ -90,6 +91,7 @@ export class UniverseRenderer {
     this.minorPoints = null;
     this.minorGeometry = null;
     this.systemSeed = null;
+    this.starCatalog = null;
     this.sunLight = new THREE.PointLight(0xffffff, 5.5, 0, 0);
     this.scene.add(this.sunLight);
     this.scene.add(new THREE.AmbientLight(0x263149, 0.055));
@@ -181,7 +183,8 @@ export class UniverseRenderer {
     this.spaceWeatherVisuals.clear();
     if (this.scientificOverlayHolder.group) { this.scene.remove(this.scientificOverlayHolder.group); disposeObject(this.scientificOverlayHolder.group); this.scientificOverlayHolder.group = null; }
     this._nextOverlayUpdateAt = 0;
-    const stars = createStarfield(seed);
+    this.starCatalog = createInertialStarCatalog(seed);
+    const stars = createStarfieldView(this.starCatalog);
     stars.name = 'visual-starfield';
     this.scene.add(stars);
     this.systemSeed = seed;
@@ -534,7 +537,7 @@ export class UniverseRenderer {
 
   enterSurface(region, body, star) {
     this.exitSurface();
-    this.surfaceWorld = new SurfaceWorldVisual(region, body, star);
+    this.surfaceWorld = new SurfaceWorldVisual(region, body, star, this.starCatalog);
     const rect = this.container.getBoundingClientRect();
     this.surfaceWorld.resize(Math.max(2, Math.floor(rect.width)), Math.max(2, Math.floor(rect.height)));
   }
@@ -552,11 +555,11 @@ export class UniverseRenderer {
     }
   }
 
-  renderSurface({ session, transition = null, realTimeSeconds = 0 }) {
+  renderSurface({ session, transition = null, realTimeSeconds = 0, astronomy = null }) {
     if (!this.surfaceWorld || !session?.active) return false;
     this._motionLines.visible = false;
     this.targetMarker.visible = false;
-    this.surfaceWorld.render(this.renderer, session, realTimeSeconds, transition);
+    this.surfaceWorld.render(this.renderer, session, realTimeSeconds, transition, astronomy);
     return true;
   }
 
@@ -673,10 +676,16 @@ export class UniverseRenderer {
     });
   }
 
-  renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0 }) {
+  centerStarfieldOnCamera() {
+    const backdrop = this.scene.getObjectByName('visual-starfield');
+    if (backdrop) backdrop.position.copy(this.camera.position);
+  }
+
+  renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0, astronomy = null }) {
     // Keep the normal flight path deliberately identical to the physically tested v0.1.3.1 path.
     // Observation support must never alter this code path when cameraMode === 'ship'.
-    referenceFrame.centerOn(ship.position);
+    const observer = astronomy?.observer;
+    referenceFrame.centerOn(observer?.inertialPosition ?? ship.position);
     this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, ship, elapsedSimSeconds });
     this._motionLines.visible = true;
     this.updateMotionCue(ship);
@@ -685,9 +694,10 @@ export class UniverseRenderer {
     const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.14;
     if (Math.abs(nextFov - this.camera.fov) > 0.005) { this.camera.fov = nextFov; this.camera.updateProjectionMatrix(); }
     this.camera.position.set(0, 0, 0);
-    const basis = ship.basis();
+    const basis = observer ?? ship.basis();
     this.camera.up.set(basis.up[0], basis.up[1], basis.up[2]);
     this.camera.lookAt(basis.forward[0] * 100, basis.forward[1] * 100, basis.forward[2] * 100);
+    this.centerStarfieldOnCamera();
     this.updateCameraClipPlane();
     this.updateStellarPerception();
     this.renderer.render(this.scene, this.camera);
@@ -712,15 +722,16 @@ export class UniverseRenderer {
     this.camera.position.set(pose.position[0], pose.position[1], pose.position[2]);
     this.camera.up.set(pose.up[0], pose.up[1], pose.up[2]);
     this.camera.lookAt(pose.lookAt[0], pose.lookAt[1], pose.lookAt[2]);
+    this.centerStarfieldOnCamera();
     this.updateCameraClipPlane();
     this.updateStellarPerception();
     this.renderer.render(this.scene, this.camera);
   }
 
-  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0, cameraView = null }) {
+  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0, cameraView = null, astronomy = null }) {
     const observing = Boolean(cameraView && cameraView.mode === 'observe' && cameraView.center);
     if (!observing) {
-      this.renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, elapsedSimSeconds });
+      this.renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, elapsedSimSeconds, astronomy });
       return;
     }
     this.renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, elapsedSimSeconds, cameraView });

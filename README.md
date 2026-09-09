@@ -1,13 +1,23 @@
-# Universe Lab v0.1.4.5.4 — WebKit Renderer Handoff Reliability Hotfix
+# Universe Lab v0.1.4.6 — Astronomical Observer & Sky Continuity Foundation
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `RENDER-1454`  
+**Build marker:** `SKYOBS-146`  
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)  
 **Three.js:** 0.185.0 (unchanged)  
 **Deployment:** GitHub Pages → `main` → `/(root)`  
 **Release gate:** physical iPhone Safari
 
+
+## v0.1.4.6 astronomical observer and sky continuity
+
+The sky is now derived from one read-only canonical observer solution in ship, descent and surface modes. Major bodies use authoritative live inertial positions relative to that observer; the solution also exposes range, physical apparent angular radius, local up/horizon, orientation and above/below-horizon state.
+
+Space and surface views reuse one deterministic inertial star catalog. Landing does not reseed it. Surface projection is built once for the landing basis, hides the lower hemisphere, follows local heading through the camera, and attenuates visibility through daylight/weather hooks without deleting stars from the model. Orbital N-body time remains intentionally held while landed, so this release guarantees fixed-time continuity rather than inventing a second ephemeris clock.
+
+Repeated LAB magnetars now receive deterministic collision-safe placement offsets. Their masses already participated in mutual Newtonian gravity; magnetic lobes remain visual only and no MHD force was added.
+
+The accepted iPhone/iPad policy is preserved: Three.js WebGPURenderer uses its forced WebGL2 backend on Apple mobile WebKit. Physical iPhone Safari remains the release gate.
 
 ## v0.1.4.5.4 renderer-handoff isolation
 

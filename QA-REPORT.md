@@ -1,51 +1,55 @@
-# Universe Lab v0.1.4.5.4 — WebKit Renderer Handoff Reliability Hotfix QA Report
+# Universe Lab v0.1.4.6 — Astronomical Observer & Sky Continuity Foundation QA Report
 
 ## Release identity
 
-- Version: **0.1.4.5.4**
-- Build marker: **RENDER-1454**
-- Base: exact v0.1.4.5.3 archive (`a14c8749747fd076fb7ed553855203be0fc7f80dc9423a9c42554bbacc03ada1`)
-- Save schema: **1** unchanged
-- Three.js: **0.185.0** pinned
-- Deployment: GitHub Pages branch root
-- Physical release gate: **iPhone/iPad WebKit**
+- Version: **0.1.4.6**
+- Build marker: **SKYOBS-146**
+- Baseline archive SHA-256: `eb4b2a66d9d323718e36525cf8dd2701495425fd41f1bbbb45ecc9f38f5132d0`
+- Baseline identity: **v0.1.4.5.4 / RENDER-1454**
+- Save schema: **1**, unchanged
+- Three.js: **0.185.0**, pinned
+- Deployment: GitHub Pages branch root; no workflows
+- Physical release gate: **iPhone/iPad Safari/WebKit**
 
-## Physically reported failure being isolated
+## Baseline verification
 
-v0.1.4.5.3 reached the temporary diagnostic state `ORBIT VERIFIED · surface=OFF · render=SPACE · run=YES · input=YES`, yet the visible canvas still showed the brown local planetary surface. That result narrows the failure away from the CPU landing lifecycle and toward renderer/backend presentation on the physical iPhone path.
+The uploaded archive name had a harmless `(1)` suffix. Its content hash exactly matched the required authoritative baseline. Root layout, VERSION.json, package.json, schema, Three.js import pin, renderer policy and absence of `.github/workflows/*` were verified before editing. Baseline automated QA passed **123/123**.
 
-This release intentionally keeps the v0.1.4.5.3 ascent logic unchanged and changes one meaningful runtime variable: the renderer backend chosen at boot on Apple mobile WebKit.
+## Implemented and verified
 
-## v0.1.4.5.4 corrective/isolation scope
-
-1. Added `src/render/backendPolicy.js` with deterministic Apple-mobile detection.
-2. iPhone/iPod user agents force `THREE.WebGPURenderer({ forceWebGL: true })`.
-3. iPadOS desktop-class UA mode is also detected through `platform === "MacIntel"` plus multi-touch capability.
-4. Desktop Mac, Android and other platforms retain automatic Three.js WebGPU/WebGL2 selection.
-5. Backend selection occurs only at renderer construction; there is no live GPU-backend hot swap.
-6. Top telemetry reports **WebGL2 iOS** when the forced physical-test path is active.
-7. Existing landing/ascent state machine, prograde return, input reset, 1× running restore and three-frame orbital verification remain unchanged.
-8. No astronomy, real-sky, cockpit redesign, physics, propulsion, surface generation, save-schema or Three.js-version changes.
+- Canonical ship/descent/surface observer position and orthonormal orientation/local horizon bases.
+- Read-only live-body direction/range/horizon records with physical apparent angular radius.
+- Stable deterministic inertial catalog reused without landing reseed.
+- Fixed-time descent → surface and surface → orbit direction continuity.
+- Surface lower-hemisphere occlusion, live Sun direction and bounded major-body visual proxies.
+- Daylight/weather exposure hooks preserve model/catalog existence.
+- Schema-1 save/load reconstructs observer state without duplicate persisted data.
+- NaN/Infinity guards and renderer isolation from authoritative physics.
+- Existing iOS forced WebGL2 backend policy and ascent regressions remain covered.
+- Two separated 1.55-solar-mass magnetars receive equal/opposite Newtonian acceleration.
+- Repeated LAB magnetars use deterministic 120,000 km collision-safe placement offsets; no magnetic force was introduced.
 
 ## Automated verification
 
 - `npm run check`: **PASS**
-- Static structure check: **PASS**
-- JS/MJS `node --check`: **PASS**
-- `npm test`: **123/123 PASS**
-- Backend policy unit coverage: iPhone UA, iPad desktop UA, desktop Mac, non-Apple mobile.
-- Static verification confirms `forceWebGL: this.backendPolicy.forceWebGL` is wired into the existing `WebGPURenderer` construction and that the forced backend HUD label exists.
+- Static structure/import-token checks: **PASS**
+- Every JS/MJS file via `node --check`: **PASS**
+- `npm test`: **143/143 PASS**
+- Save schema: **1**
+- Three.js import map: **0.185.0**
+- iPhone/iPad renderer policy: **WebGPURenderer forced to WebGL2**
+- GitHub-root layout: **PASS**
+- `.github/workflows/*`: **absent**
 
-## Physical acceptance sequence
+## Performance review
 
-Automated QA cannot prove that WebKit presents a fresh GPU frame after the surface → space scene switch. On the physical iPhone test:
+The inertial catalog uses stable typed arrays and is generated once per system seed. Surface horizon projection is created once per surface-world entry, not rebuilt each frame. Per-frame work is limited to the small major-body list, cached sprites and opacity/transform updates; observer records are reused. No renderer backend hot-swap or hidden landed N-body simulation was added.
 
-1. fresh load and confirm the top renderer HUD reads **WebGL2 iOS**;
-2. LAND / DESCEND → board → TAKEOFF;
-3. green diagnostic should reach **ORBIT VERIFIED · surface=OFF · render=SPACE · run=YES · input=YES**;
-4. the visible canvas must now show the actual orbital space scene rather than retaining local surface terrain;
-5. immediately verify LOOK, THRUST, REV and BRAKE responsiveness;
-6. LAND again without refresh → TAKEOFF again;
-7. if the canvas still retains the surface frame under **WebGL2 iOS**, the next investigation target is shared-renderer resource teardown/presentation timing rather than backend selection.
+## Known boundary
 
-Do not call the takeoff bug physically fixed until this passes on-device.
+Orbital N-body time remains intentionally held while landed. The surface sky therefore preserves the same astronomical instant across the transition but does not yet advance with a body rotation/ephemeris model. Surface weather retains its independent bounded clock.
+
+## Physical iPhone release gate
+
+Automated testing cannot prove WebKit framebuffer presentation, visual continuity, touch behavior, sustained FPS or thermal behavior. Follow the on-device sequence in `MOBILE-GITHUB-PAGES.md`: verify **WebGL2 iOS**, compare a recognizable sky/body arrangement through orbit → descent → surface → ascent → orbit, rotate the surface view, repeat a landing cycle and repeat after schema-1 SAVE/LOAD. Do not declare physical acceptance until that test passes.
+

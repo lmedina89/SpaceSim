@@ -1,5 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { createRng } from '../util/prng.js';
+import { createStarfieldView } from './starfield.js';
+import { surfaceSkyExposure } from '../core/astronomicalObserver.js';
 import { surfaceColorAt, surfaceHeightAt, surfaceZoneWeights, surfacePois } from '../surface/surfaceGenerator.js';
 import { surfaceEyePosition } from '../surface/surfaceSession.js';
 import { surfaceWeatherReading } from '../surface/surfaceWeather.js';
@@ -530,10 +532,13 @@ function createWeatherRig(region, rng) {
 }
 
 export class SurfaceWorldVisual {
-  constructor(region, body, star) {
+  constructor(region, body, star, starCatalog = null) {
     this.region = region;
     this.body = body;
     this.star = star;
+    this.starCatalog = starCatalog;
+    this.astronomicalSky = null;
+    this.astronomicalBodies = new Map();
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(region.palette.skyTop);
     this._baseFogDensity = 0.00115 / Math.max(0.3, region.atmosphereAtmProxy);
@@ -549,9 +554,7 @@ export class SurfaceWorldVisual {
 
     const hemi = new THREE.HemisphereLight(region.palette.skyHorizon, 0x17120f, 1.55); this.scene.add(hemi);
     const sunColor = new THREE.Color(star?.color ?? 0xffe1b0);
-    this.sun = new THREE.DirectionalLight(sunColor, 3.2); this.sun.position.set(-900, 1250, -520); this.scene.add(this.sun);
-    const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeGlowTexture(cssHex(star?.color ?? 0xffe2b0)), color: star?.color ?? 0xffe2b0, transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false }));
-    sunSprite.scale.set(260, 260, 1); sunSprite.position.set(-1700, 1900, -2600); this.scene.add(sunSprite);
+    this.sun = new THREE.DirectionalLight(sunColor, 3.2); this.scene.add(this.sun);
 
     this.terrain = createTerrain(region); this.scene.add(this.terrain);
     this.scatter = createScatter(region, this.rng); this.scene.add(this.scatter);
@@ -573,6 +576,76 @@ export class SurfaceWorldVisual {
   resize(width, height) {
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
+  }
+
+  ensureAstronomicalSky(astronomy) {
+    if (this.astronomicalSky || !this.starCatalog || !astronomy?.observer) return;
+    const observer = astronomy.observer;
+    this.astronomicalSky = createStarfieldView(this.starCatalog, {
+      basis: { east: observer.horizonEast, up: observer.localUp, north: observer.horizonNorth },
+      horizonOnly: true,
+    });
+    this.astronomicalSky.name = 'surface-inertial-starfield';
+    this.astronomicalSky.scale.setScalar(0.04);
+    this.scene.add(this.astronomicalSky);
+  }
+
+  updateAstronomicalSky(astronomy, eye, weather) {
+    if (!astronomy?.observer || !Array.isArray(astronomy.bodies)) return null;
+    this.ensureAstronomicalSky(astronomy);
+    if (this.astronomicalSky) this.astronomicalSky.position.set(eye[0], eye[1], eye[2]);
+
+    const starObservation = astronomy.bodies.find((observed) => observed.id === this.star?.id || observed.kind === 'star');
+    const transmission = weather?.type === 'shadow-fog' ? 0.12
+      : weather?.type === 'dust-front' ? Math.max(0.25, 1 - weather.intensity * 0.65)
+        : weather?.type === 'fog-bank' ? Math.max(0.35, 1 - weather.intensity * 0.5) : 1;
+    const exposure = surfaceSkyExposure({
+      starAltitudeRad: starObservation?.centerAltitudeRad,
+      atmosphereAtmProxy: this.region.atmosphereAtmProxy,
+      weatherTransmission: transmission,
+    });
+    this.astronomicalSky?.traverse((node) => {
+      if (!node.material) return;
+      const base = node.material.userData?.baseOpacity ?? node.material.opacity ?? 1;
+      node.material.opacity = base * (node.userData?.role === 'galactic-band' ? exposure.galacticVisibility : exposure.starVisibility);
+    });
+
+    const liveIds = new Set();
+    for (const observed of astronomy.bodies) {
+      if (!observed?.id || observed.id === this.body?.id) continue;
+      liveIds.add(observed.id);
+      let sprite = this.astronomicalBodies.get(observed.id);
+      if (!sprite) {
+        const material = new THREE.SpriteMaterial({
+          map: makeGlowTexture(cssHex(observed.color)), color: observed.color,
+          transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending,
+        });
+        sprite = new THREE.Sprite(material);
+        sprite.name = `surface-celestial-${observed.id}`;
+        this.astronomicalBodies.set(observed.id, sprite);
+        this.scene.add(sprite);
+      }
+      const direction = observed.localDirection;
+      const shellDistance = 2700;
+      sprite.position.set(eye[0] + direction[0] * shellDistance, eye[1] + direction[1] * shellDistance, eye[2] + direction[2] * shellDistance);
+      const physicalDiameterAtSkyShell = 2 * shellDistance * Math.tan(observed.apparentAngularRadiusRad);
+      const visualProxyDiameter = Math.max(observed.kind === 'star' ? 34 : 8, Math.min(260, physicalDiameterAtSkyShell));
+      sprite.scale.set(visualProxyDiameter, visualProxyDiameter, 1);
+      sprite.userData.physicalDiameterAtSkyShell = physicalDiameterAtSkyShell;
+      sprite.userData.visualProxyDiameter = visualProxyDiameter;
+      sprite.visible = observed.visibleAboveHorizon;
+      sprite.material.opacity = Math.max(0.08, exposure.weatherTransmission) * (observed.kind === 'star' ? 0.95 : 0.82);
+      if (observed === starObservation) {
+        this.sun.position.set(eye[0] + direction[0] * 900, eye[1] + direction[1] * 900, eye[2] + direction[2] * 900);
+        this.sun.visible = observed.visibleAboveHorizon;
+        this.sun.intensity = observed.visibleAboveHorizon ? 3.2 * Math.max(0.18, exposure.weatherTransmission) : 0;
+      }
+    }
+    for (const [id, sprite] of this.astronomicalBodies) {
+      if (liveIds.has(id)) continue;
+      this.scene.remove(sprite); disposeTree(sprite); this.astronomicalBodies.delete(id);
+    }
+    return exposure;
   }
 
   updatePoiState(scannedPoiIds) {
@@ -716,7 +789,7 @@ export class SurfaceWorldVisual {
     }
   }
 
-  render(renderer, session, realTimeSeconds, transition = null) {
+  render(renderer, session, realTimeSeconds, transition = null, astronomy = null) {
     const eye = surfaceEyePosition(session, this.region);
     const bob = session.lastMoveSpeedMps > 0 ? Math.sin(realTimeSeconds * 8.5) * 0.045 : 0;
     this.camera.position.set(eye[0], eye[1] + bob, eye[2]);
@@ -724,10 +797,11 @@ export class SurfaceWorldVisual {
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(eye[0] + sy * cp * 100, eye[1] + sp * 100, eye[2] + cy * cp * 100);
     const weather = this.updateWeather(session, realTimeSeconds);
+    const skyExposure = this.updateAstronomicalSky(astronomy, eye, weather);
     this.updateShipTransition(transition, realTimeSeconds);
     this.animate(realTimeSeconds);
     this.updatePoiState(session.scannedPoiIds);
-    renderer.toneMappingExposure = weather?.type === 'shadow-fog' ? 0.78 : weather?.type === 'electrostatic-storm' ? 0.94 : weather?.type === 'dust-front' ? 0.98 : 1.05;
+    renderer.toneMappingExposure = skyExposure?.exposure ?? (weather?.type === 'shadow-fog' ? 0.78 : weather?.type === 'electrostatic-storm' ? 0.94 : weather?.type === 'dust-front' ? 0.98 : 1.05);
     renderer.render(this.scene, this.camera);
   }
 

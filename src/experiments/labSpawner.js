@@ -43,13 +43,28 @@ export function asteroidDefinitionFromParams(context, params, { addSerial = fals
   };
 }
 
-function spawnInFront(context, distanceMeters, speedMetersPerSecond) {
+function spawnInFront(context, distanceMeters, speedMetersPerSecond, { spreadMeters = 0, slot = 1 } = {}) {
   const f = context.ship.forward();
+  const sourceRight = context.ship.right?.() ?? (Math.abs(f[1]) < 0.9
+    ? new Float64Array([-f[2], 0, f[0]])
+    : new Float64Array([1, 0, 0]));
+  const rightLength = Math.hypot(sourceRight[0], sourceRight[1], sourceRight[2]) || 1;
+  const right = [sourceRight[0] / rightLength, sourceRight[1] / rightLength, sourceRight[2] / rightLength];
+  const up = [
+    f[1] * right[2] - f[2] * right[1],
+    f[2] * right[0] - f[0] * right[2],
+    f[0] * right[1] - f[1] * right[0],
+  ];
+  const spreadIndex = Math.max(0, Math.floor(Number(slot) || 1) - 1);
+  const spreadRadius = Math.sqrt(spreadIndex) * Math.max(0, Number(spreadMeters) || 0);
+  const spreadAngle = spreadIndex * Math.PI * (3 - Math.sqrt(5));
+  const lateralRight = Math.cos(spreadAngle) * spreadRadius;
+  const lateralUp = Math.sin(spreadAngle) * spreadRadius;
   return {
     position: vec3(
-      context.ship.position[0] + f[0] * distanceMeters,
-      context.ship.position[1] + f[1] * distanceMeters,
-      context.ship.position[2] + f[2] * distanceMeters,
+      context.ship.position[0] + f[0] * distanceMeters + right[0] * lateralRight + up[0] * lateralUp,
+      context.ship.position[1] + f[1] * distanceMeters + right[1] * lateralRight + up[1] * lateralUp,
+      context.ship.position[2] + f[2] * distanceMeters + right[2] * lateralRight + up[2] * lateralUp,
     ),
     velocity: vec3(
       context.ship.velocity[0] + f[0] * speedMetersPerSecond,
@@ -107,7 +122,9 @@ export function registerLabExperiments(registry) {
       const type = String(params.extremeType || 'magnetar');
       if (type === 'magnetar') {
         const mass = 1.55 * PHYSICS.SOLAR_MASS;
-        const placement = spawnInFront(context, 2.2e10, 0);
+        // Golden-angle slots keep repeated LAB magnetars physically distinct without randomness.
+        // 120,000 km spacing clears both physical radii and their deliberately enlarged visual proxies.
+        const placement = spawnInFront(context, 2.2e10, 0, { spreadMeters: 1.2e8, slot: context.userBodySerial });
         return context.addBody({
           kind: BODY_KIND.NEUTRON_STAR,
           name: `LAB Magnetar ${context.userBodySerial++}`,

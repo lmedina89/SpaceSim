@@ -1,6 +1,7 @@
 import { EntityRegistry } from '../core/entityRegistry.js';
 import { SimulationClock } from '../core/simulationClock.js';
 import { FloatingReferenceFrame } from '../core/referenceFrame.js';
+import { ASTRONOMICAL_OBSERVER_MODE, AstronomicalObserverModel } from '../core/astronomicalObserver.js';
 import { SaveSystem } from '../core/saveSystem.js';
 import { PHYSICS, SIMULATION, BODY_KIND } from '../core/constants.js';
 import { generateSystem } from '../data/systemGenerator.js';
@@ -24,7 +25,7 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { UniverseRenderer } from '../render/threeRenderer.js';
 import { Hud } from '../ui/hud.js';
 import { SystemMapController } from '../ui/systemMap.js';
-import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois } from '../surface/surfaceGenerator.js';
+import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
 import { stepSurfaceWeather, surfaceWeatherReading } from '../surface/surfaceWeather.js';
@@ -99,6 +100,7 @@ export class UniverseLabApp {
     this.registry = new EntityRegistry();
     this.clock = new SimulationClock();
     this.referenceFrame = new FloatingReferenceFrame();
+    this.astronomy = new AstronomicalObserverModel();
     this.saveSystem = new SaveSystem();
     this.gravitySolver = new DirectGravitySolver();
     this.integrator = new VelocityVerletIntegrator(this.gravitySolver);
@@ -191,6 +193,28 @@ export class UniverseLabApp {
 
   rebuildBodyCaches() {
     this.massiveBodies = this.registry.values().filter((body) => body.gravitySource);
+  }
+
+  solveAstronomicalObserver(modeOverride = null) {
+    if (this.surfaceSession?.active && this.surfaceRegion) {
+      const parent = this.registry.get(this.surfaceSession.bodyId);
+      const phase = this.surfaceTransition?.phase;
+      const mode = modeOverride ?? (phase === SURFACE_PHASE.DESCENDING || phase === SURFACE_PHASE.ASCENDING
+        ? ASTRONOMICAL_OBSERVER_MODE.DESCENT
+        : ASTRONOMICAL_OBSERVER_MODE.SURFACE);
+      this.astronomy.solveSurface({
+        body: parent,
+        shipPosition: this.ship.position,
+        session: this.surfaceSession,
+        terrainHeightMeters: surfaceHeightAt(this.surfaceRegion, this.surfaceSession.x, this.surfaceSession.z),
+        simulationTimeSeconds: this.clock.elapsedSimSeconds,
+        mode,
+      });
+    } else {
+      this.astronomy.solveShip({ ship: this.ship, simulationTimeSeconds: this.clock.elapsedSimSeconds, mode: modeOverride ?? ASTRONOMICAL_OBSERVER_MODE.SHIP });
+    }
+    this.astronomy.updateBodies(this.bodies);
+    return this.astronomy.solution();
   }
 
   async init() {
@@ -1921,7 +1945,8 @@ export class UniverseLabApp {
     }
 
     const renderStart = performance.now();
-    this.renderer.renderSurface({ session: this.surfaceSession, transition: this.surfaceTransition, realTimeSeconds: now / 1000 });
+    const astronomy = this.solveAstronomicalObserver();
+    this.renderer.renderSurface({ session: this.surfaceSession, transition: this.surfaceTransition, realTimeSeconds: now / 1000, astronomy });
     this.renderMs = performance.now() - renderStart;
     this.fpsFrames += 1;
     if (now - this.fpsClock >= 500) {
@@ -1979,7 +2004,8 @@ export class UniverseLabApp {
     this.refreshPredictions(now);
     const renderStart = performance.now();
     const cameraView = this.currentCameraView(now, orbitalRealDt);
-    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, spaceWeather: this.spaceWeather.states(this.bodies.find((body) => body.kind === BODY_KIND.STAR), this.clock.elapsedSimSeconds), scientificOverlays: this.scientificOverlays, target: this.target, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView });
+    const astronomy = this.solveAstronomicalObserver();
+    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, spaceWeather: this.spaceWeather.states(this.bodies.find((body) => body.kind === BODY_KIND.STAR), this.clock.elapsedSimSeconds), scientificOverlays: this.scientificOverlays, target: this.target, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView, astronomy });
     this.renderMs = performance.now() - renderStart;
     if (this._surfaceOrbitHandoffPending) this.commitSurfaceOrbitHandoff();
     this.updateTargetTelemetry();

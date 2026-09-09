@@ -1,4 +1,4 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.5.4
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.6
 
 This archive is intended for direct repository-root upload from the existing iPhone workflow.
 
@@ -16,13 +16,27 @@ The distributable contains no wrapper directory and no `.github/workflows/*` fil
 
 After upload/reload verify:
 
-- title/HUD says **v0.1.4.5.4**,
-- MORE help shows **RENDER-1454**,
+- title/HUD says **v0.1.4.6**,
+- MORE help shows **SKYOBS-146**,
 - renderer telemetry reads **WebGL2 iOS** on iPhone/iPad WebKit,
 - FPS/physics/render telemetry populate in orbit,
 - no `RUNTIME ERROR` banner appears.
 
 If an older marker appears, Safari/GitHub Pages is serving stale files.
+
+## v0.1.4.6 physical sky-continuity gate
+
+1. Confirm **WebGL2 iOS** remains visible; this release does not re-enable native WebGPU on iPhone/iPad.
+2. In orbit, frame the Sun and at least one major planet/moon against a recognizable star pattern.
+3. LAND / DESCEND without changing time; during descent and after landing, verify those objects remain in consistent directions and no new star pattern appears.
+4. Turn 90°/180° on the surface; the sky must respond to heading, with objects below the local horizon hidden.
+5. Verify daylight/weather can wash stars out but returning darkness/clear visibility does not produce a reseed.
+6. BOARD / TAKEOFF and confirm the orbital sky returns continuously and flight controls respond.
+7. Repeat LAND → TAKEOFF once without refresh, then repeat after a schema-1 surface SAVE/LOAD.
+8. Spawn two magnetars and confirm they appear separated and move under Newtonian gravity; do not expect magnetic attraction/repulsion.
+9. Watch FPS/thermal behavior for several minutes in iPhone landscape and capture any stale surface, sky jump, missing Sun, runtime error or sustained regression.
+
+Automated QA cannot establish physical WebKit presentation, touch behavior, thermal performance or visual continuity. Physical iPhone Safari remains the release gate.
 
 ## v0.1.4.3 iPhone acceptance
 

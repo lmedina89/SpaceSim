@@ -1,4 +1,4 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.5.4
+# Scientific / Model Notes — Universe Lab v0.1.4.6
 
 Universe Lab deliberately mixes physically motivated simulation with clearly labeled speculative/fictional presentation. The boundary matters more as planetary surfaces and anomalies are introduced.
 
@@ -9,6 +9,16 @@ Universe Lab deliberately mixes physically motivated simulation with clearly lab
 - Velocity-Verlet major-body integration.
 - Finite radii and existing impact handling.
 - Existing strong-gravity adaptive-step and 0.1c Newtonian validity warnings remain.
+
+## Astronomical observer and sky
+
+Major-body apparent directions are computed from authoritative live positions minus the observer inertial position. Range and physical angular radius use `asin(radius/range)`; render proxies may be enlarged for legibility and are stored separately. Surface visibility uses the local tangent horizon and includes partial disks whose centers are slightly below it.
+
+The seeded background catalog is a stable inertial visual reference, not a real-star astrometric catalog. It is generated once per system seed and reused across space and surface scenes. Daylight and weather reduce presentation visibility but do not remove catalog entries.
+
+Orbital time intentionally remains fixed while landed. Consequently the surface sky is physically continuous at that fixed instant but does not yet rotate with planetary sidereal time. The separate surface-weather clock does not move celestial ephemerides.
+
+LAB magnetars have real Newtonian mass and mutually accelerate when separated. Repeated spawns are deterministically separated to avoid identical initial positions. Magnetic fields, plasma, radiation pressure and MHD coupling remain unmodeled visual metadata/effects.
 
 ## Surface foundation model status
 
