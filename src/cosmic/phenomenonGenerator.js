@@ -16,7 +16,7 @@ function ringDefinition(rng, planet, serial) {
     particleCount: planet.planetType === 'gas' ? 7_000 : 4_000,
     colorA: planet.planetType === 'ice' ? 0xcfeeff : 0xe0c49a,
     colorB: planet.planetType === 'gas' ? 0xa98d70 : 0x9eaaa8,
-    scientificStatus: 'Visual particle population proxy tied to the planet. Ring particles are not individually integrated in v0.1.4.',
+    scientificStatus: 'Visual particle population proxy tied to the planet. Ring particles are not individually integrated in v0.1.4.1.',
     navigable: true,
   };
 }
@@ -56,13 +56,50 @@ function asteroidBeltDefinition(rng, star, planets, serial = 1) {
   };
 }
 
+
+function supernovaRemnantDefinition(rng, star, serial = 1) {
+  const distance = PHYSICS.AU * rng.range(9, 22);
+  const angle = rng.range(0, Math.PI * 2);
+  const elevation = rng.range(-0.28, 0.28);
+  const planar = Math.cos(elevation) * distance;
+  const radius = PHYSICS.AU * rng.range(0.45, 1.5);
+  return {
+    id: `supernova-remnant-${serial}`,
+    kind: 'supernova-remnant',
+    label: `${star.name} ancient supernova remnant ${serial}`,
+    position: [Math.cos(angle) * planar, Math.sin(elevation) * distance, Math.sin(angle) * planar],
+    velocity: [0, 0, 0],
+    radiusMeters: radius,
+    outerRadiusMeters: radius,
+    particleCount: 8_500,
+    colorA: 0x61dfff,
+    colorB: 0xff7b5e,
+    scientificStatus: 'Seeded visual shell/filament proxy representing an old supernova remnant. It is not hydrodynamically evolved and has no individual gas-particle gravity.',
+    navigable: true,
+  };
+}
+
+function roguePhenomenon(body) {
+  return {
+    id: `phenomenon-${body.id}`,
+    kind: 'rogue-planet',
+    label: body.name,
+    anchorBodyId: body.id,
+    radiusMeters: Math.max(body.visualRadiusMeters ?? body.radius, body.radius * 8),
+    scientificStatus: 'Physical rogue planet: live Newtonian mass/radius/velocity. Its dark thermal appearance is a visual proxy; atmospheric and formation history are not solved.',
+    navigable: true,
+  };
+}
+
 export function generateCosmicPhenomena(seed, bodies) {
   const rng = createRng(`${seed}:cosmic-phenomena-v1`);
   const star = bodies.find((body) => body.kind === BODY_KIND.STAR);
   const planets = bodies.filter((body) => body.kind === BODY_KIND.PLANET);
   if (!star) return [];
 
-  const phenomena = [asteroidBeltDefinition(rng, star, planets, 1)];
+  const phenomena = [asteroidBeltDefinition(rng, star, planets, 1), supernovaRemnantDefinition(rng, star, 1)];
+  const rogue = bodies.find((body) => body.kind === BODY_KIND.ROGUE_PLANET);
+  if (rogue) phenomena.push(roguePhenomenon(rogue));
   let ringSerial = 1;
   const ringCandidates = planets
     .filter((planet) => planet.planetType === 'gas' || planet.planetType === 'ice' || rng.random() < 0.22)

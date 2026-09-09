@@ -177,6 +177,36 @@ function cometDefinitions(rng, starMass, starName, count = 2) {
   return comets;
 }
 
+function roguePlanetDefinition(rng, starName) {
+  const mass = PHYSICS.EARTH_MASS * rng.range(0.35, 4.5);
+  const density = rng.range(3800, 7200);
+  const radius = Math.cbrt((3 * mass) / (4 * Math.PI * density));
+  const distance = PHYSICS.AU * rng.range(14, 34);
+  const a = rng.range(0, Math.PI * 2);
+  const y = rng.range(-0.18, 0.18) * distance;
+  const planar = Math.sqrt(Math.max(0, distance * distance - y * y));
+  const speed = rng.range(9_000, 32_000);
+  const tangent = [-Math.sin(a), rng.range(-0.18, 0.18), Math.cos(a)];
+  const tm = Math.hypot(...tangent) || 1;
+  return {
+    id: 'rogue-planet-1',
+    kind: BODY_KIND.ROGUE_PLANET,
+    name: `${starName} Rogue-1`,
+    mass,
+    radius,
+    visualRadiusMeters: Math.max(radius, 1.1e8),
+    densityKgM3: density,
+    color: 0x263d58,
+    gravitySource: true,
+    generated: true,
+    landable: false,
+    surfaceProfile: 'orbital-only',
+    scientificWarning: 'Seeded interstellar/rogue body with live Newtonian mass and velocity. Thermal history and capture origin are not modeled.',
+    position: vec3(Math.cos(a) * planar, y, Math.sin(a) * planar),
+    velocity: vec3(tangent[0] / tm * speed, tangent[1] / tm * speed, tangent[2] / tm * speed),
+  };
+}
+
 function shiftToBarycentricFrame(bodies) {
   let totalMass = 0, cx = 0, cy = 0, cz = 0, cvx = 0, cvy = 0, cvz = 0;
   for (const body of bodies) {
@@ -285,6 +315,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
 
   const cometCount = rng.random() < 0.42 ? 1 : 2;
   bodies.push(...cometDefinitions(rng, starMass, starName, cometCount));
+  if (rng.random() < 0.62) bodies.push(roguePlanetDefinition(rng, starName));
 
   shiftToBarycentricFrame(bodies);
   const phenomena = generateCosmicPhenomena(seed, bodies);
@@ -307,8 +338,9 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       planetCount,
       moonCount: bodies.filter((body) => body.kind === BODY_KIND.MOON).length,
       cometCount: bodies.filter((body) => body.kind === BODY_KIND.COMET).length,
+      roguePlanetCount: bodies.filter((body) => body.kind === BODY_KIND.ROGUE_PLANET).length,
       phenomenonCount: phenomena.length,
-      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, high-eccentricity physical comet nuclei, and separately labeled visual population phenomena',
+      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, high-eccentricity physical comet nuclei, optional physical rogue planets, and separately labeled visual population phenomena',
     },
   };
 }

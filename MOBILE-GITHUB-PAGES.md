@@ -1,42 +1,51 @@
-# Mobile GitHub Pages Deployment — Universe Lab v0.1.4
+# Mobile GitHub Pages Deployment — Universe Lab v0.1.4.1
 
-This release is packaged for direct repository-root upload from a phone Git client.
+This archive is intended for direct repository-root upload from the existing phone workflow.
 
-## Required Pages configuration
+## GitHub Pages
 
-GitHub repository → **Settings → Pages**:
+Repository → **Settings → Pages**:
 
 - Source: **Deploy from a branch**
 - Branch: `main`
 - Folder: `/(root)`
 
-The distributable ZIP intentionally contains **no `.github/workflows/*` files** because the existing mobile OAuth workflow does not have GitHub `workflow` scope.
+The distributable ZIP intentionally contains **no `.github/workflows/*` files**.
 
-## Upload
+## Archive layout
 
-The ZIP has no wrapper directory. After extracting/uploading, `index.html`, `styles.css`, `package.json`, `src/`, `tests/`, and docs should sit directly at repository root.
+There is no wrapper directory. After extraction/upload, repository root should directly contain:
 
-## Confirm the deployed build
+- `index.html`
+- `styles.css`
+- `package.json`
+- `VERSION.json`
+- `src/`
+- `tests/`
+- documentation files
 
-After GitHub Pages updates, hard-refresh/reload on iPhone and verify:
+## Confirm the deployed release
 
-- title/HUD says **v0.1.4**,
-- system/help marker says **COSMOS-140**,
+On iPhone, reload/hard-refresh and verify:
+
+- HUD/title says **v0.1.4.1**,
+- MORE help shows **EXTREME-141**,
 - FPS/physics/render/ship telemetry populate,
 - SIM TIME advances,
-- there is no `RUNTIME ERROR` banner.
+- no `RUNTIME ERROR` banner appears.
 
-If the HUD still shows an older version/build marker, the browser or Pages deployment is serving stale files.
+An older version/build marker means Safari or Pages is still serving stale files.
 
-## Suggested iPhone validation
+## Recommended device test order
 
-1. Let normal SHIP VIEW run untouched for 15–30 seconds.
-2. Open **COSMOS**, scan a source, then OBSERVE / ORBIT / SHIP VIEW.
-3. Observe a planetary ring or debris belt and watch FPS/thermal behavior.
-4. Use physical RENDEZVOUS and verify the ship—not the observation camera—moves.
-5. Locate a generated comet; verify the tail looks star-relative as the system evolves.
-6. LAB → spawn a pulsar; use SCAN/APPROACH from a safe distance.
-7. LAB → spawn an active black hole; inspect accretion/jet visuals without deliberately crossing the model guard.
-8. Retest a Gravity Cloud / Particle Life field and one impact preset.
+1. Normal SHIP VIEW, untouched, 15–30 seconds.
+2. COSMOS → supernova-remnant SCAN / OBSERVE / ORBIT / SHIP VIEW.
+3. COSMOS → TRIGGER CME; verify active-front radius grows with simulated time.
+4. Toggle AUTO WEATHER and inspect next-event countdown.
+5. Select a planet → MORE → OVERLAYS → enable master, then Lagrange/Hill/Roche/orbit plane.
+6. Enable gravity vectors separately and watch FPS/thermal behavior.
+7. LAB → Magnetar; inspect from a safe distance and test APPROACH guard.
+8. LAB → White Dwarf, Brown Dwarf, Rogue Planet individually.
+9. Retest active black hole, a ring/belt, a physical comet, one particle experiment and one impact preset.
 
-Do not treat desktop/Node timings or static QA as proof of iPhone WebGPU performance. The real phone remains the release gate.
+Automated Node/static QA cannot prove iPhone WebGPU frame rate, GPU compatibility, touch ergonomics or thermal behavior. Physical Safari testing remains the release gate.

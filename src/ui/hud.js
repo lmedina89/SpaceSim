@@ -53,6 +53,7 @@ export class Hud {
     this.scanner = root.querySelector('#scannerPanel');
     this.more = root.querySelector('#morePanel');
     this.cosmos = root.querySelector('#cosmosPanel');
+    this.overlays = root.querySelector('#overlayPanel');
     this._messageTimer = null;
     this.targetChip = root.querySelector('#targetChip');
     this.navChip = root.querySelector('#navChip');
@@ -91,6 +92,7 @@ export class Hud {
   toggleScanner(force) { this.scanner.hidden = typeof force === 'boolean' ? !force : !this.scanner.hidden; }
   toggleMore(force) { this.more.hidden = typeof force === 'boolean' ? !force : !this.more.hidden; }
   toggleCosmos(force) { this.cosmos.hidden = typeof force === 'boolean' ? !force : !this.cosmos.hidden; }
+  toggleOverlays(force) { this.overlays.hidden = typeof force === 'boolean' ? !force : !this.overlays.hidden; }
   notify(text, holdMs = 4400) {
     this.message.hidden = false;
     this.message.textContent = text;
@@ -143,9 +145,9 @@ export class Hud {
     this.cameraChip.hidden = false;
     if (state?.activeCount != null) {
       const active = Number(state.activeCount).toLocaleString();
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD COSMOS-140`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Experiment'} · ${active} active · BUILD EXTREME-141`;
     } else {
-      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD COSMOS-140`;
+      this.cameraChip.textContent = `CAMERA ${String(style || 'frame').toUpperCase()} · ${label || 'Cosmic source'} · BUILD EXTREME-141`;
     }
     this.cameraChip.classList.add('observing');
   }

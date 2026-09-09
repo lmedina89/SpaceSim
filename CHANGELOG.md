@@ -1,82 +1,59 @@
 # Changelog
 
-## v0.1.4 — Cosmic Phenomena & Deep-Space Exploration
+## v0.1.4.1 — Extreme Objects, Space Weather & Scientific Overlays
 
-Built directly from v0.1.3.2.2 after physical iPhone Safari confirmed the runtime-recovery build was healthy at 60 FPS in the tested normal scene.
+Built directly from v0.1.4 Cosmic Phenomena & Deep-Space Exploration without changing save schema, Three.js version, core Newtonian solver, particle budgets, impact policy or bounded-thrust navigation.
 
-### Cosmic exploration
+### Extreme objects
 
-- Added data-driven `CosmicPhenomenonRegistry` and deterministic phenomenon generator.
-- Added new **COSMOS** drawer with unclassified sources, scan/classification, characteristic radius, anchor body, scientific status, OBSERVE, ORBIT, NEXT SOURCE, physical RENDEZVOUS and SHIP VIEW.
-- Cosmic observation is massless and does not alter the spacecraft.
-- Phenomena resolve current positions/velocities from their live anchor bodies.
+- Added `BODY_KIND.WHITE_DWARF`, `BODY_KIND.BROWN_DWARF` and `BODY_KIND.ROGUE_PLANET`.
+- Added LAB `spawn-extreme-star` experiment with Magnetar, White Dwarf, Brown Dwarf and Rogue Planet presets.
+- Magnetar uses the existing neutron-star physical kind/guard plus high-field metadata and a new visual lobe/spark treatment.
+- Added distinct white-dwarf, brown-dwarf and rogue-planet render treatments.
+- Rogue planets are treated as planet-like rocky targets by impact material/crater logic.
 
-### Physical comets
+### Seeded exploration
 
-- Added `BODY_KIND.COMET`.
-- Seeded systems now generate 1–2 finite-radius, finite-mass, high-eccentricity Newtonian comet nuclei.
-- Comets participate in existing direct major gravity and finite-radius collisions.
-- Added a seeded visual tail that points away from the host star and scales visible activity with star distance.
+- Generated systems now have a deterministic chance to include one distant physical rogue planet.
+- Added deterministic `supernova-remnant` COSMOS source with ~8,500 GPU point shell/filament proxy.
+- Rogue planets are also registered as COSMOS phenomena when generated, so they can begin unclassified and use SCAN/OBSERVE/RENDEZVOUS.
+- Free-space cosmic phenomena now render from their own position instead of requiring an anchor body.
 
-### Large visual populations
+### Space weather
 
-- Added a deterministic ~12,000-point circumstellar debris-belt proxy.
-- Added deterministic 4,000–7,000-point planetary ring proxies; 1–3 ring systems may appear depending on the seed.
-- Each phenomenon is rendered in a single `THREE.Points` object rather than thousands of Three.js entities.
-- Belt/ring points are explicitly not individual gravity or collision bodies.
+- Added session-local `SpaceWeatherManager`.
+- Added manual and automatic directional CME generation.
+- CME fronts have explicit speed, half-angle, launch time, expanding radius and live stellar anchor position.
+- Added swept radial-front crossing detection so large simulation substeps cannot skip over a ship crossing.
+- COSMOS drawer exposes active front count, next seeded event countdown, active-front telemetry, TRIGGER CME and AUTO WEATHER toggle.
+- Added GPU-friendly ~2,600-point directional CME front/cone rendering per active event.
+- CME model is explicitly kinematic only; no MHD/radiation/damage model is claimed.
 
-### Stellar presentation
+### Scientific overlays
 
-- Added ~1,600-point corona visual population.
-- Added animated stellar prominence arcs.
-- Added faint seeded galactic-band points and low-opacity nebular backdrop sprites.
+- Added `cosmic/scientificOverlays.js` pure diagnostic math:
+  - Hill radius,
+  - Roche limit,
+  - instantaneous L1–L5 estimates,
+  - live Newtonian gravity acceleration,
+  - local gravity-vector samples,
+  - instantaneous orbital-plane basis.
+- Added MORE → OVERLAYS drawer.
+- Added target-centric overlay renderer for Lagrange markers, Hill/Roche rings, orbital plane and 25-point local gravity-vector field.
+- Overlay master is off by default and render geometry refresh is throttled to reduce mobile allocation churn.
 
-### Active black-hole visual overhaul
+### Safety / compatibility
 
-- Replaced simple black-hole rings with a richer active-accretion proxy:
-  - black core,
-  - six photon-ring-style layers,
-  - ~5,200 accretion particles,
-  - radial hot/cool color gradient,
-  - layered disk rings,
-  - dual polar jet cones,
-  - ~1,500 jet particles,
-  - pseudo-lensing halo.
-- Live mass remains Newtonian; visuals are not a GR ray tracer or plasma simulation.
-
-### Neutron stars / pulsars
-
-- Added `BODY_KIND.NEUTRON_STAR`.
-- LAB can spawn a 1.05–2.35 M☉ compact object with 12 km physical radius, selected spin period and magnetic-field metadata.
-- Added magnetosphere rings and optional rotating pulsar beams as visual proxies.
-- Added neutron-star propulsion-safe stand-off and near-field Newtonian model guard.
-
-### Renderer / navigation
-
-- Added cosmic-phenomenon renderer synchronization.
-- Enlarged render-camera far plane for multi-AU observation framing.
-- Generalized observation state so particle experiments and cosmic phenomena share the massless-camera framework without changing SHIP VIEW.
-- Physical cosmic RENDEZVOUS uses bounded-thrust navigation rather than camera teleportation.
-
-### Retained
-
-- v0.1.3.2.2 particle-warp runtime recovery and class-method integrity QA.
-- v0.1.3.2 observation navigation.
-- v0.1.3.1 strong-gravity APPROACH/CAPTURE/HOLD safety.
-- v0.1.3 particle experiment framework.
-- v0.1.2.1 impact stability / fragment-cascade suppression.
-- save schema 1, Three.js 0.185.0, branch-root GitHub Pages deployment.
+- Save schema remains 1.
+- Space-weather events, overlay settings and discovery state are session-local.
+- Existing black-hole/neutron-star near-field and 0.1c Newtonian guards remain.
+- Existing normal SHIP VIEW render isolation and visible runtime-error boundary remain.
+- Existing v0.1.4 particle, impact, cosmic observation and mobile input architecture remains intact.
 
 ### QA
 
-- 63/63 automated Node tests pass.
-- static structure and JS/MJS syntax checks pass.
-- `UniverseLabApp`: 49 class methods, 46 direct `this.method()` call names, zero unresolved methods.
-- HTML audit: 131 IDs, 131 unique, zero duplicate; 68 direct JS selector IDs, zero missing.
-- static local HTTP smoke: 200 for shell/CSS/main/app/cosmic registry/cosmic generator/cosmic renderer/celestial factory/Three renderer.
-- 8 seeded systems integrated for 30 simulated days at 900 s steps: zero spontaneous finite-radius major-body collisions; maximum generated body count 24 in this sample.
-- Physical iPhone Safari remains the performance/release gate for the new GPU populations and compact-object visuals.
-
-## v0.1.3.2.2 — Particle Warp Runtime Recovery Hotfix
-
-Restored the missing `enforceParticleWarpSafety()` class method after the runtime error was captured on physical iPhone Safari. Added class-method integrity QA so direct `this.method()` calls cannot be satisfied merely by a call-site token.
+- Added scientific-overlay math tests.
+- Added extreme-object preset tests.
+- Added CME propagation, directional crossing, automatic scheduling and swept-front crossing tests.
+- Existing cosmic tests now require a deterministic supernova-remnant phenomenon and verify rogue-planet phenomenon/body consistency.
+- Full automated suite: see `QA-REPORT.md`.

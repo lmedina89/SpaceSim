@@ -18,6 +18,7 @@ import { ExperimentRegistry } from '../experiments/experimentRegistry.js';
 import { registerLabExperiments, MATERIALS, asteroidDefinitionFromParams, sphereRadiusFromMassDensity } from '../experiments/labSpawner.js';
 import { ParticleExperimentManager, PARTICLE_MODES } from '../experiments/particles/particleExperimentManager.js';
 import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
+import { SpaceWeatherManager } from '../cosmic/spaceWeather.js';
 import { UniverseRenderer } from '../render/threeRenderer.js';
 import { Hud } from '../ui/hud.js';
 
@@ -100,6 +101,8 @@ export class UniverseLabApp {
     registerLabExperiments(this.experiments);
     this.particleExperiments = new ParticleExperimentManager();
     this.cosmicPhenomena = new CosmicPhenomenonRegistry();
+    this.spaceWeather = new SpaceWeatherManager();
+    this.scientificOverlays = { enabled: false, lagrange: true, hill: true, roche: true, gravity: false, orbitPlane: true };
     this.renderer = new UniverseRenderer(root.querySelector('#viewport'));
     this.system = null;
     this.minorField = null;
@@ -145,6 +148,7 @@ export class UniverseLabApp {
     this.discoveredPhenomena = new Set();
     this._observationState = null;
     this._nextObservationRefreshAt = 0;
+    this._nextSpaceWeatherPanelAt = 0;
   }
 
   get bodies() { return this.registry.values(); }
@@ -185,7 +189,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify('v0.1.4 online. Cosmic phenomena, physical comets, and compact-object visuals active. Build COSMOS-140.');
+    this.hud.notify('v0.1.4.1 online. Extreme objects, traveling space weather, and scientific overlays active. Build EXTREME-141.');
   }
 
   newSystem(seed) {
@@ -198,6 +202,7 @@ export class UniverseLabApp {
     this.discoveredPhenomena.clear();
     this.system = generateSystem(seed);
     this.cosmicPhenomena.reset(this.system.phenomena ?? []);
+    this.spaceWeather.reset(this.system.seed, 0);
     this.registry.clear();
     for (const body of this.system.bodies) this.registry.create(body);
     this.rebuildBodyCaches();
@@ -216,7 +221,9 @@ export class UniverseLabApp {
     this.selectTarget(this.system.homeId);
     this.selectPhenomenon(this.cosmicPhenomena.values[0]?.id ?? null, false);
     this.invalidatePredictions();
-    this.hud.notify(`Generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class): ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons, ${this.system.metadata.cometCount ?? 0} comets, ${this.system.metadata.phenomenonCount ?? 0} local cosmic phenomena.`);
+    this.hud.notify(`Generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class): ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons, ${this.system.metadata.cometCount ?? 0} comets, ${this.system.metadata.roguePlanetCount ?? 0} rogue planets, ${this.system.metadata.phenomenonCount ?? 0} local cosmic phenomena.`);
+    this.updateSpaceWeatherPanel();
+    this.updateOverlayPanel();
   }
 
   placeShipNearHome() {
@@ -517,6 +524,51 @@ export class UniverseLabApp {
     this.hud.notify(`COSMIC RENDEZVOUS engaged toward ${this.discoveredPhenomena.has(phenomenon.id) ? phenomenon.label : 'UNIDENTIFIED SOURCE'}. Physical ship thrust is used; no teleportation.`);
   }
 
+  triggerSpaceWeather() {
+    const star = this.bodies.find((body) => body.kind === BODY_KIND.STAR);
+    if (!star) { this.hud.notify('No stellar source available for a CME.'); return null; }
+    const event = this.spaceWeather.triggerCme(star, this.clock.elapsedSimSeconds);
+    this.updateSpaceWeatherPanel();
+    this.hud.notify(`SPACE WEATHER: ${event.label} launched at ${(event.speedMps / 1000).toFixed(0)} km/s with a ${(event.halfAngleRad * 180 / Math.PI).toFixed(0)}° half-angle cone. Propagation is kinematic; plasma/MHD is not solved.`);
+    return event;
+  }
+
+  updateSpaceWeatherPanel() {
+    const status = this.root.querySelector('#spaceWeatherStatus');
+    const active = this.root.querySelector('#spaceWeatherActive');
+    const next = this.root.querySelector('#spaceWeatherNext');
+    const autoButton = this.root.querySelector('#autoWeatherToggle');
+    if (autoButton) autoButton.textContent = `AUTO WEATHER ${this.spaceWeather.autoEnabled ? 'ON' : 'OFF'}`;
+    const star = this.bodies.find((body) => body.kind === BODY_KIND.STAR);
+    const states = star ? this.spaceWeather.states(star, this.clock.elapsedSimSeconds) : [];
+    if (active) active.textContent = String(states.length);
+    if (next) {
+      const remain = Math.max(0, this.spaceWeather.nextAutoEventSeconds - this.clock.elapsedSimSeconds);
+      next.textContent = this.spaceWeather.autoEnabled ? `${(remain / PHYSICS.DAY).toFixed(2)} d` : 'AUTO OFF';
+    }
+    if (status) status.textContent = states.length
+      ? states.map((s) => `${s.label}: ${(s.radiusMeters / PHYSICS.AU).toFixed(3)} AU · ${(s.speedMps / 1000).toFixed(0)} km/s${s.hitShip ? ' · SHIP CROSSED FRONT' : ''}`).join(' | ')
+      : 'No active CME fronts. AUTO WEATHER can seed events in simulated time, or TRIGGER CME launches one immediately.';
+  }
+
+  updateOverlayPanel() {
+    const summary = this.root.querySelector('#overlayStatus');
+    if (summary) summary.textContent = this.scientificOverlays.enabled
+      ? `Target-centric overlay active: ${this.renderer.scientificOverlayHolder?.summary ?? 'updating…'}. Lagrange/Hill/Roche are approximate diagnostics; gravity vectors use the live Newtonian body set.`
+      : 'Scientific overlays are off. Enable the master switch, then choose target-centric layers.';
+    const master = this.root.querySelector('#overlayMaster'); if (master) master.checked = this.scientificOverlays.enabled;
+    for (const key of ['lagrange','hill','roche','gravity','orbitPlane']) {
+      const el = this.root.querySelector(`#overlay${key[0].toUpperCase()}${key.slice(1)}`); if (el) el.checked = Boolean(this.scientificOverlays[key]);
+    }
+  }
+
+  setOverlaySetting(key, value) {
+    if (key === 'enabled') this.scientificOverlays.enabled = Boolean(value);
+    else if (Object.hasOwn(this.scientificOverlays, key)) this.scientificOverlays[key] = Boolean(value);
+    this.renderer.invalidateScientificOverlays();
+    this.updateOverlayPanel();
+  }
+
   predictionHorizonSeconds() {
     return Math.max(60, safeNumber(this.root.querySelector('#trajectoryHorizon').value, PHYSICS.DAY));
   }
@@ -793,7 +845,7 @@ export class UniverseLabApp {
     }
     const summaries = this.particleExperiments.summaries();
     if (!summaries.length) {
-      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.4 and are intentionally not written into schema-1 saves.';
+      element.textContent = 'No active particle experiments. Fields are session-local in v0.1.4.1 and are intentionally not written into schema-1 saves.';
       if (this.cameraMode === 'observe' && this.observationSource === 'experiment') this.returnToShipView(false);
       return;
     }
@@ -857,6 +909,12 @@ export class UniverseLabApp {
     const experimentStart = performance.now();
     this.particleExperiments.step(dt, sources);
     this.experimentMs += performance.now() - experimentStart;
+    const star = sources.find((body) => body.kind === BODY_KIND.STAR) ?? null;
+    const weatherNotices = this.spaceWeather.step(this.clock.elapsedSimSeconds + dt, star, this.ship);
+    for (const notice of weatherNotices) {
+      if (notice.type === 'start') this.hud.notify(`STELLAR EVENT: ${notice.event.label} launched automatically at ${(notice.event.speedMps / 1000).toFixed(0)} km/s. COSMOS → SPACE WEATHER tracks the front.`);
+      if (notice.type === 'ship-hit') this.hud.notify(`SPACE WEATHER CROSSING: ${notice.event.label} reached the spacecraft at ${(notice.distanceMeters / PHYSICS.AU).toFixed(3)} AU. This records geometric front arrival only; radiation/plasma damage is not simulated yet.`, 7600);
+    }
 
     const collisions = this.collisionMonitor.scan(sources, previousPositions, this.clock.elapsedSimSeconds + dt);
     for (const event of collisions) {
@@ -895,12 +953,13 @@ export class UniverseLabApp {
     this.refreshPredictions(now);
     const renderStart = performance.now();
     const cameraView = this.currentCameraView(now, realDt);
-    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView });
+    this.renderer.render({ bodies: this.bodies, ship: this.ship, referenceFrame: this.referenceFrame, minorField: this.minorField, particleExperiments: this.particleExperiments.values, cosmicPhenomena: this.cosmicPhenomena.values, spaceWeather: this.spaceWeather.states(this.bodies.find((body) => body.kind === BODY_KIND.STAR), this.clock.elapsedSimSeconds), scientificOverlays: this.scientificOverlays, target: this.target, elapsedSimSeconds: this.clock.elapsedSimSeconds, cameraView });
     this.renderMs = performance.now() - renderStart;
     this.updateTargetTelemetry();
     this.hud.setNavigation(this.navigationStatus, this.navigationTarget, this.ship.engineMode, this.ship.currentMainAcceleration());
     if (this.cameraMode === 'observe') this.hud.setCamera('observe', this.observationSource === 'cosmic' ? (this.selectedPhenomenon?.label ?? 'Cosmic phenomenon') : (this.selectedExperiment?.label ?? 'Experiment'), this.observationStyle, this._observationState);
     if (now >= this._nextParticleStatusAt) { this.updateParticleLabStatus(); this._nextParticleStatusAt = now + 500; }
+    if (now >= this._nextSpaceWeatherPanelAt) { this.updateSpaceWeatherPanel(); if (this.scientificOverlays.enabled) this.updateOverlayPanel(); this._nextSpaceWeatherPanelAt = now + 700; }
 
     this.fpsFrames += 1;
     if (now - this.fpsClock >= 500) {
@@ -968,6 +1027,7 @@ export class UniverseLabApp {
     const thrustButton = this.root.querySelector('#thrustButton');
     if (thrustButton) thrustButton.textContent = this.ship.engineMode === 'cruise' ? 'THRUST 120' : 'THRUST 20';
     this.clock.elapsedSimSeconds = safeNumber(payload.elapsedSimSeconds, 0);
+    this.spaceWeather.reset(this.system.seed, this.clock.elapsedSimSeconds);
     this.clock.setTimeScale(payload.timeScale ?? 60);
     const timeSelect = this.root.querySelector('#timeScale');
     if (![...timeSelect.options].some((option) => Number(option.value) === this.clock.timeScale)) {
@@ -995,6 +1055,8 @@ export class UniverseLabApp {
     this.invalidatePredictions();
     this.updateParticleLabStatus();
     this.updateCosmosPanel();
+    this.updateSpaceWeatherPanel();
+    this.updateOverlayPanel();
     this.hud.notify('Save restored. High-count minor field was deterministically regenerated; major-body and spacecraft state were snapshot-restored. Session-local particle experiments were cleared.');
   }
 
@@ -1009,6 +1071,14 @@ export class UniverseLabApp {
     $('#scienceClose').addEventListener('click', () => this.hud.toggleScience(false));
     $('#cosmosToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateCosmosPanel(); this.hud.toggleCosmos(); });
     $('#cosmosClose').addEventListener('click', () => this.hud.toggleCosmos(false));
+    $('#overlayToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateOverlayPanel(); this.hud.toggleOverlays(); });
+    $('#overlayClose').addEventListener('click', () => this.hud.toggleOverlays(false));
+    $('#overlayMaster').addEventListener('change', (event) => this.setOverlaySetting('enabled', event.target.checked));
+    $('#overlayLagrange').addEventListener('change', (event) => this.setOverlaySetting('lagrange', event.target.checked));
+    $('#overlayHill').addEventListener('change', (event) => this.setOverlaySetting('hill', event.target.checked));
+    $('#overlayRoche').addEventListener('change', (event) => this.setOverlaySetting('roche', event.target.checked));
+    $('#overlayGravity').addEventListener('change', (event) => this.setOverlaySetting('gravity', event.target.checked));
+    $('#overlayOrbitPlane').addEventListener('change', (event) => this.setOverlaySetting('orbitPlane', event.target.checked));
     $('#scannerToggle').addEventListener('click', () => this.hud.toggleScanner());
     $('#scannerClose').addEventListener('click', () => this.hud.toggleScanner(false));
     $('#phenomenonSelect').addEventListener('change', (event) => this.selectPhenomenon(event.target.value, false));
@@ -1018,6 +1088,12 @@ export class UniverseLabApp {
     $('#nextPhenomenon').addEventListener('click', () => this.cyclePhenomenon());
     $('#rendezvousPhenomenon').addEventListener('click', () => this.rendezvousPhenomenon());
     $('#shipViewCosmos').addEventListener('click', () => { this.hud.toggleCosmos(false); this.returnToShipView(); });
+    $('#triggerCme').addEventListener('click', () => this.triggerSpaceWeather());
+    $('#autoWeatherToggle').addEventListener('click', (event) => {
+      this.spaceWeather.autoEnabled = !this.spaceWeather.autoEnabled;
+      event.currentTarget.textContent = `AUTO WEATHER ${this.spaceWeather.autoEnabled ? 'ON' : 'OFF'}`;
+      this.updateSpaceWeatherPanel();
+    });
     $('#targetButton').addEventListener('click', () => this.selectReticleTarget());
     $('#approachButton').addEventListener('click', () => { if (this.cameraMode === 'observe') { this.returnToShipView(); return; } if (this.navigationMode !== 'approach') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; } this.setNavigationMode(this.navigationMode === 'approach' ? 'manual' : 'approach'); });
     $('#matchVelocity').addEventListener('click', () => { if (this.navigationMode !== 'match') { this.navigationExperimentId = null; this.navigationPhenomenonId = null; } this.setNavigationMode(this.navigationMode === 'match' ? 'manual' : 'match'); });
@@ -1187,6 +1263,17 @@ export class UniverseLabApp {
         this.hud.notify(`${body.name} spawned: ${(body.mass / PHYSICS.SOLAR_MASS).toFixed(2)} M☉, physical radius ${(body.radius / 1000).toFixed(1)} km, spin ${body.spinPeriodSeconds.toFixed(3)} s. Gravity is live Newtonian; magnetosphere/beams are visual proxies.`);
       } catch (error) {
         this.hud.notify(`Compact-object spawn rejected: ${error.message}`);
+      }
+    });
+    $('#spawnExtremeObject').addEventListener('click', () => {
+      try {
+        const body = this.experiments.run('spawn-extreme-star', this, { extremeType: $('#extremeObjectType').value });
+        this.selectTarget(body.id);
+        const solar = body.mass / PHYSICS.SOLAR_MASS;
+        const massText = solar >= 0.01 ? `${solar.toFixed(3)} M☉` : `${(body.mass / PHYSICS.EARTH_MASS).toFixed(2)} M⊕`;
+        this.hud.notify(`${body.name} spawned: ${massText}, physical radius ${(body.radius / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} km. Gravity is live Newtonian; specialized field/thermal visuals are labeled proxies.`);
+      } catch (error) {
+        this.hud.notify(`Extreme-object spawn rejected: ${error.message}`);
       }
     });
     $('#spawnBlackHole').addEventListener('click', () => {

@@ -24,7 +24,7 @@ export function impactEnergyJoules(a, b, relativeSpeed) {
 export function materialProfile(body) {
   if (body.kind === BODY_KIND.BLACK_HOLE) return MATERIAL_RESPONSE.blackHole;
   if (body.kind === BODY_KIND.STAR) return MATERIAL_RESPONSE.star;
-  if (body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON) {
+  if (body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ROGUE_PLANET) {
     if (body.planetType === 'gas giant') return MATERIAL_RESPONSE.gasGiant;
     if (body.planetType === 'ice' || body.planetType === 'frozen') return MATERIAL_RESPONSE.planetIce;
     return MATERIAL_RESPONSE.planetRock;
@@ -120,7 +120,7 @@ export function classifyImpact(analysis) {
   if (analysis.relativeSpeedMps < analysis.mutualEscapeSpeedMps * 0.9 && analysis.impactorSpecificEnergyJkg < projectileDisruptionThreshold * 0.12) {
     return { mode: 'merge', reason: 'gravitationally bound sub-disruptive collision' };
   }
-  const craterForming = [BODY_KIND.PLANET, BODY_KIND.MOON].includes(target.kind) && analysis.relativeSpeedMps >= 500;
+  const craterForming = [BODY_KIND.PLANET, BODY_KIND.MOON, BODY_KIND.ROGUE_PLANET].includes(target.kind) && analysis.relativeSpeedMps >= 500;
   const projectileDisrupted = analysis.impactorSpecificEnergyJkg > projectileDisruptionThreshold * 0.15;
   if (craterForming || projectileDisrupted) {
     const catastrophic = analysis.specificImpactEnergyJkg > targetDisruptionThreshold || (analysis.massRatio > 0.08 && analysis.relativeSpeedMps > analysis.mutualEscapeSpeedMps * 1.2);
@@ -131,7 +131,7 @@ export function classifyImpact(analysis) {
 
 export function estimateCrater(analysis) {
   const { target, impactor } = analysis;
-  if (!([BODY_KIND.PLANET, BODY_KIND.MOON].includes(target.kind)) || target.planetType === 'gas giant') return null;
+  if (!([BODY_KIND.PLANET, BODY_KIND.MOON, BODY_KIND.ROGUE_PLANET].includes(target.kind)) || target.planetType === 'gas giant') return null;
   const g = (PHYSICS.G * target.mass) / (target.radius * target.radius);
   const Dp = Math.max(1, impactor.radius * 2);
   const rhoRatio = Math.max(0.15, Math.min(8, analysis.impactorDensityKgM3 / Math.max(1, analysis.targetDensityKgM3)));
@@ -185,7 +185,7 @@ export function generateFragments(analysis, options = {}) {
   const sourceMass = impactor.mass;
   // Only a small fraction of impactor mass is promoted to expensive, mutually gravitating fragments.
   // Most ejecta is intentionally represented by the cheaper visual debris field / target accretion.
-  const largeMassShare = [BODY_KIND.PLANET, BODY_KIND.MOON].includes(target.kind) ? 0.08 : 0.14;
+  const largeMassShare = [BODY_KIND.PLANET, BODY_KIND.MOON, BODY_KIND.ROGUE_PLANET].includes(target.kind) ? 0.08 : 0.14;
   const gravitationalFragmentBudget = fragmentCount;
   const totalRenderDebrisMass = Math.max(0, sourceMass * (1 - largeMassShare));
   const largeMass = gravitationalFragmentBudget > 0 ? sourceMass * largeMassShare : 0;

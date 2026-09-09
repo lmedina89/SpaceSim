@@ -2,6 +2,8 @@ import * as THREE from 'three/webgpu';
 import { createStarfield } from './starfield.js';
 import { createCelestialVisual, updateCelestialVisual } from './celestialFactory.js';
 import { createCosmicPhenomenonVisual, updateCosmicPhenomenonVisual } from './cosmicPhenomena.js';
+import { syncSpaceWeatherVisuals } from './spaceWeatherVisuals.js';
+import { updateScientificOverlayVisual } from './scientificOverlayVisuals.js';
 import { BODY_KIND, SIMULATION } from '../core/constants.js';
 import { computeObservationCameraPose } from './observationCamera.js';
 
@@ -66,6 +68,9 @@ export class UniverseRenderer {
     this.bodyVisuals = new Map();
     this.experimentVisuals = new Map();
     this.cosmicVisuals = new Map();
+    this.spaceWeatherVisuals = new Map();
+    this.scientificOverlayHolder = { group: null, summary: 'Overlays off' };
+    this._nextOverlayUpdateAt = 0;
     this.minorPoints = null;
     this.minorGeometry = null;
     this.systemSeed = null;
@@ -153,6 +158,10 @@ export class UniverseRenderer {
     this.experimentVisuals.clear();
     for (const visual of this.cosmicVisuals.values()) { this.scene.remove(visual); disposeObject(visual); }
     this.cosmicVisuals.clear();
+    for (const visual of this.spaceWeatherVisuals.values()) { this.scene.remove(visual); disposeObject(visual); }
+    this.spaceWeatherVisuals.clear();
+    if (this.scientificOverlayHolder.group) { this.scene.remove(this.scientificOverlayHolder.group); disposeObject(this.scientificOverlayHolder.group); this.scientificOverlayHolder.group = null; }
+    this._nextOverlayUpdateAt = 0;
     const stars = createStarfield(seed);
     stars.name = 'visual-starfield';
     this.scene.add(stars);
@@ -506,7 +515,28 @@ export class UniverseRenderer {
     };
   }
 
-  renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], elapsedSimSeconds = 0 }) {
+  invalidateScientificOverlays() {
+    this._nextOverlayUpdateAt = 0;
+  }
+
+  syncScientificOverlays({ settings, target, bodies, ship, referenceFrame }) {
+    const now = performance.now();
+    if (!settings?.enabled) {
+      if (this.scientificOverlayHolder.group) {
+        this.scene.remove(this.scientificOverlayHolder.group);
+        disposeObject(this.scientificOverlayHolder.group);
+        this.scientificOverlayHolder.group = null;
+      }
+      this.scientificOverlayHolder.summary = 'Overlays off';
+      return;
+    }
+    if (now < this._nextOverlayUpdateAt) return;
+    const result = updateScientificOverlayVisual(this.scene, this.scientificOverlayHolder, { settings, target, bodies, ship, referenceFrame });
+    this.scientificOverlayHolder.summary = result.summary;
+    this._nextOverlayUpdateAt = now + 900;
+  }
+
+  renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, ship = null, elapsedSimSeconds = 0 }) {
     this.syncBodies(bodies);
     const now = performance.now();
     const realDt = Math.min(0.05, Math.max(0, (now - this._lastSceneRenderAt) / 1000));
@@ -525,6 +555,8 @@ export class UniverseRenderer {
     if (minorField) this.updateMinorField(minorField, referenceFrame);
     this.syncParticleExperiments(particleExperiments, referenceFrame);
     this.syncCosmicPhenomena(cosmicPhenomena, bodies, referenceFrame, elapsedSimSeconds);
+    syncSpaceWeatherVisuals(this.scene, this.spaceWeatherVisuals, spaceWeather, referenceFrame, this.systemSeed ?? 'COSMOS');
+    this.syncScientificOverlays({ settings: scientificOverlays, target, bodies, ship, referenceFrame });
     this.updateTrajectories(referenceFrame);
     this.updateImpactEffects(referenceFrame);
 
@@ -540,11 +572,11 @@ export class UniverseRenderer {
     }
   }
 
-  renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], elapsedSimSeconds = 0 }) {
+  renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0 }) {
     // Keep the normal flight path deliberately identical to the physically tested v0.1.3.1 path.
     // Observation support must never alter this code path when cameraMode === 'ship'.
     referenceFrame.centerOn(ship.position);
-    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, elapsedSimSeconds });
+    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, ship, elapsedSimSeconds });
     this._motionLines.visible = true;
     this.updateMotionCue(ship);
     const desiredFov = 66 + (ship.throttle > 0 ? 5 : 0) + (ship.reverseThrottle > 0 ? 2 : 0);
@@ -557,9 +589,9 @@ export class UniverseRenderer {
     this.renderer.render(this.scene, this.camera);
   }
 
-  renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], elapsedSimSeconds = 0, cameraView }) {
+  renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0, cameraView }) {
     referenceFrame.centerOn(cameraView.center);
-    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, elapsedSimSeconds });
+    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, ship, elapsedSimSeconds });
     this._motionLines.visible = false;
     const desiredFov = 58;
     const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.16;
@@ -579,13 +611,13 @@ export class UniverseRenderer {
     this.renderer.render(this.scene, this.camera);
   }
 
-  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], elapsedSimSeconds = 0, cameraView = null }) {
+  render({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0, cameraView = null }) {
     const observing = Boolean(cameraView && cameraView.mode === 'observe' && cameraView.center);
     if (!observing) {
-      this.renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, elapsedSimSeconds });
+      this.renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, elapsedSimSeconds });
       return;
     }
-    this.renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, elapsedSimSeconds, cameraView });
+    this.renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, elapsedSimSeconds, cameraView });
   }
 
   dispose() {
@@ -595,6 +627,9 @@ export class UniverseRenderer {
     this.experimentVisuals.clear();
     for (const visual of this.cosmicVisuals.values()) { this.scene.remove(visual); disposeObject(visual); }
     this.cosmicVisuals.clear();
+    for (const visual of this.spaceWeatherVisuals.values()) { this.scene.remove(visual); disposeObject(visual); }
+    this.spaceWeatherVisuals.clear();
+    if (this.scientificOverlayHolder.group) { this.scene.remove(this.scientificOverlayHolder.group); disposeObject(this.scientificOverlayHolder.group); }
     this._motionGeometry.dispose();
     this._motionMaterial.dispose();
     this.renderer.dispose();

@@ -7,6 +7,9 @@ function renderRadius(body) {
   if (body.kind === BODY_KIND.STAR) return Math.max(physical, 18);
   if (body.kind === BODY_KIND.BLACK_HOLE) return Math.max(physical, 8);
   if (body.kind === BODY_KIND.NEUTRON_STAR) return Math.max(physical, 3.5);
+  if (body.kind === BODY_KIND.WHITE_DWARF) return Math.max(physical, 4.2);
+  if (body.kind === BODY_KIND.BROWN_DWARF) return Math.max(physical, 5.5);
+  if (body.kind === BODY_KIND.ROGUE_PLANET) return Math.max(physical, 0.95);
   if (body.kind === BODY_KIND.PLANET) return Math.max(physical, 0.85);
   if (body.kind === BODY_KIND.MOON) return Math.max(physical, 0.34);
   if (body.kind === BODY_KIND.COMET) return Math.max(physical, 0.08);
@@ -208,6 +211,28 @@ function createNeutronStarVisual(group, body, radius) {
   }
   group.add(magnetosphere);
 
+  if (body.compactType === 'magnetar') {
+    const lobes = new THREE.Group();
+    lobes.userData.role = 'magnetar-lobes';
+    for (let i = 0; i < 7; i += 1) {
+      const loop = new THREE.Mesh(
+        new THREE.TorusGeometry(radius * (2.0 + i * 0.62), Math.max(radius * 0.018, 0.025), 8, 128, Math.PI * 1.55),
+        new THREE.MeshBasicMaterial({ color: i % 2 ? 0x7beaff : 0xe4c4ff, transparent: true, opacity: 0.22 - i * 0.018, depthWrite: false, blending: THREE.AdditiveBlending }),
+      );
+      loop.rotation.set(0.25 + i * 0.22, i * 0.73, 0.18 + i * 0.31);
+      lobes.add(loop);
+    }
+    const rng = createRng(`${body.id}:${body.name}:magnetar-bursts`);
+    const count = 1200, positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i += 1) {
+      const k = i * 3, r = radius * rng.range(1.4, 8.0), a = rng.range(0, Math.PI * 2), u = rng.range(-1, 1), q = Math.sqrt(1 - u*u);
+      positions[k] = Math.cos(a) * q * r; positions[k + 1] = u * r; positions[k + 2] = Math.sin(a) * q * r;
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const sparks = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xb9f6ff, size: Math.max(0.035, radius * 0.06), transparent: true, opacity: 0.38, depthWrite: false, blending: THREE.AdditiveBlending }));
+    sparks.frustumCulled = false; lobes.add(sparks); group.add(lobes);
+  }
+
   if (body.compactType === 'pulsar') {
     const beamPivot = new THREE.Group();
     beamPivot.userData.role = 'pulsar-beam-pivot';
@@ -224,6 +249,33 @@ function createNeutronStarVisual(group, body, radius) {
     group.add(beamPivot);
   }
   group.userData.visualScientificStatus = 'Magnetosphere and radiation beams are visualization proxies. Compact-object gravity remains Newtonian outside the model guard.';
+}
+
+function createWhiteDwarfVisual(group, body, radius) {
+  const core = new THREE.Mesh(new THREE.SphereGeometry(radius, 36, 24), new THREE.MeshBasicMaterial({ color: body.color ?? 0xe8f7ff }));
+  group.add(core);
+  addGlow(group, 0xeefaff, radius * 7.5, 0.5);
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.45, Math.max(.035, radius * .025), 8, 96), new THREE.MeshBasicMaterial({ color: 0x8edcff, transparent: true, opacity: .22, depthWrite: false, blending: THREE.AdditiveBlending }));
+  halo.rotation.x = 1.15; halo.userData.role = 'white-dwarf-halo'; group.add(halo);
+  group.userData.visualScientificStatus = 'Compact white-dwarf visual proxy; luminosity/spectrum and degenerate-matter physics are not solved.';
+}
+
+function createBrownDwarfVisual(group, body, radius) {
+  const core = new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 22), new THREE.MeshStandardMaterial({ color: body.color ?? 0xa45b3d, roughness: .78, metalness: 0, emissive: 0x6f2419, emissiveIntensity: .12 }));
+  group.add(core);
+  for (let i = 0; i < 5; i += 1) {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(radius * (1.002 + i*.001), radius * (.035 + i*.008), 8, 96), new THREE.MeshBasicMaterial({ color: i%2 ? 0xdc7b52 : 0x63314a, transparent: true, opacity: .16, depthWrite: false, blending: THREE.AdditiveBlending }));
+    band.rotation.x = Math.PI/2; band.position.y = radius * (-.55 + i*.27); band.scale.x = Math.sqrt(Math.max(.05,1-(band.position.y/radius)**2)); band.scale.z = band.scale.x; group.add(band);
+  }
+  addGlow(group, 0xb74f3e, radius * 4.5, .16);
+  group.userData.visualScientificStatus = 'Brown-dwarf atmospheric bands/glow are visual proxies; chemistry, convection and stellar evolution are not modeled.';
+}
+
+function createRoguePlanetVisual(group, body, radius) {
+  const core = new THREE.Mesh(new THREE.SphereGeometry(radius, 28, 20), new THREE.MeshStandardMaterial({ color: body.color ?? 0x263d58, roughness: .9, metalness: .02, emissive: 0x0a1728, emissiveIntensity: .16 }));
+  group.add(core);
+  const rim = addGlow(group, 0x517ca6, radius * 4.8, .09); rim.userData.role = 'rogue-thermal-rim';
+  group.userData.visualScientificStatus = 'Cold rogue-planet appearance is illustrative; atmosphere, internal heat and formation history are not modeled.';
 }
 
 function createCometVisual(group, body, radius) {
@@ -276,6 +328,12 @@ export function createCelestialVisual(body) {
     createBlackHoleVisual(group, body, radius);
   } else if (body.kind === BODY_KIND.NEUTRON_STAR) {
     createNeutronStarVisual(group, body, radius);
+  } else if (body.kind === BODY_KIND.WHITE_DWARF) {
+    createWhiteDwarfVisual(group, body, radius);
+  } else if (body.kind === BODY_KIND.BROWN_DWARF) {
+    createBrownDwarfVisual(group, body, radius);
+  } else if (body.kind === BODY_KIND.ROGUE_PLANET) {
+    createRoguePlanetVisual(group, body, radius);
   } else if (body.kind === BODY_KIND.COMET) {
     createCometVisual(group, body, radius);
   } else {
@@ -346,6 +404,14 @@ export function updateCelestialVisual(visual, body, starBody, realDt = 0.016, el
     visual.rotation.y += dt * Math.min(8, spin * 0.15);
     if (magnetosphere) magnetosphere.rotation.y -= dt * Math.min(4, spin * 0.08);
     if (beam) beam.rotation.y = (elapsedSimSeconds * spin) % (Math.PI * 2);
+    const lobes = visual.children.find((child) => child.userData?.role === 'magnetar-lobes');
+    if (lobes) { lobes.rotation.y += dt * 0.6; lobes.rotation.z = 0.12 * Math.sin(elapsedSimSeconds / 2.3); }
+  } else if (body.kind === BODY_KIND.WHITE_DWARF) {
+    visual.rotation.y += dt * 0.18;
+    const halo = visual.children.find((child) => child.userData?.role === 'white-dwarf-halo');
+    if (halo) halo.rotation.z += dt * 0.22;
+  } else if (body.kind === BODY_KIND.BROWN_DWARF || body.kind === BODY_KIND.ROGUE_PLANET) {
+    visual.rotation.y += dt * 0.055;
   } else if (body.kind === BODY_KIND.COMET) {
     const nucleus = visual.children.find((child) => child.isMesh && child.geometry?.type === 'IcosahedronGeometry');
     if (nucleus) { nucleus.rotation.x += dt * 0.13; nucleus.rotation.y += dt * 0.2; }

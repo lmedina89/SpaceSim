@@ -1,104 +1,111 @@
-# Scientific Notes — Universe Lab v0.1.4
+# Scientific Notes — Universe Lab v0.1.4.1
 
-Universe Lab is designed to be explicit about where a model is physical, approximate, artificial, or purely visual.
+Universe Lab distinguishes live physics, scientific approximations, and visual/artificial proxies.
 
-## Major-body gravity
+## Authoritative simulation
 
-Live major bodies use Newtonian gravity:
+Major bodies use SI meters/kilograms/seconds with Float64 position and velocity. Mutual major-body gravity is Newtonian:
 
 \[
 \mathbf a_i = G \sum_{j \ne i} m_j\frac{\mathbf r_j-\mathbf r_i}{|\mathbf r_j-\mathbf r_i|^3}
 \]
 
-with SI units and Float64 state. Major bodies are integrated with velocity-Verlet.
+and major bodies are advanced with velocity-Verlet. Strong-field compact-object trajectories are not claimed to be relativistic.
 
-This is appropriate for ordinary system-scale orbital mechanics but not for strong-field relativistic trajectories near compact objects.
+## Rogue planets
 
-## Physical comets
+A seeded rogue planet, when present, is a real major body with finite mass/radius/position/velocity and Newtonian interaction. The generator places it far from the normal planetary architecture with an interstellar-like velocity. This is a sandbox initial condition, not a stellar-cluster ejection/capture formation model.
 
-v0.1.4 generated comet nuclei are physical Newtonian bodies with finite mass/radius and high-eccentricity orbital states. Their visible tail is not integrated dust or plasma.
+The cold visual surface/thermal rim is illustrative. Atmosphere, internal heat, chemistry and climate are not solved.
 
-The tail renderer:
+## White dwarfs and brown dwarfs
 
-- points away from the current host-star direction,
-- becomes visually more active nearer the star,
-- disappears at large star distance.
+LAB white/brown dwarfs use physically interpretable preset masses and radii in the live Newtonian solver.
 
-This captures the most important visual directionality without claiming solar-wind, ionization, sublimation chemistry, radiation pressure or particle-size distribution physics.
+Their visual temperature/bands/glow are not stellar-evolution calculations. Universe Lab does not currently solve electron degeneracy, mass-radius curves, atmospheric chemistry, convection or spectra.
 
-## Debris belts and planetary rings
+## Magnetars
 
-The ring/belt points are **population proxies**. Their radii, thicknesses, gaps and anchoring are generated coherently, but the individual visual particles:
+LAB magnetars use the existing neutron-star physical model: finite 12 km radius, live Newtonian mass and compact-object safety guard. Spin period and magnetic-field strength are metadata.
 
-- do not source gravity,
-- do not collide,
-- do not undergo resonance migration,
-- do not exchange angular momentum.
+Field loops, spark populations and glow are visual proxies. Charged-particle dynamics, pair cascades, magnetic reconnection, burst radiation, QED vacuum effects and magnetohydrodynamics are not implemented.
 
-This is a deliberate level-of-detail model for mobile rendering. A later local interaction mode can promote nearby representative chunks into physical objects while leaving the bulk population GPU-only.
+## Supernova remnants
 
-## Black holes
+The seeded remnant is a large visual point shell/filament proxy. It is useful as a scale/exploration object but is not a hydrodynamically evolved ejecta field. Visible points have no individual mass, gas pressure, cooling, chemistry, shock solver or collision behavior.
 
-A black-hole body stores a Schwarzschild-radius quantity:
+## Space weather / CME model
+
+A v0.1.4.1 CME is a **directional kinematic propagation model**.
+
+Each event has:
+
+- a stellar anchor,
+- launch time,
+- propagation speed,
+- start radius,
+- angular half-width,
+- shell thickness,
+- inertial direction.
+
+The front radius is
 
 \[
-r_s = \frac{2GM}{c^2}
+r(t)=r_0+v_{CME}(t-t_0)
 \]
 
-but live trajectories remain Newtonian outside a safety guard. v0.1.4 adds substantially richer visuals—accretion particles, photon-ring cues, a pseudo-lensing halo and polar jets—but those are visual approximations.
+and the ship crossing test requires both angular inclusion inside the cone and radial intersection with the swept front between simulation steps. Swept detection is important because accelerated simulation can move a front hundreds of thousands of kilometers during one physics substep.
 
-The renderer is **not** integrating null geodesics, the Kerr metric, relativistic radiative transfer, magnetohydrodynamics, or accretion-disk plasma.
+This supports meaningful travel/arrival-time measurements, but it is **not MHD**. The simulator does not currently model:
 
-The simulator pauses before the spacecraft enters the configured near-field guard or reaches 10% of light speed rather than presenting invalid Newtonian results as science.
+- magnetic topology/reconnection,
+- solar energetic particle spectra,
+- radiation dose,
+- plasma density/temperature evolution,
+- bow shocks,
+- geomagnetic storms,
+- spacecraft charging or hardware damage.
 
-## Neutron stars / pulsars
+## Lagrange points
 
-The live compact star uses a finite 12 km radius and selected mass in Newtonian gravity/collision code. Spin period and magnetic-field strength are metadata for the visual compact-object presentation.
+L1/L2 use the small-secondary circular restricted-three-body distance scale near the secondary. L3 uses a first-order circular approximation. L4/L5 use instantaneous equilateral geometry in the plane inferred from current relative position/velocity.
 
-Magnetosphere rings and sweep beams are visualization proxies. The solver does not currently model:
+These markers are **diagnostics**, not promises of long-term stability in the full multi-body evolving system.
 
-- general relativity,
-- frame dragging,
-- neutron-star equation of state,
-- radiation pressure,
-- charged-particle magnetosphere dynamics,
-- synchrotron emission.
+## Hill sphere
 
-A propulsion-safe stand-off and a neutron-star near-field model guard are therefore required.
+For primary mass \(M\), secondary mass \(m\), semi-major axis \(a\) and eccentricity \(e\), the displayed diagnostic is
 
-## Stellar corona / prominences
+\[
+r_H \approx a(1-e)\left(\frac{m}{3M}\right)^{1/3}.
+\]
 
-The new corona particles and prominence arcs are visual activity cues. They do not currently feed a physical stellar-wind or CME model.
+This is a useful approximate gravitational sphere-of-influence scale, not an exact boundary.
 
-## Nebular and galactic backdrop
+## Roche limit
 
-The faint galactic band and nebular haze are distant visual layers. They have no local density, drag, chemistry or navigation collision volume in v0.1.4.
+The overlay uses the fluid Roche-limit form
 
-## Spacecraft propulsion
+\[
+d \approx 2.44 R_p\left(\frac{\rho_p}{\rho_s}\right)^{1/3}
+\]
 
-FLIGHT (20 m/s²) and CRUISE (120 m/s²) are explicitly experimental propulsion models. They are physical accelerations inside the simulation, not claims about present-day spacecraft hardware.
+with a displayed/reference satellite density of 3,000 kg/m³. It is an estimate; rigidity, rotation, shape and internal strength can substantially change disruption behavior.
 
-BRAKE applies acceleration opposite inertial velocity; it does not erase velocity. APPROACH/MATCH/HOLD remain bounded by selected engine authority.
+## Gravity-vector field
 
-## Particle laboratory
+The local 25-point field samples the actual current Newtonian major-body source set and therefore reflects the same instantaneous mass/position state used by the live gravity solver. Vector display lengths are normalized for visibility rather than representing literal meter lengths.
 
-- Gravity Cloud / Particle Gun: physical **test-particle** models under major-body Newtonian gravity. They do not source gravity.
-- Particle Life: artificial continuous-3D cellular-automaton rules.
-- Species Forces: artificial local attraction/repulsion rules.
+## Orbital plane
 
-Artificial modes are experiments in emergent behavior, not descriptions of fundamental forces.
+The target orbital plane is inferred from instantaneous relative position \(\mathbf r\) and velocity \(\mathbf v\), using angular momentum direction \(\mathbf h=\mathbf r\times\mathbf v\). The drawn ring uses current separation as its display radius; it is a plane/context visualization rather than a predicted closed orbit.
 
-## Impacts
+## Existing black holes and neutron stars
 
-Impact energy and momentum telemetry uses reduced-mass center-of-mass quantities. Crater estimates use simplified established scaling relationships and are not hydrocode/finite-element impact simulations.
+Black holes retain Schwarzschild-radius metadata, Newtonian live gravity outside the guard, and visual accretion/photon-ring/jet/lensing cues. Neutron stars/pulsars/magnetars retain live Newtonian mass/radius and visual field/beam proxies.
 
-## Future accuracy path
+The simulator pauses near the configured compact-object guard or at ≥0.1c ship speed rather than presenting obviously invalid Newtonian output as adequate strong-field science.
 
-Useful future upgrades include:
+## Mobile level-of-detail principle
 
-- GR ray-traced black-hole visualization / optional geodesic test-particle mode,
-- Barnes–Hut/FMM/WebGPU self-gravity,
-- physical solar-wind/comet-tail particles,
-- local promotable ring/belt collision chunks,
-- magnetic-field-line / charged-particle experiments,
-- more explicit Hill/Roche/Lagrange visualization.
+Large populations—belts, rings, remnants, CMEs, accretion particles—are rendered as bounded GPU point populations rather than becoming thousands of mutual gravity sources. This separation is intentional and is required for iPhone-scale performance.

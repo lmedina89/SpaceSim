@@ -19,6 +19,9 @@ test('seeded systems include deterministic physical comets and local visual cosm
   assert.deepEqual(a.phenomena, b.phenomena);
   assert.ok(a.phenomena.some((entry) => entry.kind === 'asteroid-belt'));
   assert.ok(a.phenomena.some((entry) => entry.kind === 'planetary-rings'));
+  assert.ok(a.phenomena.some((entry) => entry.kind === 'supernova-remnant'));
+  assert.equal(a.metadata.roguePlanetCount, a.bodies.filter((body) => body.kind === BODY_KIND.ROGUE_PLANET).length);
+  if (a.metadata.roguePlanetCount) assert.ok(a.phenomena.some((entry) => entry.kind === 'rogue-planet'));
   assert.equal(a.metadata.phenomenonCount, a.phenomena.length);
   const ids = new Set(a.bodies.map((body) => body.id));
   for (const entry of a.phenomena) assert.ok(!entry.anchorBodyId || ids.has(entry.anchorBodyId));

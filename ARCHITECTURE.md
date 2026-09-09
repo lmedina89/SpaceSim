@@ -1,178 +1,103 @@
-# Universe Lab v0.1.4 Architecture
+# Architecture — Universe Lab v0.1.4.1
 
-## Design rule
+## Core rule
 
-The simulation owns reality; the renderer owns appearance.
+**Rendering never owns authoritative physics.**
 
-Three.js is not the authoritative physics engine. Major bodies, spacecraft, projectiles, comets and experiment particles retain SI-unit state independently of rendering. v0.1.4 extends that separation to cosmic phenomena so large visual populations do not become thousands of accidental N-body sources.
+The live simulation remains SI/Float64 and data-driven. Three.js owns visual objects and camera presentation only.
 
-## Authoritative state
+## Major-body layer
 
-- SI units: meters, kilograms, seconds.
-- major-body position/velocity: Float64.
-- direct Newtonian major-body gravity.
-- velocity-Verlet major-body/ship integration.
-- floating-origin conversion only at render time.
-- direct gravity source ceiling remains bounded for mobile safety.
+`EntityRegistry` contains physical generated/spawned bodies. Direct Newtonian gravity sources are bounded by `SIMULATION.directGravityBodyLimit` and integrated with velocity-Verlet.
 
-## Seeded system generation
+New physical body kinds:
 
-`src/data/systemGenerator.js` produces:
+- `white-dwarf`
+- `brown-dwarf`
+- `rogue-planet`
 
-- star,
-- planets,
-- moons,
-- 1–2 physical high-eccentricity comets,
-- metadata,
-- seeded cosmic-phenomenon definitions.
+Magnetars remain `neutron-star` bodies with `compactType: magnetar`, so existing compact-object navigation/model safeguards apply without duplicating physical code.
 
-All generated gravity bodies receive the same barycentric correction after generation.
+## Cosmic phenomenon layer
 
-`src/cosmic/phenomenonGenerator.js` separately produces structured visual phenomena such as:
+`CosmicPhenomenonRegistry` describes large exploration sources separately from the body registry.
 
-- circumstellar debris belt,
-- planetary ring systems.
+v0.1.4.1 kinds include:
 
-This lets the seed generate a rich system without turning every visible particle into a gravity body.
+- asteroid belt,
+- planetary rings,
+- supernova remnant,
+- rogue-planet discovery wrapper.
 
-## Cosmic phenomenon registry
+Phenomena may be:
 
-`src/cosmic/phenomenonRegistry.js` stores immutable-ish phenomenon definitions by id. A phenomenon can carry an `anchorBodyId`; its live state resolves against the current body registry each time it is queried.
+- anchored to a live body and resolve its current Float64 state, or
+- free-space with their own deterministic position/velocity.
 
-Consequences:
+`render/cosmicPhenomena.js` converts those definitions into GPU-friendly render proxies.
 
-- a planetary ring follows its moving planet,
-- a debris belt follows its star/reference frame,
-- observation and rendezvous use current coordinates,
-- the definition itself does not duplicate mutable N-body state.
+## Space weather
 
-## Cosmic rendering
+`cosmic/spaceWeather.js` owns session-local CME event state.
 
-`src/render/cosmicPhenomena.js` creates one seeded `THREE.Points` object per ring/belt phenomenon. The renderer transforms the anchor position through the floating-origin reference frame and updates proxy rotation from simulation time.
+It does not create major gravity bodies. Each event stores compact scalar/vector metadata and derives current front radius from simulation time.
 
-Typical visual counts:
+`render/spaceWeatherVisuals.js` owns one bounded point/cone visual per active event. Renderer state is keyed by event ID and disposed when the physical/kinematic event expires.
 
-- asteroid/debris belt: 12,000 points,
-- planetary rings: 4,000–7,000 points each.
+CME crossing uses a swept radial interval from the event's previous front radius to its current front radius, preventing high-warp substeps from tunneling through the spacecraft.
 
-These are rendering populations, not collision/gravity objects.
+## Scientific overlays
+
+`cosmic/scientificOverlays.js` is a pure math module with no Three.js dependency. It owns Hill/Roche/Lagrange/gravity/orbital-plane calculations and is unit-tested independently.
+
+`render/scientificOverlayVisuals.js` owns only the visual representation.
+
+The renderer receives a small settings object from the app. The master is off by default. Geometry refresh is throttled because these diagnostics do not require per-frame topology reconstruction.
+
+The overlay renderer is target-centric to avoid turning the scene into an unreadable global wireframe.
+
+## Renderer flow
+
+Normal ship rendering remains isolated:
+
+1. floating reference frame centers on physical ship,
+2. body visuals sync,
+3. experiment visuals sync,
+4. cosmic phenomena sync,
+5. space-weather proxies sync,
+6. optional scientific overlays update,
+7. trajectories/impact FX update,
+8. ship camera renders.
+
+Observation rendering uses the same scene-object synchronization but centers the floating reference frame on the selected massless observation source before calculating its camera pose.
 
 ## Celestial visual factory
 
-`src/render/celestialFactory.js` now owns animated visual subgraphs for special bodies.
+Special body visual graphs remain attached to one authoritative body entity:
 
-### Star
+- black hole → core + photon rings + accretion + jets + pseudo-lensing glow,
+- neutron star/pulsar → compact core + magnetosphere + optional sweep beams,
+- magnetar → neutron-star base + stronger field lobes + spark population,
+- white dwarf → compact blue-white core + halo,
+- brown dwarf → warm low-temperature surface/band layers,
+- rogue planet → cold dark surface + faint thermal rim,
+- comet → nucleus + star-relative visual tail.
 
-- physical/generated star body remains unchanged,
-- surface sphere,
-- ~1,600-point corona,
-- prominence arcs,
-- glow.
+No child visual changes mass, radius, trajectory or collision behavior.
 
-### Black hole
+## Space-weather persistence
 
-Live body:
+Space weather is session-local in schema 1. Saving/loading preserves the major-body/ship state but intentionally regenerates future weather scheduling rather than silently extending the save schema.
 
-- Newtonian mass,
-- physical Schwarzschild radius metadata,
-- existing strong-gravity/model-limit safeguards.
+## Performance boundaries
 
-Visual subgraph:
+- direct mutual gravity remains for low-count major bodies only,
+- belt/ring/remnant/CME populations are GPU render proxies,
+- particle experiments retain their independent 40,000-slot budget,
+- scientific overlays are off by default and use only small line/point sets,
+- overlay visual topology is throttled instead of rebuilt every frame,
+- compact-object decorative particle counts are bounded.
 
-- black core,
-- photon-ring group,
-- ~5,200-point accretion disk,
-- disk torus layers,
-- visual relativistic-jet group with ~1,500 particles,
-- pseudo-lensing halo.
+## Failure boundaries
 
-No visual element changes the live gravitational state.
-
-### Neutron star / pulsar
-
-Live body:
-
-- mass,
-- 12 km radius,
-- Newtonian gravity/collision state,
-- spin/magnetic-field metadata.
-
-Visual subgraph:
-
-- bright compact sphere,
-- magnetosphere rings,
-- optional rotating pulsar beam pivot,
-- glow.
-
-### Comet
-
-Live body:
-
-- physical nucleus mass/radius/orbit.
-
-Visual subgraph:
-
-- nucleus mesh,
-- seeded ~950-point tail,
-- current star-relative tail orientation,
-- distance-dependent visible activity.
-
-## Renderer integration
-
-`src/render/threeRenderer.js` keeps:
-
-- normal SHIP VIEW on its isolated stable path,
-- experiment observation path,
-- cosmic observation path,
-- major-body visual synchronization,
-- cosmic-phenomenon synchronization,
-- floating-origin camera/reference-frame conversion.
-
-The camera far plane is enlarged enough for multi-AU visual phenomena while local body scales still use floating-origin rendering.
-
-## Observation architecture
-
-Massless observation cameras are explicitly not spacecraft travel.
-
-Experiment observation:
-
-- FRAME,
-- TRACK,
-- ORBIT.
-
-Cosmic observation:
-
-- FRAME,
-- ORBIT.
-
-Both derive render-camera poses without mutating ship position/velocity.
-
-**RENDEZVOUS** instead creates a navigation target from the current phenomenon anchor position/velocity and uses the normal bounded-thrust flight computer. An anchored ring therefore inherits the planet's live motion/mass context, while a belt inherits the star's.
-
-## Compact-object navigation safeguards
-
-`src/physics/flightComputer.js` calculates propulsion-safe stand-off from local `GM/r²` and the selected engine acceleration.
-
-Additional validity guards:
-
-- ship speed ≥ 0.1c,
-- black-hole near-field guard,
-- neutron-star near-field guard.
-
-Strong local gravity also reduces maximum physics substep through the existing dynamical-time estimate.
-
-These guards prevent the Newtonian solver from visually masquerading as GR.
-
-## Particle experiments retained
-
-`ParticleExperimentManager` still owns contiguous typed-array fields with a global 40,000-slot budget. Artificial neighbor modes use `SpatialHashGrid`; Gravity Cloud and Particle Gun feel major-body gravity but do not source it. Each field renders with one `THREE.Points` draw call.
-
-## Save compatibility
-
-Save schema remains 1. New cosmic phenomena are regenerated deterministically from the saved seed. Discovery state and local particle experiments are currently session-local rather than silently extending the existing persistent schema.
-
-## Failure diagnostics
-
-The animation-loop runtime boundary from v0.1.3.2.1 remains. Any browser-frame exception halts the simulation and shows `RUNTIME ERROR: ...` in the HUD instead of leaving a misleading half-alive screen.
-
-The class-method integrity test added in v0.1.3.2.2 remains and verifies every direct `this.method()` call in `UniverseLabApp` has a class method definition.
+The runtime exception HUD boundary and unhandled-promise reporting remain. The static class-method integrity test still enumerates direct `this.method()` calls and requires corresponding `UniverseLabApp` class definitions.

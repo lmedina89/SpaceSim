@@ -1,9 +1,9 @@
 {
   "name": "universe-lab",
-  "version": "0.1.4",
+  "version": "0.1.4.1",
   "private": true,
   "type": "module",
-  "description": "Scientific mobile-first seeded universe laboratory with cosmic phenomena exploration, active compact-object visuals, physical comets, scalable particle experiments, and bounded-thrust navigation.",
+  "description": "Scientific mobile-first seeded universe laboratory with extreme objects, traveling space weather, scientific overlays, cosmic phenomena exploration, scalable particle experiments, and bounded-thrust navigation.",
   "scripts": {
     "check": "node ./tests/static-check.mjs && find src tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "test": "node --test tests/*.test.mjs",

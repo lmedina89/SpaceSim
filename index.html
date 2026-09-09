@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4</title>
+  <title>Universe Lab v0.1.4.1</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="importmap">
   {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.1</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -78,12 +78,13 @@
         <button id="rcsToggle" type="button">RCS PANEL</button>
         <button id="scienceToggle" type="button">SCIENCE</button>
         <button id="cosmosToggle" type="button">COSMOS</button>
+        <button id="overlayToggle" type="button">OVERLAYS</button>
         <button id="homeButton" type="button">HOME / ORBIT</button>
         <button id="pauseToggle" type="button">PAUSE</button>
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s² experimental propulsion. APPROACH and MATCH use bounded real thrust. BRAKE applies thrust opposite current inertial velocity. Observation cameras are massless views and never move the ship. Build marker: <b>COSMOS-140</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s² experimental propulsion. APPROACH and MATCH use bounded real thrust. BRAKE applies thrust opposite current inertial velocity. Observation cameras are massless views and never move the ship. Build marker: <b>EXTREME-141</b>.</p>
     </aside>
 
     <aside id="labPanel" class="drawer lab-panel" hidden>
@@ -105,7 +106,7 @@
         <label>Artificial local strength (m/s²)<input id="particleStrength" type="number" inputmode="decimal" value="20" min="0" max="250" step="1"></label>
         <label class="inline-check"><input id="particleMajorGravity" type="checkbox" checked><span>Also feel all major-body Newtonian gravity</span></label>
         <div class="button-row"><button id="randomizeParticleRules" type="button">RANDOMIZE RULE PARAMS</button><button id="spawnParticleField" class="void" type="button">SPAWN + OBSERVE</button></div>
-        <p id="particleStatus" class="prediction">No active particle experiments. Fields are session-local in v0.1.4.</p>
+        <p id="particleStatus" class="prediction">No active particle experiments. Fields are session-local in v0.1.4.1.</p>
         <h3>OBSERVATION / RENDEZVOUS</h3>
         <p class="help">OBSERVE/FRAME/TRACK/ORBIT move only a massless scientific camera. RENDEZVOUS returns to SHIP VIEW and moves the physical spacecraft with bounded thrust and braking.</p>
         <label>Selected experiment<select id="experimentSelect"><option value="">No active experiment</option></select></label>
@@ -152,6 +153,12 @@
         <button id="spawnNeutronStar" class="void" type="button">SPAWN COMPACT STAR</button>
         <p class="warning">The 12 km physical radius and selected mass are used by live Newtonian gravity/collision code. Magnetosphere, sweep beams and glow are visual proxies. A compact-object guard pauses before near-surface Newtonian motion is presented as valid.</p>
         <hr>
+        <h3>EXTREME OBJECT PRESETS</h3>
+        <p class="help">Spawn additional live Newtonian objects for close study. Their mass/radius are physical presets; atmospheric, magnetic, thermal and radiative appearances are visual approximations.</p>
+        <label>Extreme object<select id="extremeObjectType"><option value="magnetar" selected>Magnetar</option><option value="white-dwarf">White dwarf</option><option value="brown-dwarf">Brown dwarf</option><option value="rogue-planet">Rogue planet</option></select></label>
+        <button id="spawnExtremeObject" class="void" type="button">SPAWN EXTREME OBJECT</button>
+        <p class="warning">Magnetars retain the neutron-star model guard. White/brown dwarfs and rogue planets use propulsion-safe stand-off from live Newtonian gravity; detailed stellar/atmospheric evolution is not solved.</p>
+        <hr>
         <h3>ACTIVE BLACK HOLE</h3>
         <label>Black-hole mass (solar masses)<input id="blackHoleMass" type="number" inputmode="decimal" value="3" min="0.1" max="100" step="0.1"></label>
         <button id="spawnBlackHole" class="void" type="button">SPAWN ACTIVE BLACK HOLE</button>
@@ -162,7 +169,7 @@
     <aside id="cosmosPanel" class="drawer cosmos-panel" hidden>
       <header><div><b>COSMIC EXPLORER</b><small>Seeded local phenomena · discovery · massless observation</small></div><button id="cosmosClose" type="button" aria-label="Close cosmic explorer">×</button></header>
       <div class="scanner-copy">
-        <p class="help">The local system now includes structured debris belts, planetary ring systems and physical high-eccentricity comets. Distant nebular haze in the sky is visual backdrop only. Sources begin unclassified so SCAN SOURCE has an exploration purpose.</p>
+        <p class="help">The local system now includes structured debris belts, planetary ring systems, physical high-eccentricity comets, occasional physical rogue planets, and a seeded ancient supernova-remnant visual proxy. Distant nebular haze in the sky is visual backdrop only. Sources begin unclassified so SCAN SOURCE has an exploration purpose.</p>
         <label class="cosmos-select-label">Local source<select id="phenomenonSelect"><option value="">Loading sources…</option></select></label>
         <div class="scan-grid">
           <span>Discovery</span><b id="phenomenonDiscovery">—</b>
@@ -179,7 +186,27 @@
           <button id="rendezvousPhenomenon" class="void" type="button">RENDEZVOUS</button>
           <button id="shipViewCosmos" type="button">SHIP VIEW</button>
         </div>
-        <p class="warning">OBSERVE/ORBIT move only the massless camera. RENDEZVOUS moves the physical spacecraft with the same bounded-thrust APPROACH/BRAKING/CAPTURE/HOLD computer. Belt/ring point populations are visual proxies rather than individually integrated gravity/collision bodies.</p>
+        <hr>
+        <h3>SPACE WEATHER</h3>
+        <p class="help">Coronal mass ejections propagate outward at measured kinematic speeds and can geometrically cross the spacecraft. Plasma/MHD, magnetic reconnection, radiation dose and hardware damage are intentionally not simulated yet.</p>
+        <div class="scan-grid"><span>Active fronts</span><b id="spaceWeatherActive">0</b><span>Next seeded event</span><b id="spaceWeatherNext">—</b></div>
+        <p id="spaceWeatherStatus" class="prediction">No active CME fronts.</p>
+        <div class="button-row"><button id="triggerCme" class="void" type="button">TRIGGER CME</button><button id="autoWeatherToggle" type="button">AUTO WEATHER ON</button></div>
+        <p class="warning">OBSERVE/ORBIT move only the massless camera. RENDEZVOUS moves the physical spacecraft with the same bounded-thrust APPROACH/BRAKING/CAPTURE/HOLD computer. Belt/ring/remnant point populations are visual proxies rather than individually integrated gravity/collision bodies.</p>
+      </div>
+    </aside>
+
+    <aside id="overlayPanel" class="drawer science-panel" hidden>
+      <header><div><b>SCIENTIFIC OVERLAYS</b><small>Target-centric orbital and gravity diagnostics</small></div><button id="overlayClose" type="button" aria-label="Close scientific overlays">×</button></header>
+      <div class="science-copy">
+        <label class="inline-check"><input id="overlayMaster" type="checkbox"><span>ENABLE SCIENTIFIC OVERLAYS</span></label>
+        <label class="inline-check"><input id="overlayLagrange" type="checkbox" checked><span>L1–L5 estimates for selected body + parent/star</span></label>
+        <label class="inline-check"><input id="overlayHill" type="checkbox" checked><span>Hill-sphere radius</span></label>
+        <label class="inline-check"><input id="overlayRoche" type="checkbox" checked><span>Fluid Roche-limit estimate (3,000 kg/m³ reference satellite)</span></label>
+        <label class="inline-check"><input id="overlayOrbitPlane" type="checkbox" checked><span>Instantaneous selected orbital plane</span></label>
+        <label class="inline-check"><input id="overlayGravity" type="checkbox"><span>25-point local Newtonian gravity-vector field around ship</span></label>
+        <p id="overlayStatus" class="prediction">Scientific overlays are off.</p>
+        <p class="warning">Lagrange markers use circular restricted-three-body approximations on the instantaneous geometry. Hill/Roche overlays are diagnostic estimates, not stability guarantees. Gravity vectors come directly from the current live Newtonian major-body state.</p>
       </div>
     </aside>
 
@@ -219,10 +246,12 @@
         <p><strong>Trajectory path:</strong> an N-body forward integration of the current massive system plus the ship/projectile. Future thrust and minor-particle gravity are excluded.</p>
         <p><strong>Scanner orbit:</strong> osculating two-body elements around the selected target. Other-body perturbations are intentionally ignored in those displayed elements.</p>
         <p><strong>Minor field:</strong> 1k–20k typed-array background test particles feel major gravity but intentionally contribute no gravity.</p>
-        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields are session-local in v0.1.4 and cap warp at 60× for numerical resolution. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
+        <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields are session-local in v0.1.4.1 and cap warp at 60× for numerical resolution. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
         <p><strong>Ship:</strong> FLIGHT thrust is 20 m/s²; CRUISE thrust is 120 m/s² experimental propulsion. BRAKE applies bounded physical thrust opposite inertial velocity. APPROACH uses a propulsion-safe target stand-off, brakes into CAPTURE, then remains in thrust-powered HOLD until the pilot takes over. MATCH uses bounded thrust; none of these modes teleport or delete velocity.</p>
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Cosmic phenomena:</strong> physical comet nuclei are live Newtonian gravity sources on high-eccentricity orbits. Asteroid/debris belts and planetary rings use seeded GPU-friendly point-population proxies tied to physical anchor bodies; their individual visible points do not source gravity or collide. Distant colored nebular haze is explicitly visual background.</p>
+        <p><strong>Space weather:</strong> CME fronts use seeded directional cones with explicit propagation speeds and geometric arrival/crossing detection. They are kinematic fronts, not magnetohydrodynamic or radiation-transport simulations.</p>
+        <p><strong>Scientific overlays:</strong> gravity vectors are computed from the current Newtonian source set. Lagrange points, Hill spheres and Roche limits are labeled diagnostic approximations; orbital planes are derived from instantaneous target-relative position/velocity.</p>
         <p><strong>Compact objects:</strong> black holes use Schwarzschild-radius metadata plus live Newtonian gravity, with a dense real-time accretion-disk/photon-ring/jet visual proxy. Neutron stars/pulsars use live Newtonian mass/radius plus visual magnetosphere and sweep-beam proxies. APPROACH computes propulsion-safe stand-off, strong gravity reduces integration steps, and model guards pause before near-horizon/near-surface or &gt;10% c states are presented as adequate Newtonian science. Full GR ray tracing, radiation transport and plasma MHD remain future work.</p>
       </div>
     </aside>
