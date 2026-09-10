@@ -64,6 +64,20 @@ export class Hud {
     this.overlays = root.querySelector('#overlayPanel');
     this.transit = root.querySelector('#transitPanel');
     this.map = root.querySelector('#mapPanel');
+    this.engineering = root.querySelector('#engineeringPanel');
+    this.engineeringRenderer = root.querySelector('#engineeringRenderer');
+    this.engineeringFps = root.querySelector('#engineeringFps');
+    this.engineeringPhysics = root.querySelector('#engineeringPhysics');
+    this.engineeringRender = root.querySelector('#engineeringRender');
+    this.engineeringShipSpeed = root.querySelector('#engineeringShipSpeed');
+    this.engineeringSimTime = root.querySelector('#engineeringSimTime');
+    this.engineeringSeed = root.querySelector('#engineeringSeed');
+    this.engineeringMajor = root.querySelector('#engineeringMajor');
+    this.engineeringTest = root.querySelector('#engineeringTest');
+    this.engineeringDraw = root.querySelector('#engineeringDraw');
+    this.engineeringPrediction = root.querySelector('#engineeringPrediction');
+    this.engineeringParticles = root.querySelector('#engineeringParticles');
+    this.engineeringLab = root.querySelector('#engineeringLab');
     this._messageTimer = null;
     this.targetChip = root.querySelector('#targetChip');
     this.navChip = root.querySelector('#navChip');
@@ -95,8 +109,14 @@ export class Hud {
     this.notify(`RUNTIME ERROR: ${message}`, 0);
   }
 
-  setRenderer(name) { this.renderer.textContent = name; }
-  setSeed(seed) { this.seed.textContent = seed; }
+  setRenderer(name) {
+    this.renderer.textContent = name;
+    if (this.engineeringRenderer) this.engineeringRenderer.textContent = name;
+  }
+  setSeed(seed) {
+    this.seed.textContent = seed;
+    if (this.engineeringSeed) this.engineeringSeed.textContent = seed;
+  }
   toggleLab(force) { this.lab.hidden = typeof force === 'boolean' ? !force : !this.lab.hidden; }
   toggleScience(force) { this.science.hidden = typeof force === 'boolean' ? !force : !this.science.hidden; }
   toggleScanner(force) { this.scanner.hidden = typeof force === 'boolean' ? !force : !this.scanner.hidden; }
@@ -105,6 +125,7 @@ export class Hud {
   toggleOverlays(force) { this.overlays.hidden = typeof force === 'boolean' ? !force : !this.overlays.hidden; }
   toggleTransit(force) { if (this.transit) this.transit.hidden = typeof force === 'boolean' ? !force : !this.transit.hidden; }
   toggleMap(force) { if (this.map) this.map.hidden = typeof force === 'boolean' ? !force : !this.map.hidden; }
+  toggleEngineering(force) { if (this.engineering) this.engineering.hidden = typeof force === 'boolean' ? !force : !this.engineering.hidden; }
   notify(text, holdMs = 4400) {
     this.message.hidden = false;
     this.message.textContent = text;
@@ -228,5 +249,19 @@ export class Hud {
     this.drawCalls.textContent = drawCalls == null ? '—' : String(drawCalls);
     if (this.experimentParticles) this.experimentParticles.textContent = Number(experimentParticles).toLocaleString();
     if (this.experimentMs) this.experimentMs.textContent = `${fmt(experimentMs, 2)} ms`;
+
+    // Dedicated read-only engineering drawer mirrors the same telemetry bus as
+    // the cockpit diagnostics MFD; it never owns or mutates simulation state.
+    if (this.engineeringFps) this.engineeringFps.textContent = `${Math.round(fps)}`;
+    if (this.engineeringPhysics) this.engineeringPhysics.textContent = `${fmt(physicsMs, 2)} ms`;
+    if (this.engineeringRender) this.engineeringRender.textContent = `${fmt(renderMs, 2)} ms`;
+    if (this.engineeringShipSpeed) this.engineeringShipSpeed.textContent = speed(shipSpeed);
+    if (this.engineeringSimTime) this.engineeringSimTime.textContent = `${fmt(elapsedSeconds / PHYSICS.DAY, 3)} d`;
+    if (this.engineeringMajor) this.engineeringMajor.textContent = `${bodyCount}`;
+    if (this.engineeringTest) this.engineeringTest.textContent = Number(minorCount).toLocaleString();
+    if (this.engineeringDraw) this.engineeringDraw.textContent = drawCalls == null ? '—' : String(drawCalls);
+    if (this.engineeringPrediction) this.engineeringPrediction.textContent = `${fmt(predictionMs, 2)} ms`;
+    if (this.engineeringParticles) this.engineeringParticles.textContent = Number(experimentParticles).toLocaleString();
+    if (this.engineeringLab) this.engineeringLab.textContent = `${fmt(experimentMs, 2)} ms`;
   }
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.4.6.1.3.1 — Cockpit MFD Transparency & Engineering Diagnostics Polish
+
+- Made all four in-cockpit CanvasTexture displays modestly translucent using smoked-glass alpha backgrounds while preserving fully legible text/telemetry.
+- Kept the SYSTEM DIAGNOSTICS screen at its accepted 3D position.
+- Reduced the diagnostics cyan outline thickness and slimmed/repositioned its physical bezel/projector rail so the right edge no longer masks screen content.
+- Changed SYSTEM DIAGNOSTICS touch behavior to open a dedicated read-only **ENGINEERING / DIAGNOSTICS** drawer instead of the existing Flight/System drawer.
+- Mirrored renderer, FPS, physics/render timing, ship speed, sim time, seed, body/test counts, draw calls, prediction timing and experiment telemetry into the engineering drawer without creating new simulation state.
+- Added build-version query tags to `styles.css` and `src/main.js` to reduce Safari/GitHub Pages stale mixed-asset loads.
+- Preserved FRAME behavior, real-physics APPROACH/BRAKE, celestial gravity, save schema 1, Three.js 0.185.0 and the forced iPhone/iPad WebGL2 backend policy.
+
 ## v0.1.4.6.1.3 — Frame Drive & Cockpit Flight-Control Polish
 
 - Built directly from v0.1.4.6.1.2 after physical iPhone feedback approved the ship-mounted SYSTEM DIAGNOSTICS MFD but showed the large THRUST overlay covering its lower-right area.

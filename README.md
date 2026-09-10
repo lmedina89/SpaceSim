@@ -1,14 +1,22 @@
-# Universe Lab v0.1.4.6.1.3 — Frame Drive & Cockpit Flight-Control Polish
+# Universe Lab v0.1.4.6.1.3.1 — Cockpit MFD Transparency & Engineering Diagnostics Polish
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `FRAMECTRL-14613`
+**Build marker:** `MFDENG-146131`
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)
 **Three.js:** 0.185.0 (unchanged)
 **Deployment:** GitHub Pages → `main` → `/(root)`
 **Release gate:** physical iPhone Safari
 
 
+
+## v0.1.4.6.1.3.1 Cockpit MFD transparency & engineering diagnostics polish
+
+This is a contained cockpit/UI polish release built directly from v0.1.4.6.1.3 after physical iPhone review. All four camera-attached cockpit displays now use a modest smoked-glass alpha background so the starfield/target scene remains faintly visible behind the telemetry while text stays crisp and opaque. No screen position or simulation authority changes.
+
+The right-side **SYSTEM DIAGNOSTICS** pane keeps its accepted location but its cyan outline, physical bezel and projector rail are reduced/repositioned so the display edge no longer masks the telemetry. Tapping SYSTEM DIAGNOSTICS now opens a dedicated read-only **ENGINEERING / DIAGNOSTICS** drawer that mirrors the same runtime telemetry bus instead of reopening the existing Flight/System controls already represented by the center FLIGHT MFD.
+
+The HTML shell now version-tags `styles.css` and `src/main.js` with `?v=146131` to reduce stale mixed-asset loads on iPhone Safari/GitHub Pages. FRAME, APPROACH, ShipDynamics, direct Newtonian gravity, velocity-Verlet body integration, save schema 1, Three.js 0.185.0 and the forced iPhone/iPad WebGL2 policy are unchanged.
 
 ## v0.1.4.6.1.3 Frame Drive & cockpit flight-control polish
 

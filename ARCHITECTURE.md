@@ -1,4 +1,4 @@
-# Architecture — Universe Lab v0.1.4.6.1.3
+# Architecture — Universe Lab v0.1.4.6.1.3.1
 
 ## Canonical astronomical observer
 
@@ -33,6 +33,8 @@ v0.1.4.6.1.1 keeps that input boundary intact but moves the MFD planes/bezels fo
 v0.1.4.6.1.2 extends that same presentation boundary with a fourth `SYSTEM DIAGNOSTICS` CanvasTexture MFD mounted on the right cockpit side. `UniverseLabApp.cockpitTelemetry()` mirrors existing renderer/performance/debug readings into `CockpitView`; `CockpitView` only draws those values and routes a touch on the panel back to the existing Flight/System drawer. The top DOM performance/seed HUD is hidden only while the 3D cockpit is active and remains intact as the fallback when the cockpit is disabled. No diagnostics value becomes authoritative state and no new simulation ownership is introduced.
 
 v0.1.4.6.1.3 deliberately leaves that diagnostics MFD at the same 3D position. Only the DOM flight-control cluster is compacted/lowered on short landscape viewports. A new bottom-bar FRAME control routes into the existing app transit/FRAME state; it creates no second navigation state machine. While FRAME is active, the FLIGHT MFD changes presentation to FRAME telemetry but still owns no simulation state.
+
+v0.1.4.6.1.3.1 keeps all four MFD transforms fixed but changes their CanvasTexture backgrounds to semi-transparent smoked glass. `CockpitView` still draws the telemetry; alpha affects presentation only. The diagnostics screen uses a thinner configurable bezel and moves its decorative projector rail outside the screen edge. Diagnostics touch now routes to `Hud.toggleEngineering()`, a dedicated read-only DOM drawer whose values are mirrored from the same HUD/runtime telemetry bus. FLIGHT remains the only cockpit entry to Flight/System controls. No new physics, renderer, save, navigation or observer authority is introduced.
 
 
 The cockpit remains excluded from OBSERVE and local surface views. `cockpitEnabled` remains an optional schema-1 preference. The cockpit is never inserted into `EntityRegistry`, never participates in gravity/collision/trajectory calculations, and never alters the canonical astronomical observer.

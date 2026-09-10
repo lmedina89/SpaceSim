@@ -79,12 +79,13 @@ test('cockpit lighting is emissive-only and driven by live status', async () => 
   assert.doesNotMatch(src, /new THREE\.SpotLight/);
 });
 
-test('redundant MORE launcher is removed while FLIGHT MFD remains the system-menu entry', async () => {
+test('FLIGHT MFD remains the system-menu entry while diagnostics has a dedicated engineering drawer', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const app = await appSource();
   assert.doesNotMatch(html, /id="moreToggle"/);
   assert.match(html, /id="morePanel"/);
-  assert.match(app, /case 'flight-screen':\s*case 'diagnostics-screen':\s*this\.hud\.toggleMore\(true\)/s);
+  assert.match(app, /case 'flight-screen':\s*this\.hud\.toggleMore\(true\)/s);
+  assert.match(app, /case 'diagnostics-screen':[\s\S]*this\.hud\.toggleEngineering\(true\)/);
   assert.match(html, /id="cockpitRestore"/);
   assert.match(app, /#cockpitRestore.*toggleCockpit\(true\)/s);
 });
@@ -97,10 +98,10 @@ test('integrated diagnostics MFD mirrors runtime telemetry without owning simula
   const css = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
   assert.match(cockpit, /drawDiagnosticsScreen/);
   assert.match(cockpit, /LIVE · PILOT DEBUG BUS/);
-  assert.match(cockpit, /TOUCH → FLIGHT \/ SYSTEM/);
+  assert.match(cockpit, /TOUCH → ENGINEERING/);
   assert.match(app, /rendererBackend: this\.rendererBackend/);
   assert.match(app, /drawCalls: runtime\.drawCalls/);
-  assert.match(app, /case 'diagnostics-screen':\s*this\.hud\.toggleMore\(true\)/s);
+  assert.match(app, /case 'diagnostics-screen':[\s\S]*this\.hud\.toggleEngineering\(true\)/);
   assert.match(css, /ship-cockpit-enabled \.top-hud \.stat\{display:none\}/);
   assert.match(css, /ship-cockpit-enabled \.seed-chip\{display:none\}/);
   assert.match(html, /id="rendererValue"/);
@@ -121,4 +122,33 @@ test('mobile thrust overlay is compacted below the fixed diagnostics screen', as
   assert.match(css,/@media \(orientation:landscape\) and \(max-height:500px\)\{\.flight-controls\{[^}]*bottom:max\(26px/);
   assert.match(css,/grid-template-columns:64px 60px/);
   assert.match(css,/\.hold-button\.thrust b\{display:block;font-size:13px/);
+});
+
+
+test('all four cockpit MFDs use translucent smoked-glass presentation while telemetry text stays canvas-rendered', async()=>{
+  const cockpit=await cockpitSource();
+  assert.match(cockpit,/rgba\(7,19,28,\.82\)/);
+  assert.match(cockpit,/rgba\(2,7,13,\.74\)/);
+  assert.match(cockpit,/transparent: true/);
+  assert.match(cockpit,/depthWrite: false/);
+  assert.match(cockpit,/rgba\(4,19,28,\.80\)/);
+});
+
+test('diagnostics bezel and projector rail are slimmed without moving the accepted screen transform', async()=>{
+  const cockpit=await cockpitSource();
+  assert.match(cockpit,/bezelPadding: 0\.020, bezelDepth: 0\.018/);
+  assert.match(cockpit,/\[0\.010, 0\.47, 0\.018\], \[0\.896, 0\.150, -0\.790\]/);
+  assert.match(cockpit,/position: \[0\.755, 0\.150, -0\.815\]/);
+});
+
+test('engineering drawer mirrors diagnostics telemetry and is read-only', async()=>{
+  const html=await readFile(new URL('../index.html', import.meta.url),'utf8');
+  const hud=await readFile(new URL('../src/ui/hud.js', import.meta.url),'utf8');
+  assert.match(html,/id="engineeringPanel"/);
+  assert.match(html,/ENGINEERING \/ DIAGNOSTICS/);
+  assert.match(html,/No flight controls · no physics authority/);
+  for (const id of ['engineeringRenderer','engineeringFps','engineeringPhysics','engineeringRender','engineeringShipSpeed','engineeringSimTime','engineeringSeed','engineeringMajor','engineeringTest','engineeringDraw','engineeringPrediction','engineeringParticles','engineeringLab']) assert.match(html,new RegExp(`id="${id}"`));
+  assert.match(hud,/toggleEngineering\(force\)/);
+  assert.match(hud,/engineeringFps\.textContent/);
+  assert.match(hud,/engineeringDraw\.textContent/);
 });

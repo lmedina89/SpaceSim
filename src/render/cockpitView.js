@@ -48,12 +48,14 @@ function canvasTexture(width, height) {
 function drawScreenFrame(ctx, width, height, title, accent = '#8edcff') {
   ctx.clearRect(0, 0, width, height);
   const g = ctx.createLinearGradient(0, 0, 0, height);
-  g.addColorStop(0, '#07131c');
-  g.addColorStop(1, '#02070d');
+  // Semi-transparent smoked-glass MFD background. Text stays fully opaque so
+  // the outside universe can remain visible through all four cockpit screens.
+  g.addColorStop(0, 'rgba(7,19,28,.82)');
+  g.addColorStop(1, 'rgba(2,7,13,.74)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = 'rgba(150,210,235,.28)';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(150,210,235,.22)';
+  ctx.lineWidth = 2;
   ctx.strokeRect(3, 3, width - 6, height - 6);
   ctx.fillStyle = accent;
   ctx.font = '700 30px ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -79,17 +81,17 @@ function drawDiagnosticsScreen(entry, t) {
   ctx.clearRect(0, 0, width, height);
 
   const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, 'rgba(4,19,28,.92)');
-  bg.addColorStop(0.55, 'rgba(2,11,18,.86)');
-  bg.addColorStop(1, 'rgba(1,7,12,.78)');
+  bg.addColorStop(0, 'rgba(4,19,28,.80)');
+  bg.addColorStop(0.55, 'rgba(2,11,18,.74)');
+  bg.addColorStop(1, 'rgba(1,7,12,.68)');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = 'rgba(105,232,255,.78)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(7, 7, width - 14, height - 14);
-  ctx.strokeStyle = 'rgba(105,232,255,.18)';
+  ctx.strokeStyle = 'rgba(105,232,255,.56)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(5, 5, width - 10, height - 10);
+  ctx.strokeStyle = 'rgba(105,232,255,.11)';
   ctx.lineWidth = 1;
-  ctx.strokeRect(14, 14, width - 28, height - 28);
+  ctx.strokeRect(11, 11, width - 22, height - 22);
 
   ctx.fillStyle = '#8beaff';
   ctx.font = '800 25px ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -145,7 +147,7 @@ function drawDiagnosticsScreen(entry, t) {
   ctx.fillStyle = '#6fbfd3';
   ctx.font = '700 13px ui-monospace, SFMono-Regular, Menlo, monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('TOUCH → FLIGHT / SYSTEM', width / 2, 632);
+  ctx.fillText('TOUCH → ENGINEERING', width / 2, 632);
   ctx.textAlign = 'start';
   ctx.fillStyle = 'rgba(105,232,255,.06)';
   for (let y = 90; y < 600; y += 28) ctx.fillRect(18, y, width - 36, 1);
@@ -156,9 +158,11 @@ function makeScreenMaterial(texture, { holographic = false } = {}) {
   return new THREE.MeshBasicMaterial({
     map: texture,
     toneMapped: false,
-    transparent: holographic,
-    opacity: holographic ? 0.94 : 1,
-    depthWrite: !holographic,
+    // All cockpit displays are smoked/translucent. Canvas alpha controls the
+    // glass background while text and telemetry remain crisp.
+    transparent: true,
+    opacity: holographic ? 0.98 : 1,
+    depthWrite: false,
   });
 }
 
@@ -285,16 +289,18 @@ export class CockpitView {
 
     // Right-side engineering display mount. The actual live pane sits slightly inboard of this
     // physical rail so it reads as a ship-installed holo/MFD rather than a windshield HUD card.
-    g.add(makePanelBox([0.080, 0.55, 0.10], [0.925, 0.150, -0.735], [0, -0.26, -0.015], this.shellMaterial));
-    g.add(makePanelBox([0.036, 0.53, 0.110], [0.888, 0.150, -0.765], [0, -0.26, -0.015], this.trimMaterial));
-    g.add(makePanelBox([0.026, 0.47, 0.018], [0.865, 0.150, -0.790], [0, -0.26, -0.015], this.glowStripMaterial));
+    g.add(makePanelBox([0.056, 0.55, 0.10], [0.940, 0.150, -0.735], [0, -0.26, -0.015], this.shellMaterial));
+    g.add(makePanelBox([0.022, 0.53, 0.110], [0.912, 0.150, -0.765], [0, -0.26, -0.015], this.trimMaterial));
+    // Keep the cyan projector rail just outside the screen edge so it reads as
+    // a mount instead of masking the right side of the diagnostics glass.
+    g.add(makePanelBox([0.010, 0.47, 0.018], [0.896, 0.150, -0.790], [0, -0.26, -0.015], this.glowStripMaterial));
     g.add(makeBeam([0.86, -0.12, -0.79], [0.76, -0.31, -0.88], 0.012, this.trimMaterial));
   }
 
-  addScreen({ id, title, position, rotation, width, height, action, accent, bufferWidth = 448, bufferHeight = 280, holographic = false }) {
+  addScreen({ id, title, position, rotation, width, height, action, accent, bufferWidth = 448, bufferHeight = 280, holographic = false, bezelPadding = 0.038, bezelDepth = 0.026 }) {
     const buffer = canvasTexture(bufferWidth, bufferHeight);
     const material = makeScreenMaterial(buffer.texture, { holographic });
-    const bezel = new THREE.Mesh(new THREE.BoxGeometry(width + 0.038, height + 0.038, 0.026), this.trimMaterial);
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(width + bezelPadding, height + bezelPadding, bezelDepth), this.trimMaterial);
     bezel.position.set(position[0], position[1], position[2] - 0.018);
     bezel.rotation.set(...rotation);
     this.group.add(bezel);
@@ -369,7 +375,7 @@ export class CockpitView {
     this.addScreen({
       id: 'diagnostics', title: 'SYSTEM DIAGNOSTICS', action: 'diagnostics-screen', accent: '#73e8ff',
       position: [0.755, 0.150, -0.815], rotation: [-0.018, -0.26, -0.015], width: 0.250, height: 0.500,
-      bufferWidth: 330, bufferHeight: 660, holographic: true,
+      bufferWidth: 330, bufferHeight: 660, holographic: true, bezelPadding: 0.020, bezelDepth: 0.018,
     });
 
     // Real status lamps: POWER, TARGET, NAV, PROPULSION and CAUTION.

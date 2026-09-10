@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.6.1.3</title>
-  <link rel="stylesheet" href="./styles.css">
+  <title>Universe Lab v0.1.4.6.1.3.1</title>
+  <link rel="stylesheet" href="./styles.css?v=146131">
   <script type="importmap">
   {
     "imports": {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.6.1.3</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.6.1.3.1</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -141,7 +141,34 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and it matches the locked target inertial velocity when the pilot exits normally. Sky directions use one fixed-time astronomical observer across flight and surface modes. Build marker: <b>FRAMECTRL-14613</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and it matches the locked target inertial velocity when the pilot exits normally. Sky directions use one fixed-time astronomical observer across flight and surface modes. Build marker: <b>MFDENG-146131</b>.</p>
+    </aside>
+
+    <aside id="engineeringPanel" class="drawer engineering-panel" hidden>
+      <header><div><b>ENGINEERING / DIAGNOSTICS</b><small>Read-only renderer + simulation telemetry</small></div><button id="engineeringClose" type="button" aria-label="Close engineering diagnostics">×</button></header>
+      <div class="engineering-copy">
+        <div class="engineering-banner"><b>LIVE SYSTEM BUS</b><span>No flight controls · no physics authority</span></div>
+        <div class="engineering-grid" aria-label="Live engineering telemetry">
+          <span>Renderer</span><b id="engineeringRenderer">INIT</b>
+          <span>FPS</span><b id="engineeringFps">—</b>
+          <span>Physics</span><b id="engineeringPhysics">—</b>
+          <span>Render</span><b id="engineeringRender">—</b>
+          <span>Ship speed</span><b id="engineeringShipSpeed">—</b>
+          <span>Sim time</span><b id="engineeringSimTime">—</b>
+          <span>Seed</span><b id="engineeringSeed">ORIGIN-001</b>
+          <span>Major bodies</span><b id="engineeringMajor">—</b>
+          <span>Test bodies</span><b id="engineeringTest">—</b>
+          <span>Draw calls</span><b id="engineeringDraw">—</b>
+          <span>Prediction</span><b id="engineeringPrediction">—</b>
+          <span>Experiment particles</span><b id="engineeringParticles">0</b>
+          <span>Experiment step</span><b id="engineeringLab">0 ms</b>
+        </div>
+        <div class="engineering-boundary">
+          <b>MODEL BOUNDARY</b>
+          <span>These values mirror existing runtime telemetry only. This panel does not change gravity, integration, FRAME behavior, navigation, save state, or renderer-backend policy.</span>
+        </div>
+        <p class="engineering-build">BUILD <b>MFDENG-146131</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
+      </div>
     </aside>
 
     <aside id="mapPanel" class="drawer system-map-panel" hidden>
@@ -354,6 +381,6 @@
       </div>
     </aside>
   </main>
-  <script type="module" src="./src/main.js"></script>
+  <script type="module" src="./src/main.js?v=146131"></script>
 </body>
 </html>

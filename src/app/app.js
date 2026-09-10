@@ -22,8 +22,8 @@ import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
 import { SpaceWeatherManager } from '../cosmic/spaceWeather.js';
 import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition, matchFrameExitVelocity } from '../physics/transitDrive.js';
-import { UniverseRenderer } from '../render/threeRenderer.js';
-import { Hud } from '../ui/hud.js';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=146131';
+import { Hud } from '../ui/hud.js?v=146131';
 import { SystemMapController } from '../ui/systemMap.js';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
@@ -245,7 +245,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.6.1.3 online. FRAME DRIVE is tap-toggle spacecraft-only reference-frame travel; normal exit matches the target inertial velocity before ordinary ShipDynamics/gravity resume. The right-side SYSTEM DIAGNOSTICS MFD stays fixed and the iPhone flight-control cluster is compacted below it. Celestial gravity/body integration are unchanged. Active backend: ${backend}. Build FRAMECTRL-14613.`);
+    this.hud.notify(`v0.1.4.6.1.3.1 online. FRAME DRIVE is tap-toggle spacecraft-only reference-frame travel; normal exit matches the target inertial velocity before ordinary ShipDynamics/gravity resume. The right-side SYSTEM DIAGNOSTICS MFD stays fixed and the iPhone flight-control cluster is compacted below it. Celestial gravity/body integration are unchanged. Active backend: ${backend}. Build MFDENG-146131.`);
   }
 
   newSystem(seed) {
@@ -1031,8 +1031,11 @@ export class UniverseLabApp {
         requestAnimationFrame(() => this.systemMap.draw());
         break;
       case 'flight-screen':
-      case 'diagnostics-screen':
         this.hud.toggleMore(true);
+        break;
+      case 'diagnostics-screen':
+        this.hud.toggleMore(false);
+        this.hud.toggleEngineering(true);
         break;
       case 'science-screen':
       case 'science':
@@ -2331,6 +2334,7 @@ export class UniverseLabApp {
     }
     $('#labToggle').addEventListener('click', () => this.hud.toggleLab());
     $('#moreClose').addEventListener('click', () => this.hud.toggleMore(false));
+    $('#engineeringClose').addEventListener('click', () => this.hud.toggleEngineering(false));
     $('#transitToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateTransitPanel(); this.hud.toggleTransit(); });
     $('#transitClose').addEventListener('click', () => this.hud.toggleTransit(false));
     $('#transitTargetSource').addEventListener('change', () => this.updateTransitPanel());

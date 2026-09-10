@@ -1,4 +1,6 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.6.1.3
+# Scientific / Model Notes — Universe Lab v0.1.4.6.1.3.1
+
+**v0.1.4.6.1.3.1 note:** MFD transparency, diagnostics bezel/rail geometry, the dedicated Engineering/Diagnostics drawer and shell cache-busting are presentation/telemetry-only. They do not alter celestial gravity, body integration, ShipDynamics, FRAME translation/exit matching, observer math, landing state or save authority.
 
 **v0.1.4.6.1.3 note:** FRAME DRIVE is intentionally nonphysical convenience travel and is kept outside the celestial mechanics model. While active it translates only the spacecraft position and temporarily suspends local spacecraft Newtonian acceleration/integration; direct Newtonian major-body gravity and velocity-Verlet body integration are not altered. A normal FRAME exit instantaneously matches only the spacecraft to the locked target inertial velocity. That velocity match is itself fictional and must not be interpreted as modeled propulsion, momentum exchange, anti-gravity or general relativity. Forced safety dropouts preserve the existing spacecraft velocity. The real-physics APPROACH/BRAKE path remains available and unchanged.
 

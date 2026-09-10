@@ -1,6 +1,6 @@
 {
-  "version": "0.1.4.6.1.3",
-  "name": "Frame Drive & Cockpit Flight-Control Polish",
+  "version": "0.1.4.6.1.3.1",
+  "name": "Cockpit MFD Transparency & Engineering Diagnostics Polish",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,7 @@
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "FRAMECTRL-14613",
+  "buildMarker": "MFDENG-146131",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric approximate L1-L5 + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples",
   "transitDrive": "legacy internal module now presented as FRAME DRIVE: explicitly fictional 1c/10c/100c/500c/1000c spacecraft-only reference-frame translation; the ship is isolated from local Newtonian acceleration only while FRAME is active; normal exit matches the locked target inertial velocity; celestial gravity/body integration remain unchanged",
@@ -63,7 +63,7 @@
   "surfaceFoundation": "three seeded landing regions on the first landable home planet, with deterministic terrain/environment identities, local first-person exploration, persistent scans, explicit descent/landed/ascent/orbit lifecycle and guarded boarding-based takeoff",
   "surfacePhysicsBoundary": "orbital N-body simulation is intentionally held while the local surface instance is active; surface anomalies do not create hidden gravity, teleportation or time effects; atmospheric entry/aerodynamics, fluid weather, rigid-body surface physics and ecosystems are future layers",
   "surfacePersistence": "optional schema-1 surfaceSession payload preserves body/region identity, local x/z/yaw/pitch, scanned/selected POIs and local weather timeline; selected landing region, cockpit preference, pre-surface simulation running state and orbital time scale are optional backward-compatible fields",
-  "cockpitView": "default-on low-obstruction camera-attached Three.js cockpit with forward-mounted NAV/FLIGHT/SCIENCE CanvasTexture MFDs, a right-side ship-mounted translucent SYSTEM DIAGNOSTICS MFD, compact lower-right thrust/reverse/brake overlay clear of the diagnostics panel on iPhone landscape, functional physical keys, touch ray-picking, subtle emissive cockpit/status lighting, observation/surface auto-hide, optional user toggle, and schema-1 cockpitEnabled preference persistence",
+  "cockpitView": "default-on low-obstruction camera-attached Three.js cockpit with four translucent smoked-glass CanvasTexture MFDs (NAV/FLIGHT/SCIENCE/SYSTEM DIAGNOSTICS), a right-side ship-mounted diagnostics pane with a slimmed physical bezel/projector rail, compact lower-right thrust/reverse/brake overlay clear of the diagnostics panel on iPhone landscape, functional physical keys, touch ray-picking, subtle emissive cockpit/status lighting, observation/surface auto-hide, optional user toggle, and schema-1 cockpitEnabled preference persistence",
   "surfaceWeather": "persistent deterministic local surface-weather clock with ordinary dust/fog/frost/electrostatic events plus explicitly impossible upward rain, shadow fog, suspended lightning and sky fractures; visibility/presentation only, no aerodynamic force or damage model",
   "landedShip": "upgraded lightweight spacecraft exterior with smoother hull, canopy, swept wings, twin engines, VTOL thrusters, landing gear, nav/strobe/landing lights, landing beacon and distance/boarding readout; visual surface representation remains separate from authoritative orbital ship physics while landed",
   "surfaceRegions": [
@@ -82,9 +82,10 @@
   "celestialApparentSize": "physical range and apparent angular radius remain separate from bounded rendering proxy size",
   "surfaceSkyTime": "fixed orbital simulation instant while the surface session is active; local weather retains its separate bounded clock",
   "magnetarPlacement": "repeated LAB magnetars use deterministic golden-angle collision-safe offsets; gravity remains Newtonian and magnetic/MHD forces remain unmodeled",
-  "cockpitInteraction": "every visible cockpit screen and physical key is functional; NAV/FLIGHT/SCIENCE retain their existing actions, the SYSTEM DIAGNOSTICS MFD opens the existing Flight/System drawer, and cockpit inputs dispatch existing authoritative app actions without duplicating simulation authority",
+  "cockpitInteraction": "every visible cockpit screen and physical key is functional; NAV opens the System Map, FLIGHT opens the existing Flight/System controls, SCIENCE opens Science, and SYSTEM DIAGNOSTICS now opens a dedicated read-only Engineering/Diagnostics drawer instead of duplicating Flight/System; cockpit inputs dispatch existing app actions without duplicating simulation authority",
   "cockpitAssetStrategy": "procedural modular shell carried forward from v0.1.4.6.1.2; the diagnostics MFD is procedural CanvasTexture/geometry with no external cockpit asset, and presentation/control interfaces remain isolated so a later optimized GLB cockpit can replace the shell without rewriting flight/science systems",
   "cockpitLighting": "mobile-safe emissive-only panel accents plus live POWER/TARGET/NAV/PROPULSION/CAUTION indicators; no additional dynamic cockpit lights or physics state",
-  "cockpitDiagnostics": "live renderer, FPS, physics/render time, ship speed, simulation time, seed, major/test counts, draw calls, prediction time and experiment telemetry are mirrored into a right-side translucent ship-mounted MFD; the values remain sourced from existing app/renderer state and own no simulation authority",
-  "frameDrive": "tap-toggle speculative spacecraft-only translation toward a locked body/COSMOS target; real-time frame rate tiers step down near arrival; world N-body/particle simulation authority is untouched; local ship acceleration is suspended while active; normal exit matches the target inertial velocity before ordinary ShipDynamics/gravity resume"
+  "cockpitDiagnostics": "live renderer, FPS, physics/render time, ship speed, simulation time, seed, major/test counts, draw calls, prediction time and experiment telemetry are mirrored into the right-side translucent ship-mounted MFD and a dedicated read-only Engineering/Diagnostics drawer; the values remain sourced from existing app/renderer state and own no simulation authority",
+  "frameDrive": "tap-toggle speculative spacecraft-only translation toward a locked body/COSMOS target; real-time frame rate tiers step down near arrival; world N-body/particle simulation authority is untouched; local ship acceleration is suspended while active; normal exit matches the target inertial velocity before ordinary ShipDynamics/gravity resume",
+  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build marker 146131 so Safari/GitHub Pages updates do not mix a new shell with stale cockpit CSS or JavaScript."
 }
