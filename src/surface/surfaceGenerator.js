@@ -273,7 +273,7 @@ export function generateSurfaceRegion(system, body, requestedRegionId = 'shatter
       { id: `${profile.id}:geology-ridge`, type: 'geology', name: 'Mineral Ridge', realityClass: 'known', x: profile.terrain.ridge.x, z: profile.terrain.ridge.z, scanRadiusMeters: 95, signal: 'Reflective mineral band', summary: 'A high ridge exposes bright mineral-bearing rock above the surrounding terrain.', archive: 'Geologic dressing derived from the seeded surface profile, not a mineral chemistry simulation.' },
     ],
     anomalies,
-    scientificStatus: 'Planetary environment foundation. Terrain, atmosphere, weather, parked spacecraft and anomalies are seeded procedural presentation. Surface weather advances on a local real-time clock while orbital N-body time remains held. Weather can alter visibility and presentation but does not yet apply aerodynamic force, wetness, erosion, damage or thermodynamic simulation.',
+    scientificStatus: 'Planetary environment foundation. Terrain, atmosphere, weather, parked spacecraft and anomalies are seeded procedural presentation. Surface weather advances on a separate local real-time clock while celestial N-body time continues at 1× through a body-fixed rotating surface observer. Weather can alter visibility and presentation but does not yet apply aerodynamic force, wetness, erosion, damage or thermodynamic simulation.',
   };
 }
 

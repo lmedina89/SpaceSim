@@ -74,7 +74,7 @@ button.is-held{box-shadow:inset 0 0 0 2px rgba(255,255,255,.14),0 0 18px rgba(10
 .frame-rule{display:grid;gap:4px;padding:8px 10px;border:1px solid rgba(169,118,255,.28);border-radius:8px;background:rgba(24,11,39,.36);color:#cfc2e5;font-size:9px;line-height:1.45}.frame-rule b{color:#e1d4ff;font-size:9px;letter-spacing:.08em}.frame-rule span{color:#b9aacd}
 
 
-/* v0.1.4.6.1.3.1 cockpit MFD transparency + dedicated engineering diagnostics. */
+/* v0.1.4.7 planetary rotation + continuous surface astronomy; cockpit MFD/engineering layout retained. */
 .engineering-panel{width:min(430px,94vw);border-color:rgba(102,230,255,.30);background:rgba(2,9,16,.88)}
 .engineering-panel header{background:rgba(3,12,20,.96);border-bottom-color:rgba(102,230,255,.22)}
 .engineering-copy{display:grid;gap:10px;padding:12px}

@@ -1,14 +1,24 @@
-# Universe Lab v0.1.4.6.1.3.1 — Cockpit MFD Transparency & Engineering Diagnostics Polish
+# Universe Lab v0.1.4.7 — Planetary Rotation & Continuous Surface Astronomy Foundation
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `MFDENG-146131`
+**Build marker:** `ROTASTRO-147`
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)
 **Three.js:** 0.185.0 (unchanged)
 **Deployment:** GitHub Pages → `main` → `/(root)`
 **Release gate:** physical iPhone Safari
 
 
+
+## v0.1.4.7 planetary rotation & continuous surface astronomy
+
+v0.1.4.7 extends the fixed-time sky-continuity foundation into a continuously evolving landed observer without replacing the canonical astronomy work. Generated planets and moons gain deterministic rigid-rotation metadata from an **independent per-body RNG stream**, so legacy seeded orbital systems keep the same bodies, positions and velocities.
+
+At touchdown the surface anchor is captured in the parent body's rotating **body-fixed frame**. While landed and unpaused, major-body Newtonian N-body integration and the canonical astronomical clock now continue at a forced **1×**; ordinary spacecraft `ShipDynamics` and navigation are deliberately not stepped, so the parked craft remains surface-constrained instead of being treated as a free-orbiting ship. The local horizon is reconstructed from the rotating anchor each frame.
+
+The one inertial star catalog is dynamically reprojected against that changing horizon without reseeding. Sun/body observations continue to come from authoritative live major-body positions. A bounded daylight/twilight/night presentation response is driven by the physically derived stellar altitude; it is explicitly not a radiative-transfer or atmospheric-scattering solver. Surface astronomy is limited to 1× in this foundation build.
+
+Save schema remains `1`. Existing saves are backfilled with deterministic rotation metadata for generated bodies, and active surface sessions may optionally persist the body-fixed anchor/capture metadata. Three.js 0.185.0, FRAME isolation, the accepted iPhone/iPad forced-WebGL2 policy, landing/ascent recovery, and ordinary orbital `ShipDynamics` remain protected.
 
 ## v0.1.4.6.1.3.1 Cockpit MFD transparency & engineering diagnostics polish
 
@@ -124,7 +134,7 @@ The Flight Scanner contains a **Landing region** selector. System Map landing st
 
 ### Persistent local weather
 
-Surface weather uses its own deterministic real-time clock because orbital N-body time remains intentionally held while landed. The first seeded change is scheduled soon enough to be testable on iPhone, then later clear/event intervals continue deterministically. Save/load preserves the exact event, remaining duration, next clear-interval timer and weather RNG state.
+Surface weather retains its own deterministic local real-time clock. As of v0.1.4.7 the celestial N-body clock can continue independently at surface 1×, while weather remains a separate local presentation timeline. The first seeded change is scheduled soon enough to be testable on iPhone, then later clear/event intervals continue deterministically. Save/load preserves the exact event, remaining duration, next clear-interval timer and weather RNG state.
 
 Modeled/ordinary presentation events are Dust Front, Low Fog Bank, Frost Squall and Electrostatic Storm. The anomaly layer can also produce intentionally impossible Upward Rain, Shadow Fog, Suspended Lightning and Sky Fracture. Impossible events are explicitly labeled in the surface HUD.
 
@@ -132,7 +142,7 @@ Weather currently changes visual cloud/fog/particle layers, visibility, scene ex
 
 ### Parked spacecraft
 
-A lightweight procedural exterior spacecraft now sits at the landing site. It includes a metallic fuselage, canopy, wings, engine pods, landing gear, navigation lights and the existing landing beacon. The surface HUD shows distance back to the ship. This model is a local visual representation only; orbital ship position/velocity remain authoritative and frozen until the scripted TAKEOFF / ORBIT transition.
+A lightweight procedural exterior spacecraft now sits at the landing site. It includes a metallic fuselage, canopy, wings, engine pods, landing gear, navigation lights and the existing landing beacon. The surface HUD shows distance back to the ship. This model is a local visual representation only; ordinary orbital `ShipDynamics` is constrained while landed even though the celestial N-body world continues advancing at 1×. TAKEOFF / ORBIT returns the authoritative spacecraft to the parent body’s current safe orbital state.
 
 ## Ship cockpit view
 
@@ -185,7 +195,7 @@ They are intentionally spectacular but remain honest about the model boundary. I
 - Select the landable home world.
 - Enter the near-orbital descent envelope. `HOME / ORBIT` returns the spacecraft to the seeded demonstration orbit if needed.
 - Use **LAND / DESCEND** from the normal target controls or System Map.
-- Orbital N-body time is intentionally held while the local surface instance is active.
+- While landed and unpaused, major-body N-body time continues at forced 1×; the spacecraft remains surface-constrained and is not stepped through ordinary ShipDynamics/navigation.
 - Use the existing LOOK pad plus the surface directional controls to explore.
 - Hold **SPRINT** for faster local traversal.
 - Approach a geology/anomaly site and press **SCAN LOCAL**.
@@ -202,7 +212,8 @@ The existing schema remains `1`. The save payload now optionally stores an activ
 - local X/Z position,
 - local look yaw/pitch,
 - scanned surface POI IDs,
-- selected surface POI.
+- selected surface POI,
+- optional body-fixed landing anchor + astronomical capture time/model version.
 
 Older schema-1 saves remain valid. When loading an older save, deterministic landing-capability metadata for the generated home world is refreshed without replacing the saved body's physical position/velocity/mass/radius state.
 

@@ -1,14 +1,22 @@
-# Architecture — Universe Lab v0.1.4.6.1.3.1
+# Architecture — Universe Lab v0.1.4.7
+
+## v0.1.4.7 continuous landed astronomy
+
+`core/planetaryRotation.js` owns the rigid body-fixed/inertial rotation transforms. Rotation metadata is generated from independent per-body RNG streams so adding spin does not consume the legacy orbital generator sequence. A surface session captures the touchdown direction in the parent body's body-fixed frame. `astronomicalObserver.js` converts that anchor back into current inertial local-up and derives east/north from the spin axis at the current simulation time.
+
+Surface mode now separates **celestial-world integration** from **spacecraft integration**. `UniverseLabApp.surfaceAstronomyStep()` advances major bodies through the existing velocity-Verlet/direct-Newtonian path (plus existing minor/collision/world timelines) but never calls `ShipDynamics.step()` or navigation. `frameSurface()` advances that path only at forced 1× while the simulation is running. This prevents a parked ship from being treated as a free-flight spacecraft while still allowing the universe to evolve.
+
+`render/starfield.js` can reproject the existing inertial catalog into preallocated surface buffers. `SurfaceWorldVisual` refreshes the expensive full catalog projection at a bounded cadence while live body sprites/observer directions continue each render. No star catalog is reseeded. Day/night tinting is a presentation proxy driven by the derived star altitude, not an atmospheric scattering model.
 
 ## Canonical astronomical observer
 
 `core/astronomicalObserver.js` is a read-only derivation layer over authoritative `EntityRegistry` and `ShipDynamics` state. It provides inertial observer position, forward/right/up, surface parent and anchor, altitude, local up/east/north, canonical simulation time and stable per-body records containing direction, range, physical angular radius and horizon visibility. It never advances or mutates physics and is reconstructed after schema-1 load.
 
-`core/inertialStarCatalog.js` owns one deterministic typed-array catalog per system seed. `render/starfield.js` creates projected views from that catalog. Space keeps inertial orientation and follows only camera translation; surface projection is cached at entry against the canonical local horizon basis and filters the lower hemisphere.
+`core/inertialStarCatalog.js` owns one deterministic typed-array catalog per system seed. `render/starfield.js` creates projected views from that catalog. Space keeps inertial orientation and follows only camera translation; surface mode dynamically reprojects that same catalog against the current rotating local horizon and filters the lower hemisphere.
 
 `render/surfaceWorld.js` consumes the same observer/body solution as the ship renderer. Live body sprites use local directions, the directional light follows the live star, and physical angular diameter is retained separately from bounded visual proxy diameter. Atmospheric daylight and local weather affect opacity/exposure, not catalog existence.
 
-The time boundary is unchanged: orbital N-body time is fixed while landed and the bounded local weather clock remains separate. Surface sky therefore represents the same frozen simulation instant through descent, landing and ascent; body rotation/ephemeris evolution is future explicit time-model work.
+The v0.1.4.7 time boundary now advances celestial N-body time at forced 1× while landed whenever the simulation is running. The bounded local weather clock remains separate. The body-fixed observer therefore evolves against live ephemerides without allowing ordinary spacecraft flight integration or high-warp surface evolution.
 
 ## Renderer backend policy (v0.1.4.5.4)
 
@@ -47,7 +55,7 @@ v0.1.4.5.3 hardens the **ASCENDING → live-flight ORBIT commit boundary**. ORBI
 
 A failed renderer entry/ascent completion is cleaned up through one recovery path that clears surface renderer/session/UI state, resets the phase to ORBIT and restores a valid spacecraft/orbit state. Surface renderer ownership is detached before local resource disposal so a disposal fault cannot leave the renderer logically stuck in surface mode. This prevents repeated LAND calls from operating on stale surface state.
 
-The surface ship remains renderer-local and non-physical. Its descent/ascent motion, VTOL plumes and landing-site glow are presentation cues only. The authoritative `ShipDynamics` object remains frozen while surface mode is active and is placed into the existing safe 5-radius orbital handoff only after ascent completes.
+The surface ship remains renderer-local and non-physical. Its descent/ascent motion, VTOL plumes and landing-site glow are presentation cues only. The authoritative `ShipDynamics` object remains surface-constrained/not integrated while surface mode is active and is placed into the existing safe 5-radius orbital handoff around the parent body’s current advanced state only after ascent completes.
 
 ## Surface HUD presentation boundary
 
@@ -57,7 +65,7 @@ The compact shell keeps scan/sprint controls live during normal exploration. Det
 
 ## Planetary environment / weather boundary
 
-v0.1.4.4 adds `src/surface/surfaceWeather.js` as a deterministic local-environment state machine. It is deliberately separate from `SimulationClock`: orbital N-body time is still held while landed, while a bounded real-time surface clock advances weather. The state serializes inside the optional schema-1 `surfaceSession` payload.
+v0.1.4.4 added `src/surface/surfaceWeather.js` as a deterministic local-environment state machine. It remains deliberately separate from `SimulationClock`: as of v0.1.4.7 celestial N-body time may continue at surface 1× while the bounded local weather clock advances independently. The state serializes inside the optional schema-1 `surfaceSession` payload.
 
 Surface weather owns event identity, intensity, wind presentation, event duration, next clear interval and an explicit serializable PRNG state. `SurfaceWorldVisual` consumes the resulting reading to alter local fog, clouds, weather particles, lightning, sky-fracture lines and exposure. It never writes spacecraft velocity, gravity sources, orbital time or player movement acceleration.
 
@@ -74,7 +82,7 @@ v0.1.4.3 introduces a deliberately separated local surface layer:
 - `src/render/surfaceWorld.js` — Three.js surface scene, terrain mesh, instanced dressing, sky, lighting and anomaly visuals.
 - `UniverseLabApp` — owns landing eligibility, surface lifecycle, local input, save/load handoff and scripted return to orbit.
 
-The surface instance does **not** integrate the orbital system in the background. `running` is held while landed and the simulation clock does not advance. That policy is explicit in the HUD because silently advancing a high-warp orbital simulation while a player explores a local scene would create hidden state changes and unnecessary mobile cost.
+The surface instance now integrates the **celestial world only** at forced 1× when `running` is enabled. It does not call ordinary `ShipDynamics` or navigation for the parked spacecraft. Surface time-warp above 1× is blocked in this foundation release to avoid hidden high-warp evolution and unnecessary mobile cost while the player explores locally.
 
 TAKEOFF is currently a scripted transition to a deterministic safe orbit. It is not claimed to model atmospheric ascent, heating, aerodynamics or powered landing.
 

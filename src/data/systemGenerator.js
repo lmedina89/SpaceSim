@@ -17,6 +17,47 @@ function massFromRadiusDensity(radius, density) {
   return (4 / 3) * Math.PI * radius ** 3 * density;
 }
 
+function rotationAxisFromObliquity(obliquityRad, azimuthRad) {
+  const s = Math.sin(obliquityRad);
+  return [
+    s * Math.cos(azimuthRad),
+    Math.cos(obliquityRad),
+    s * Math.sin(azimuthRad),
+  ];
+}
+
+function planetRotationMetadata(rng, planetType) {
+  const gas = planetType === 'gas';
+  const extremeTilt = rng.random() < 0.09;
+  const obliquityRad = extremeTilt
+    ? rng.range(0.90, 1.52)
+    : rng.range(0, gas ? 0.48 : 0.72);
+  const rotationPeriodSeconds = PHYSICS.DAY * (gas ? rng.range(0.29, 0.82) : rng.range(0.38, 3.2));
+  return {
+    rotationPeriodSeconds,
+    rotationDirection: rng.random() < 0.08 ? -1 : 1,
+    rotationAxisInertial: rotationAxisFromObliquity(obliquityRad, rng.range(0, Math.PI * 2)),
+    rotationPhaseRad: rng.range(0, Math.PI * 2),
+    rotationEpochSeconds: 0,
+    axialTiltRad: obliquityRad,
+    rotationModel: 'rigid-seeded-v1',
+  };
+}
+
+function moonRotationMetadata(rng, planet, orbitMeters) {
+  const orbitalPeriodSeconds = 2 * Math.PI * Math.sqrt((orbitMeters ** 3) / (PHYSICS.G * Math.max(1, planet.mass)));
+  const obliquityRad = rng.range(0, 0.14);
+  return {
+    rotationPeriodSeconds: orbitalPeriodSeconds,
+    rotationDirection: 1,
+    rotationAxisInertial: rotationAxisFromObliquity(obliquityRad, rng.range(0, Math.PI * 2)),
+    rotationPhaseRad: rng.range(0, Math.PI * 2),
+    rotationEpochSeconds: 0,
+    axialTiltRad: obliquityRad,
+    rotationModel: 'synchronous-seeded-v1',
+  };
+}
+
 function spectralClass(tempK) {
   if (tempK >= 7500) return 'A';
   if (tempK >= 6000) return 'F';
@@ -208,6 +249,18 @@ function roguePlanetDefinition(rng, starName) {
   };
 }
 
+function assignRotationMetadata(seed, bodies) {
+  const byId = new Map(bodies.map((body) => [body.id, body]));
+  for (const body of bodies) {
+    if (body.kind === BODY_KIND.PLANET) {
+      Object.assign(body, planetRotationMetadata(createRng(`${seed}:rotation:${body.id}:v1`), body.planetType));
+    } else if (body.kind === BODY_KIND.MOON) {
+      const parent = byId.get(body.parentId);
+      if (parent) Object.assign(body, moonRotationMetadata(createRng(`${seed}:rotation:${body.id}:v1`), parent, body.semiMajorAxis));
+    }
+  }
+}
+
 function shiftToBarycentricFrame(bodies) {
   let totalMass = 0, cx = 0, cy = 0, cz = 0, cvx = 0, cvy = 0, cvz = 0;
   for (const body of bodies) {
@@ -321,6 +374,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
   if (rng.random() < 0.62) bodies.push(roguePlanetDefinition(rng, starName));
 
   shiftToBarycentricFrame(bodies);
+  assignRotationMetadata(seed, bodies);
   const phenomena = [...generateCosmicPhenomena(seed, bodies), ...generateAnomalies(seed, bodies)];
 
   return {
@@ -345,7 +399,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       phenomenonCount: phenomena.length,
       anomalyCount: phenomena.filter((entry) => entry.anomaly).length,
       landablePlanetCount: bodies.filter((body) => body.kind === BODY_KIND.PLANET && body.landable).length,
-      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, high-eccentricity physical comet nuclei, optional physical rogue planets, and separately labeled visual population phenomena plus an explicitly labeled speculative/fictional anomaly layer',
+      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, deterministic rigid-body planetary rotation metadata, synchronous seeded moon rotation proxies, high-eccentricity physical comet nuclei, optional physical rogue planets, and separately labeled visual population phenomena plus an explicitly labeled speculative/fictional anomaly layer',
     },
   };
 }

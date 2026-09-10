@@ -2,6 +2,7 @@ import { EntityRegistry } from '../core/entityRegistry.js';
 import { SimulationClock } from '../core/simulationClock.js';
 import { FloatingReferenceFrame } from '../core/referenceFrame.js';
 import { ASTRONOMICAL_OBSERVER_MODE, AstronomicalObserverModel } from '../core/astronomicalObserver.js';
+import { captureBodyFixedSurfaceAnchor } from '../core/planetaryRotation.js';
 import { SaveSystem } from '../core/saveSystem.js';
 import { PHYSICS, SIMULATION, BODY_KIND } from '../core/constants.js';
 import { generateSystem } from '../data/systemGenerator.js';
@@ -22,8 +23,8 @@ import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
 import { SpaceWeatherManager } from '../cosmic/spaceWeather.js';
 import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition, matchFrameExitVelocity } from '../physics/transitDrive.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=146131';
-import { Hud } from '../ui/hud.js?v=146131';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=147';
+import { Hud } from '../ui/hud.js?v=147';
 import { SystemMapController } from '../ui/systemMap.js';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
@@ -62,6 +63,13 @@ function serializeBody(body) {
     semiMajorAxis: body.semiMajorAxis,
     eccentricity: body.eccentricity,
     inclinationRad: body.inclinationRad,
+    rotationPeriodSeconds: body.rotationPeriodSeconds,
+    rotationDirection: body.rotationDirection,
+    rotationAxisInertial: body.rotationAxisInertial?.length >= 3 ? [...body.rotationAxisInertial] : body.rotationAxisInertial,
+    rotationPhaseRad: body.rotationPhaseRad,
+    rotationEpochSeconds: body.rotationEpochSeconds,
+    axialTiltRad: body.axialTiltRad,
+    rotationModel: body.rotationModel,
     scientificWarning: body.scientificWarning,
     compactType: body.compactType,
     spinPeriodSeconds: body.spinPeriodSeconds,
@@ -245,7 +253,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.6.1.3.1 online. FRAME DRIVE is tap-toggle spacecraft-only reference-frame travel; normal exit matches the target inertial velocity before ordinary ShipDynamics/gravity resume. The right-side SYSTEM DIAGNOSTICS MFD stays fixed and the iPhone flight-control cluster is compacted below it. Celestial gravity/body integration are unchanged. Active backend: ${backend}. Build MFDENG-146131.`);
+    this.hud.notify(`v0.1.4.7 online. Planetary rotation and continuous body-fixed surface astronomy are active: celestial N-body time continues at 1× while landed, while ShipDynamics stays surface-constrained. FRAME and the accepted cockpit/WebKit renderer remain unchanged. Active backend: ${backend}. Build ROTASTRO-147.`);
   }
 
   newSystem(seed) {
@@ -537,8 +545,11 @@ export class UniverseLabApp {
       this.releaseAllHeldControls();
       this.clock.setTimeScale(1);
       const timeSelect = this.root.querySelector('#timeScale'); if (timeSelect) timeSelect.value = '1';
-      const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = 'SURFACE';
-      this.running = false;
+      const warpButton = this.root.querySelector('#warpQuick'); if (warpButton) warpButton.textContent = 'SURFACE 1×';
+      // Surface mode constrains the spacecraft instead of stopping the universe. Preserve the
+      // pilot's pause state, but keep astronomical time at a safe real-time 1× while landed.
+      this.running = previousRunning;
+      const pauseButton = this.root.querySelector('#pauseToggle'); if (pauseButton) pauseButton.textContent = this.running ? 'PAUSE' : 'RESUME';
 
       const savedRegionId = options.snapshot?.regionId;
       const savedRegionKey = typeof savedRegionId === 'string' && savedRegionId.startsWith(`${body.id}:`) ? savedRegionId.slice(body.id.length + 1) : null;
@@ -546,6 +557,14 @@ export class UniverseLabApp {
       this.surfaceRegion = generateSurfaceRegion(this.system, body, regionKey);
       this.selectedSurfaceRegionId = this.surfaceRegion.regionKey ?? regionKey;
       this.surfaceSession = createSurfaceSession(this.surfaceRegion, options.snapshot ?? null);
+      const existingAnchor = this.surfaceSession.bodyFixedAnchor;
+      const anchorValid = Array.isArray(existingAnchor) && existingAnchor.length >= 3 && existingAnchor.every((value) => Number.isFinite(Number(value)));
+      if (!anchorValid) {
+        const anchor = captureBodyFixedSurfaceAnchor(body, this.ship.position, this.clock.elapsedSimSeconds);
+        this.surfaceSession.bodyFixedAnchor = [...anchor];
+        this.surfaceSession.anchorCapturedAtSimSeconds = this.clock.elapsedSimSeconds;
+        this.surfaceSession.rotationModelVersion = 1;
+      }
       this.surfaceInput = { forward: 0, strafe: 0, sprint: false };
 
       // Fresh landings deliberately face the parked spacecraft so the descent is visible.
@@ -576,8 +595,8 @@ export class UniverseLabApp {
       this.updateSurfaceHud();
       this.updateSurfaceTransitionUi();
       if (options.notify !== false) this.hud.notify(options.fromLoad
-        ? `SURFACE RESTORED: ${body.name} · ${this.surfaceRegion.name}. Local exploration resumed beside the parked spacecraft.`
-        : `DESCENT: ${body.name} · ${this.surfaceRegion.name}. Scripted landing sequence engaged; controls unlock after touchdown. Orbital N-body time is held while the local surface instance is active.`, 6500);
+        ? `SURFACE RESTORED: ${body.name} · ${this.surfaceRegion.name}. Local exploration resumed beside the parked spacecraft; the body-fixed sky continues from saved simulation time.`
+        : `DESCENT: ${body.name} · ${this.surfaceRegion.name}. Scripted landing sequence engaged; controls unlock after touchdown. Celestial N-body time continues at 1× while the spacecraft is surface-constrained.`, 6500);
       return true;
     } catch (error) {
       console.error('Surface entry failure', error);
@@ -854,6 +873,15 @@ export class UniverseLabApp {
     const shipDistance = Math.hypot(this.surfaceSession.x - shipSite.x, this.surfaceSession.z - shipSite.z);
     set('#surfaceShipDistance', `${shipDistance.toFixed(0)} m`);
     set('#surfaceClock', `${Math.floor(this.surfaceSession.weather?.elapsedSeconds ?? 0)} s`);
+    const astronomySeconds = Math.max(0, Number(this.clock.elapsedSimSeconds) || 0);
+    set('#surfaceSkyClock', astronomySeconds >= PHYSICS.DAY
+      ? `${(astronomySeconds / PHYSICS.DAY).toFixed(3)} d`
+      : `${Math.floor(astronomySeconds).toLocaleString()} s`);
+    const parentBody = this.registry.get(this.surfaceSession.bodyId);
+    const rotationPeriod = Math.abs(Number(parentBody?.rotationPeriodSeconds));
+    set('#surfaceRotation', Number.isFinite(rotationPeriod) && rotationPeriod > 0
+      ? `${(rotationPeriod / 3600).toFixed(2)} h · ${(Number(parentBody?.rotationDirection) || 1) < 0 ? 'RETRO' : 'PRO'}`
+      : 'STATIC FRAME');
     set('#surfaceDiscoveries', `${this.surfaceSession.scannedPoiIds.size}/${surfacePois(region).length}`);
     const weatherStatus = this.root.querySelector('#surfaceWeatherStatus');
     if (weatherStatus) {
@@ -1701,6 +1729,13 @@ export class UniverseLabApp {
 
   requestTimeScale(requestedValue, notify = true) {
     const requested = Math.max(1, safeNumber(requestedValue, 1));
+    if (this.surfaceSession?.active) {
+      this.clock.setTimeScale(1);
+      const select = this.root.querySelector('#timeScale'); if (select) select.value = '1';
+      const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = 'SURFACE 1×';
+      if (notify) this.hud.notify('Surface astronomy is intentionally limited to 1× in this foundation build. Celestial N-body time remains continuous while the spacecraft is surface-constrained.');
+      return 1;
+    }
     if (this.transitState.active) {
       this.clock.setTimeScale(1);
       const select = this.root.querySelector('#timeScale'); if (select) select.value = '1';
@@ -2082,9 +2117,33 @@ export class UniverseLabApp {
   }
 
 
+  surfaceAstronomyStep(dt) {
+    const sources = this.massiveBodies;
+    const previousPositions = new Map(sources.map((body) => [body.id, new Float64Array(body.position)]));
+    this.integrator.step(sources, dt);
+    this.minorField?.step(dt, sources);
+
+    // Surface sessions cannot contain live particle experiments, but the major-body universe and
+    // seeded kinematic space-weather timeline must continue while the spacecraft is parked.
+    const star = sources.find((body) => body.kind === BODY_KIND.STAR) ?? null;
+    const weatherNotices = this.spaceWeather.step(this.clock.elapsedSimSeconds + dt, star, null);
+    for (const notice of weatherNotices) {
+      if (notice.type === 'start') this.hud.notify(`STELLAR EVENT: ${notice.event.label} launched automatically while surface operations continue. COSMOS → SPACE WEATHER tracks the front.`);
+    }
+
+    const collisions = this.collisionMonitor.scan(sources, previousPositions, this.clock.elapsedSimSeconds + dt);
+    for (const event of collisions) {
+      event.timeSeconds = this.clock.elapsedSimSeconds + dt * (event.stepFraction ?? 1);
+      this.applyImpactResolution(event);
+    }
+    return true;
+  }
+
   frameSurface(now, realDt) {
-    this.physicsMs = 0;
+    const physicsStart = performance.now();
     this.experimentMs = 0;
+    if (this.running) this.clock.advance(realDt, (dt) => this.surfaceAstronomyStep(dt), SIMULATION.maxPhysicsSubstepSeconds);
+    this.physicsMs = performance.now() - physicsStart;
     this.updateSurface(realDt);
 
     // Ascent completion can detach the local surface during updateSurface(). In that case this
@@ -2112,7 +2171,7 @@ export class UniverseLabApp {
       shipSpeed: this.surfaceSession.lastMoveSpeedMps ?? 0,
       bodyCount: this.bodies.length,
       minorCount: this.minorField?.count ?? 0,
-      physicsMs: 0,
+      physicsMs: this.physicsMs,
       renderMs: this.renderMs,
       predictionMs: 0,
       drawCalls: renderStats.drawCalls,
@@ -2200,7 +2259,7 @@ export class UniverseLabApp {
       seed: this.system.seed,
       elapsedSimSeconds: this.clock.elapsedSimSeconds,
       timeScale: this.surfaceSession?.active ? this._surfacePreviousTimeScale : this.clock.timeScale,
-      simulationRunning: this.surfaceSession?.active ? this._surfacePreviousRunning : this.running,
+      simulationRunning: this.running,
       ship: this.ship.serialize(),
       bodies: this.bodies.map(serializeBody),
       minorCount: this.minorField?.count ?? 0,
@@ -2246,6 +2305,14 @@ export class UniverseLabApp {
     for (const raw of payload.bodies) {
       const restored = restoreBody(raw);
       const generated = generatedBodyById.get(restored.id);
+      // Rotation metadata is deterministic and lives outside the saved dynamical position/velocity.
+      // Backfill it for older schema-1 saves without changing their authoritative physical state.
+      if (generated) {
+        for (const key of ['rotationPeriodSeconds','rotationDirection','rotationPhaseRad','rotationEpochSeconds','axialTiltRad','rotationModel']) {
+          if (generated[key] !== undefined) restored[key] = generated[key];
+        }
+        if (Array.isArray(generated.rotationAxisInertial)) restored.rotationAxisInertial = [...generated.rotationAxisInertial];
+      }
       // Schema-1 saves from before the landing foundation did not know the new surface profile.
       // Refresh only surface-capability metadata from deterministic generation; physical state remains saved state.
       if (generated?.landable) {
@@ -2314,7 +2381,7 @@ export class UniverseLabApp {
     this.syncViewClasses();
     this.updateCockpitUi();
     this.hud.notify(surfaceRestored
-      ? `Save restored directly to ${this.surfaceRegion?.name ?? 'the surface'}. Orbital time remains held until TAKEOFF; surface discoveries and the ${weatherRestored ? 'saved' : 'new'} space-weather timeline are preserved.`
+      ? `Save restored directly to ${this.surfaceRegion?.name ?? 'the surface'}. Celestial time and the body-fixed sky resume at 1× when the simulation is running; surface discoveries and the ${weatherRestored ? 'saved' : 'new'} space-weather timeline are preserved.`
       : `Save restored. Major-body/ship state, discovery records and ${weatherRestored ? 'space-weather timeline' : 'a newly scheduled space-weather timeline'} are active. Session-local particle experiments were cleared.`);
   }
 
@@ -2480,7 +2547,9 @@ export class UniverseLabApp {
       this.hud.toggleMore(false);
       this.running = !this.running;
       e.currentTarget.textContent = this.running ? 'PAUSE' : 'RESUME';
-      this.hud.notify(this.running ? 'Simulation resumed.' : 'Simulation paused.');
+      this.hud.notify(this.surfaceSession?.active
+        ? (this.running ? 'Surface astronomy resumed at 1×; the parked spacecraft remains surface-constrained.' : 'Surface astronomy paused; local exploration and weather remain available.')
+        : (this.running ? 'Simulation resumed.' : 'Simulation paused.'));
     });
     $('#saveButton').addEventListener('click', () => { this.hud.toggleMore(false); this.saveSystem.save(this.serialize()); this.hud.notify('Saved locally on this device.'); });
     $('#loadButton').addEventListener('click', () => { this.hud.toggleMore(false); this.loadSave(); });

@@ -37,3 +37,30 @@ test('metadata moon and planet counts match generated bodies', () => {
   assert.equal(s.metadata.moonCount,moons);
   assert.ok(s.metadata.starSpectralClass);
 });
+
+test('planet/moon rotation metadata is deterministic, finite, and isolated from legacy orbital generation', () => {
+  const a = generateSystem('ORIGIN-001');
+  const b = generateSystem('ORIGIN-001');
+  const rotating = a.bodies.filter((body) => body.kind === 'planet' || body.kind === 'moon');
+  assert.ok(rotating.length > 0);
+  for (const body of rotating) {
+    const peer = b.bodies.find((entry) => entry.id === body.id);
+    assert.ok(Number.isFinite(body.rotationPeriodSeconds) && body.rotationPeriodSeconds > 0);
+    assert.ok(body.rotationDirection === 1 || body.rotationDirection === -1);
+    assert.equal(body.rotationAxisInertial.length, 3);
+    assert.ok(body.rotationAxisInertial.every(Number.isFinite));
+    assert.deepEqual(body.rotationAxisInertial, peer.rotationAxisInertial);
+    assert.equal(body.rotationPeriodSeconds, peer.rotationPeriodSeconds);
+    assert.equal(body.rotationPhaseRad, peer.rotationPhaseRad);
+  }
+
+  // Exact pre-v0.1.4.7 ORIGIN-001 orbital signature. Rotation uses a separate RNG stream and
+  // must not perturb established seeded system positions/velocities.
+  const star = a.bodies.find((body) => body.id === 'star-0');
+  const firstPlanet = a.bodies.find((body) => body.id === 'planet-1');
+  assert.deepEqual([...star.position], [117306266.1553843, -15060692.902183142, -62950225.12578909]);
+  assert.deepEqual([...star.velocity], [3.969701149062927, -0.1603931093549944, 3.5602725445002497]);
+  assert.deepEqual([...firstPlanet.position], [35470505321.98423, 775882259.717882, -26509908414.664623]);
+  assert.deepEqual([...firstPlanet.velocity], [34914.49964693554, 1467.3991447185356, 45175.81701552086]);
+  assert.equal(a.homeId, 'planet-3');
+});

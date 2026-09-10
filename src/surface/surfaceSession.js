@@ -18,6 +18,11 @@ export function createSurfaceSession(region, snapshot = null) {
     scannedPoiIds: new Set(restoredIds),
     selectedPoiId: snapshot?.selectedPoiId ?? null,
     hudExpanded: snapshot?.hudExpanded === true,
+    bodyFixedAnchor: Array.isArray(snapshot?.bodyFixedAnchor) && snapshot.bodyFixedAnchor.length >= 3
+      ? snapshot.bodyFixedAnchor.slice(0, 3).map((value) => Number(value))
+      : null,
+    anchorCapturedAtSimSeconds: Number.isFinite(Number(snapshot?.anchorCapturedAtSimSeconds)) ? Number(snapshot.anchorCapturedAtSimSeconds) : null,
+    rotationModelVersion: Number.isFinite(Number(snapshot?.rotationModelVersion)) ? Math.max(1, Math.floor(Number(snapshot.rotationModelVersion))) : 1,
     weather: createSurfaceWeatherState(region, snapshot?.weather ?? null),
   };
 }
@@ -35,6 +40,9 @@ export function serializeSurfaceSession(session) {
     scannedPoiIds: [...session.scannedPoiIds],
     selectedPoiId: session.selectedPoiId ?? null,
     hudExpanded: session.hudExpanded === true,
+    bodyFixedAnchor: Array.isArray(session.bodyFixedAnchor) ? session.bodyFixedAnchor.slice(0, 3) : null,
+    anchorCapturedAtSimSeconds: Number.isFinite(Number(session.anchorCapturedAtSimSeconds)) ? Number(session.anchorCapturedAtSimSeconds) : null,
+    rotationModelVersion: Number.isFinite(Number(session.rotationModelVersion)) ? Math.max(1, Math.floor(Number(session.rotationModelVersion))) : 1,
     weather: serializeSurfaceWeather(session.weather),
   };
 }

@@ -117,3 +117,17 @@ test('surface scan requires local proximity and scan discoveries survive session
   assert.equal(restored.x, firstPoi.x);
   assert.equal(restored.z, firstPoi.z);
 });
+
+test('surface session preserves body-fixed landing anchor for continuous rotating-sky saves', () => {
+  const system = generateSystem('SURFACE-ANCHOR-SAVE');
+  const body = system.bodies.find((entry) => entry.id === system.homeId);
+  const region = generateSurfaceRegion(system, body, 'shatterfall-basin');
+  const session = createSurfaceSession(region);
+  session.bodyFixedAnchor = [0.25, 0.9, -0.35];
+  session.anchorCapturedAtSimSeconds = 12345;
+  session.rotationModelVersion = 1;
+  const restored = createSurfaceSession(region, serializeSurfaceSession(session));
+  assert.deepEqual(restored.bodyFixedAnchor, [0.25, 0.9, -0.35]);
+  assert.equal(restored.anchorCapturedAtSimSeconds, 12345);
+  assert.equal(restored.rotationModelVersion, 1);
+});

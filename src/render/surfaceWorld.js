@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { createRng } from '../util/prng.js';
-import { createStarfieldView } from './starfield.js';
+import { createStarfieldView, updateStarfieldViewBasis } from './starfield.js';
 import { surfaceSkyExposure } from '../core/astronomicalObserver.js';
 import { surfaceColorAt, surfaceHeightAt, surfaceZoneWeights, surfacePois } from '../surface/surfaceGenerator.js';
 import { surfaceEyePosition } from '../surface/surfaceSession.js';
@@ -538,6 +538,7 @@ export class SurfaceWorldVisual {
     this.star = star;
     this.starCatalog = starCatalog;
     this.astronomicalSky = null;
+    this._astronomicalSkyProjectionTime = -Infinity;
     this.astronomicalBodies = new Map();
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(region.palette.skyTop);
@@ -550,9 +551,9 @@ export class SurfaceWorldVisual {
 
     const skyTexture = makeSkyTexture(region.palette.skyTop, region.palette.skyHorizon);
     const sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 28, 18), new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide, depthWrite: false }));
-    sky.position.y = 260; this.scene.add(sky);
+    sky.position.y = 260; this.scene.add(sky); this.sky = sky;
 
-    const hemi = new THREE.HemisphereLight(region.palette.skyHorizon, 0x17120f, 1.55); this.scene.add(hemi);
+    const hemi = new THREE.HemisphereLight(region.palette.skyHorizon, 0x17120f, 1.55); this.scene.add(hemi); this.hemi = hemi;
     const sunColor = new THREE.Color(star?.color ?? 0xffe1b0);
     this.sun = new THREE.DirectionalLight(sunColor, 3.2); this.scene.add(this.sun);
 
@@ -584,6 +585,7 @@ export class SurfaceWorldVisual {
     this.astronomicalSky = createStarfieldView(this.starCatalog, {
       basis: { east: observer.horizonEast, up: observer.localUp, north: observer.horizonNorth },
       horizonOnly: true,
+      dynamicBasis: true,
     });
     this.astronomicalSky.name = 'surface-inertial-starfield';
     this.astronomicalSky.scale.setScalar(0.04);
@@ -593,7 +595,18 @@ export class SurfaceWorldVisual {
   updateAstronomicalSky(astronomy, eye, weather) {
     if (!astronomy?.observer || !Array.isArray(astronomy.bodies)) return null;
     this.ensureAstronomicalSky(astronomy);
-    if (this.astronomicalSky) this.astronomicalSky.position.set(eye[0], eye[1], eye[2]);
+    if (this.astronomicalSky) {
+      const projectionTime = Number(astronomy.observer.simulationTimeSeconds) || 0;
+      if (!Number.isFinite(this._astronomicalSkyProjectionTime) || Math.abs(projectionTime - this._astronomicalSkyProjectionTime) >= 0.25) {
+        updateStarfieldViewBasis(this.astronomicalSky, this.starCatalog, {
+          east: astronomy.observer.horizonEast,
+          up: astronomy.observer.localUp,
+          north: astronomy.observer.horizonNorth,
+        }, { horizonOnly: true });
+        this._astronomicalSkyProjectionTime = projectionTime;
+      }
+      this.astronomicalSky.position.set(eye[0], eye[1], eye[2]);
+    }
 
     const starObservation = astronomy.bodies.find((observed) => observed.id === this.star?.id || observed.kind === 'star');
     const transmission = weather?.type === 'shadow-fog' ? 0.12
@@ -604,6 +617,14 @@ export class SurfaceWorldVisual {
       atmosphereAtmProxy: this.region.atmosphereAtmProxy,
       weatherTransmission: transmission,
     });
+    // This is a bounded presentation proxy, not an atmospheric scattering solver. The physically
+    // derived star altitude controls whether the local sky is day/twilight/night; weather then
+    // attenuates visibility separately. The underlying celestial directions remain untouched.
+    const daylightFactor = this.region.atmosphereAtmProxy > 0.01 ? 0.075 + exposure.daylight * 0.925 : 0.025;
+    if (this.sky?.material?.color) this.sky.material.color.setScalar(daylightFactor);
+    if (this.hemi) this.hemi.intensity = 0.12 + exposure.daylight * 1.43;
+    this.scene.background?.multiplyScalar?.(Math.max(0.04, daylightFactor));
+    this.scene.fog?.color?.multiplyScalar?.(Math.max(0.10, daylightFactor));
     this.astronomicalSky?.traverse((node) => {
       if (!node.material) return;
       const base = node.material.userData?.baseOpacity ?? node.material.opacity ?? 1;

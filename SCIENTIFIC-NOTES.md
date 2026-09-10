@@ -1,4 +1,6 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.6.1.3.1
+# Scientific / Model Notes — Universe Lab v0.1.4.7
+
+**v0.1.4.7 note:** landed astronomy now advances the authoritative major-body N-body solution at forced 1× while the spacecraft remains surface-constrained. A deterministic rigid spin model converts a persisted body-fixed landing direction into the current inertial local horizon. The model is intentionally a rotation/observer foundation, not a formation-history, precession/nutation, tidal-evolution or atmospheric-scattering solution. Generated spin metadata comes from independent per-body RNG streams so legacy orbital seed state is not perturbed.
 
 **v0.1.4.6.1.3.1 note:** MFD transparency, diagnostics bezel/rail geometry, the dedicated Engineering/Diagnostics drawer and shell cache-busting are presentation/telemetry-only. They do not alter celestial gravity, body integration, ShipDynamics, FRAME translation/exit matching, observer math, landing state or save authority.
 
@@ -24,7 +26,7 @@ Major-body apparent directions are computed from authoritative live positions mi
 
 The seeded background catalog is a stable inertial visual reference, not a real-star astrometric catalog. It is generated once per system seed and reused across space and surface scenes. Daylight and weather reduce presentation visibility but do not remove catalog entries.
 
-Orbital time intentionally remains fixed while landed. Consequently the surface sky is physically continuous at that fixed instant but does not yet rotate with planetary sidereal time. The separate surface-weather clock does not move celestial ephemerides.
+As of v0.1.4.7, landed celestial time can continue at forced 1×. The body-fixed landing anchor rotates with the generated parent-body spin model, so the local horizon evolves against the same inertial catalog and live major-body ephemerides. Surface weather remains a separate local clock and does not drive celestial motion.
 
 LAB magnetars have real Newtonian mass and mutually accelerate when separated. Repeated spawns are deterministically separated to avoid identical initial positions. Magnetic fields, plasma, radiation pressure and MHD coupling remain unmodeled visual metadata/effects.
 
@@ -36,7 +38,7 @@ Modeled/derived quantities include a Newtonian surface-gravity estimate from the
 
 Terrain is deterministic seeded noise plus large-form crater/ridge/basin functions. Frost, ember, glass and mineral subzones are visual/environmental classifications rather than simulated phase chemistry.
 
-While landed, orbital N-body time is intentionally held. This prevents hidden system evolution and avoids pretending that local EVA time and high-warp orbital integration have already been reconciled into a multi-scale simulation architecture.
+While landed, major-body N-body time now advances at forced 1× when the simulation is running. The parked spacecraft is excluded from ordinary ShipDynamics/navigation integration. High surface time-warp remains intentionally unavailable until multi-scale landed evolution, performance and handoff behavior are validated.
 
 ## Landing / takeoff boundary
 
@@ -73,7 +75,7 @@ Surface weather in v0.1.4.4 is a deterministic presentation model, not atmospher
 
 `Upward Rain`, `Shadow Fog`, `Suspended Lightning` and `Sky Fracture` are intentionally impossible/fictional anomaly-weather classes. They are labeled as such and do not modify gravity, time, causality, player movement or orbital state.
 
-Local weather time advances only while the surface session is actively rendered. Large tab/background hitches are bounded so reopening Safari does not skip an entire event. Orbital N-body time remains held until TAKEOFF.
+Local weather time advances only while the surface session is actively rendered. Large tab/background hitches are bounded so reopening Safari does not skip an entire event. Celestial N-body time is separate and may advance at surface 1× when unpaused.
 
 The landed spacecraft exterior is a visual proxy. No rigid-body landing gear, mass distribution, aerodynamic entry, fuel, structural stress or terrain collision is solved in this release.
 

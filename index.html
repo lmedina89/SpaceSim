@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.6.1.3.1</title>
-  <link rel="stylesheet" href="./styles.css?v=146131">
+  <title>Universe Lab v0.1.4.7</title>
+  <link rel="stylesheet" href="./styles.css?v=147">
   <script type="importmap">
   {
     "imports": {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.6.1.3.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.7</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -99,7 +99,8 @@
           <span>Gravity</span><b id="surfaceGravity">—</b><span>Temperature</span><b id="surfaceTemperature">—</b>
           <span>Atmosphere</span><b id="surfaceAtmosphere">—</b><span>Local X/Z</span><b id="surfaceCoords">—</b>
           <span>Wind</span><b id="surfaceWind">—</b><span>Ship</span><b id="surfaceShipDistance">—</b>
-          <span>Surface clock</span><b id="surfaceClock">0 s</b><span>Mode</span><b id="surfacePhase">LANDED</b>
+          <span>Local weather</span><b id="surfaceClock">0 s</b><span>Mode</span><b id="surfacePhase">LANDED</b>
+          <span>Astronomy time</span><b id="surfaceSkyClock">0 s</b><span>Body rotation</span><b id="surfaceRotation">—</b>
         </div>
         <p id="surfaceWeatherStatus" class="surface-weather-status">Local weather monitor initializing.</p>
         <p id="surfaceScanStatus" class="surface-scan-status">Surface scanner ready.</p>
@@ -107,7 +108,7 @@
           <button id="surfaceSaveButton" type="button">SAVE</button>
           <button id="surfaceTakeoffButton" class="void" type="button">BOARD / TAKEOFF</button>
         </div>
-        <small class="surface-model-note">LOCAL SURFACE INSTANCE · orbital N-body time held · anomalies and weather remain presentation/discovery layers</small>
+        <small class="surface-model-note">BODY-FIXED SURFACE OBSERVER · celestial N-body time continues at 1× · anomalies/weather remain presentation/discovery layers</small>
       </div>
     </section>
 
@@ -141,7 +142,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and it matches the locked target inertial velocity when the pilot exits normally. Sky directions use one fixed-time astronomical observer across flight and surface modes. Build marker: <b>MFDENG-146131</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and it matches the locked target inertial velocity when the pilot exits normally. Surface sky directions now use a rotating body-fixed observer while the same celestial N-body universe continues at 1×; FRAME remains isolated from celestial gravity. Build marker: <b>ROTASTRO-147</b>.</p>
     </aside>
 
     <aside id="engineeringPanel" class="drawer engineering-panel" hidden>
@@ -167,7 +168,7 @@
           <b>MODEL BOUNDARY</b>
           <span>These values mirror existing runtime telemetry only. This panel does not change gravity, integration, FRAME behavior, navigation, save state, or renderer-backend policy.</span>
         </div>
-        <p class="engineering-build">BUILD <b>MFDENG-146131</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
+        <p class="engineering-build">BUILD <b>ROTASTRO-147</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
       </div>
     </aside>
 
@@ -375,12 +376,12 @@
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Cosmic phenomena:</strong> physical comet nuclei are live Newtonian gravity sources on high-eccentricity orbits. Asteroid/debris belts and planetary rings use seeded GPU-friendly point-population proxies tied to physical anchor bodies; their individual visible points do not source gravity or collide. Distant colored nebular haze is explicitly visual background.</p>
         <p><strong>Space weather:</strong> CME fronts use seeded directional cones with explicit propagation speeds and geometric arrival/crossing detection. They are kinematic fronts, not magnetohydrodynamic or radiation-transport simulations.</p>
-        <p><strong>Planetary environments:</strong> the seeded home world now exposes three deterministic landing regions with distinct terrain emphasis. Local weather uses a persistent seeded surface clock and includes ordinary dust/fog/frost/electrostatic events plus explicitly impossible anomaly weather. Weather alters presentation/visibility only; it does not apply aerodynamic forces, damage, erosion or thermodynamic simulation. A parked spacecraft exterior marks the landing site while orbital N-body time remains intentionally held.</p>
+        <p><strong>Planetary environments:</strong> the seeded home world now exposes three deterministic landing regions with distinct terrain emphasis. Local weather uses a persistent seeded surface clock and includes ordinary dust/fog/frost/electrostatic events plus explicitly impossible anomaly weather. Weather alters presentation/visibility only; it does not apply aerodynamic forces, damage, erosion or thermodynamic simulation. A parked spacecraft exterior marks the landing site while the celestial N-body universe continues at 1×. The landing anchor is stored in the planet’s rotating body-fixed frame, so the Sun, moons, planets and inertial star catalog move across the local horizon as simulation time advances.</p>
         <p><strong>Scientific overlays:</strong> gravity vectors are computed from the current Newtonian source set. Lagrange points, Hill spheres and Roche limits are labeled diagnostic approximations; orbital planes are derived from instantaneous target-relative position/velocity.</p>
         <p><strong>Compact objects:</strong> black holes use Schwarzschild-radius metadata plus live Newtonian gravity, with a dense real-time accretion-disk/photon-ring/jet visual proxy. Neutron stars/pulsars use live Newtonian mass/radius plus visual magnetosphere and sweep-beam proxies. APPROACH computes propulsion-safe stand-off, strong gravity reduces integration steps, and model guards pause before near-horizon/near-surface or &gt;10% c states are presented as adequate Newtonian science. Full GR ray tracing, radiation transport and plasma MHD remain future work.</p>
       </div>
     </aside>
   </main>
-  <script type="module" src="./src/main.js?v=146131"></script>
+  <script type="module" src="./src/main.js?v=147"></script>
 </body>
 </html>

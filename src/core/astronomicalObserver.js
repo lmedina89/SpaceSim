@@ -1,3 +1,4 @@
+import { bodyFixedDirectionToInertial, hasPhysicalRotationModel, surfaceTangentBasis } from './planetaryRotation.js';
 const EPSILON = 1e-12;
 
 export const ASTRONOMICAL_OBSERVER_MODE = Object.freeze({
@@ -126,8 +127,18 @@ export function solveSurfaceObserver({
   mode = ASTRONOMICAL_OBSERVER_MODE.SURFACE,
 } = {}, target = createObserverState()) {
   const bodyPosition = body?.position ?? [0, 0, 0];
-  deriveSurfaceAnchorUp(body, shipPosition, target.localUp);
-  surfaceHorizonBasis(target.localUp, target.horizonEast, target.horizonNorth);
+  const bodyFixedAnchor = session?.bodyFixedAnchor;
+  const rotatingAnchor = hasPhysicalRotationModel(body)
+    && Array.isArray(bodyFixedAnchor)
+    && bodyFixedAnchor.length >= 3
+    && bodyFixedAnchor.every((value) => Number.isFinite(Number(value)));
+  if (rotatingAnchor) {
+    bodyFixedDirectionToInertial(body, bodyFixedAnchor, simulationTimeSeconds, target.localUp);
+    surfaceTangentBasis(body, target.localUp, simulationTimeSeconds, target.horizonEast, target.horizonNorth);
+  } else {
+    deriveSurfaceAnchorUp(body, shipPosition, target.localUp);
+    surfaceHorizonBasis(target.localUp, target.horizonEast, target.horizonNorth);
+  }
   const x = finite(session?.x), z = finite(session?.z);
   const height = finite(terrainHeightMeters) + Math.max(0, finite(eyeHeightMeters, 1.72));
   const radius = Math.max(0, finite(body?.radius));

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.4.7 — Planetary Rotation & Continuous Surface Astronomy Foundation
+
+- Added deterministic rigid planetary/moon rotation metadata using independent per-body RNG streams; existing seeded orbital positions/velocities are preserved.
+- Added `core/planetaryRotation.js` with inertial/body-fixed transforms, rotation phase, tangent-basis construction and landing-anchor capture.
+- Surface sessions now optionally persist a body-fixed touchdown anchor and capture metadata without changing save schema 1.
+- Landed mode advances the authoritative celestial N-body world at forced 1× while deliberately skipping ordinary spacecraft `ShipDynamics` and navigation integration.
+- Canonical surface observer local-up/east/north now follow the rotating body-fixed anchor when rotation metadata is present, with backward fallback for older sessions.
+- Surface starfield now dynamically reprojects the same inertial catalog into preallocated buffers at a bounded cadence; no reseeding or duplicate sky is introduced.
+- Added bounded daylight/twilight/night presentation derived from live star altitude; this is not an atmospheric scattering solver.
+- Existing schema-1 saves deterministically backfill rotation metadata for generated bodies while preserving saved physical mass/radius/position/velocity.
+- Surface time-warp above 1× is intentionally blocked in this foundation build; PAUSE can stop celestial time while local exploration/weather remains usable.
+- Preserved FRAME isolation, Three.js 0.185.0, direct Newtonian gravity, velocity-Verlet, accepted landing/ascent recovery and the iPhone/iPad forced-WebGL2 renderer policy.
+- Automated regression suite expanded to cover rotation round-trips, body-fixed observer evolution, in-place star reprojection, surface-only celestial stepping, save compatibility and a locked legacy `ORIGIN-001` orbital signature.
+
 ## v0.1.4.6.1.3.1 — Cockpit MFD Transparency & Engineering Diagnostics Polish
 
 - Made all four in-cockpit CanvasTexture displays modestly translucent using smoked-glass alpha backgrounds while preserving fully legible text/telemetry.

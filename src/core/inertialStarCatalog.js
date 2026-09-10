@@ -109,3 +109,29 @@ export function projectInertialDirection(direction, basis) {
     direction[0] * north[0] + direction[1] * north[1] + direction[2] * north[2],
   ];
 }
+
+export function projectInertialCatalogBufferInto(positions, colors, basis, horizonOnly, targetPositions, targetColors = null) {
+  const east = basis?.east ?? [1, 0, 0];
+  const up = basis?.up ?? [0, 1, 0];
+  const north = basis?.north ?? [0, 0, 1];
+  const sourceCount = Math.floor((positions?.length ?? 0) / 3);
+  if (!targetPositions || targetPositions.length < sourceCount * 3) throw new Error('Target position buffer is too small for inertial catalog projection.');
+  if (colors && targetColors && targetColors.length < sourceCount * 3) throw new Error('Target color buffer is too small for inertial catalog projection.');
+  let visibleCount = 0;
+  for (let k = 0; k < sourceCount * 3; k += 3) {
+    const x0 = positions[k], y0 = positions[k + 1], z0 = positions[k + 2];
+    const localY = x0 * up[0] + y0 * up[1] + z0 * up[2];
+    if (horizonOnly && localY < 0) continue;
+    const out = visibleCount * 3;
+    targetPositions[out] = x0 * east[0] + y0 * east[1] + z0 * east[2];
+    targetPositions[out + 1] = localY;
+    targetPositions[out + 2] = x0 * north[0] + y0 * north[1] + z0 * north[2];
+    if (colors && targetColors) {
+      targetColors[out] = colors[k];
+      targetColors[out + 1] = colors[k + 1];
+      targetColors[out + 2] = colors[k + 2];
+    }
+    visibleCount += 1;
+  }
+  return visibleCount;
+}
