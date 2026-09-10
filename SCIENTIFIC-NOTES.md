@@ -1,4 +1,6 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.7
+# Scientific / Model Notes — Universe Lab v0.1.4.7.1
+
+**v0.1.4.7.1 note:** surface diagnostics do not add a second astronomy model. Body-fixed LAT/LON and rotation phase expose the existing rigid-spin coordinates; primary-star ALT/AZ comes from the canonical observer body record used by rendering. Local solar time is geometric hour-angle time: 12:00 occurs when the observer body-fixed longitude matches the primary star's substellar longitude. The procedural body-fixed zero-meridian is arbitrary and should not be interpreted as a real-world named prime meridian. PAUSE SKY holds celestial simulation time only; surface weather/walking remain on their existing real-time local path.
 
 **v0.1.4.7 note:** landed astronomy now advances the authoritative major-body N-body solution at forced 1× while the spacecraft remains surface-constrained. A deterministic rigid spin model converts a persisted body-fixed landing direction into the current inertial local horizon. The model is intentionally a rotation/observer foundation, not a formation-history, precession/nutation, tidal-evolution or atmospheric-scattering solution. Generated spin metadata comes from independent per-body RNG streams so legacy orbital seed state is not perturbed.
 

@@ -1,9 +1,9 @@
 {
   "name": "universe-lab",
-  "version": "0.1.4.7",
+  "version": "0.1.4.7.1",
   "private": true,
   "type": "module",
-  "description": "Scientific mobile-first seeded universe laboratory with continuous body-fixed surface astronomy, deterministic planetary rotation, a low-obstruction interactive 3D cockpit, and an isolated speculative FRAME drive.",
+  "description": "Scientific mobile-first seeded universe laboratory with continuous body-fixed surface astronomy, landed astronomy diagnostics and sky pause control, a low-obstruction interactive 3D cockpit, and an isolated speculative FRAME drive.",
   "scripts": {
     "check": "node ./tests/static-check.mjs && find src tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "test": "node --test tests/*.test.mjs",

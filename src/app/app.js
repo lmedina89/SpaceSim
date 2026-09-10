@@ -2,7 +2,7 @@ import { EntityRegistry } from '../core/entityRegistry.js';
 import { SimulationClock } from '../core/simulationClock.js';
 import { FloatingReferenceFrame } from '../core/referenceFrame.js';
 import { ASTRONOMICAL_OBSERVER_MODE, AstronomicalObserverModel } from '../core/astronomicalObserver.js';
-import { captureBodyFixedSurfaceAnchor } from '../core/planetaryRotation.js';
+import { captureBodyFixedSurfaceAnchor, hasPhysicalRotationModel, inertialDirectionToBodyFixed, localSolarTimeHours, rotationAngleAt, surfaceLatitudeLongitude } from '../core/planetaryRotation.js';
 import { SaveSystem } from '../core/saveSystem.js';
 import { PHYSICS, SIMULATION, BODY_KIND } from '../core/constants.js';
 import { generateSystem } from '../data/systemGenerator.js';
@@ -23,8 +23,8 @@ import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
 import { SpaceWeatherManager } from '../cosmic/spaceWeather.js';
 import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition, matchFrameExitVelocity } from '../physics/transitDrive.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=147';
-import { Hud } from '../ui/hud.js?v=147';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1471';
+import { Hud } from '../ui/hud.js?v=1471';
 import { SystemMapController } from '../ui/systemMap.js';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
@@ -34,6 +34,34 @@ import { stepSurfaceWeather, surfaceWeatherReading } from '../surface/surfaceWea
 function safeNumber(value, fallback) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function degrees(radians) {
+  return Number(radians) * (180 / Math.PI);
+}
+
+function formatBodyFixedCoordinate(latitudeRad, longitudeRad) {
+  const latitude = degrees(latitudeRad);
+  const longitude = degrees(longitudeRad);
+  if (![latitude, longitude].every(Number.isFinite)) return '—';
+  const latHemisphere = latitude < 0 ? 'S' : 'N';
+  const lonHemisphere = longitude < 0 ? 'W' : 'E';
+  return `${Math.abs(latitude).toFixed(4)}° ${latHemisphere} · ${Math.abs(longitude).toFixed(4)}° ${lonHemisphere}`;
+}
+
+function formatSolarHours(hours) {
+  if (!Number.isFinite(hours)) return '—';
+  const totalMinutes = Math.round((((hours % 24) + 24) % 24) * 60) % (24 * 60);
+  const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const mm = String(totalMinutes % 60).padStart(2, '0');
+  return `${hh}:${mm} SOLAR`;
+}
+
+function horizontalAzimuthDegrees(localDirection) {
+  const east = Number(localDirection?.[0]);
+  const north = Number(localDirection?.[2]);
+  if (![east, north].every(Number.isFinite)) return NaN;
+  return ((Math.atan2(east, north) * 180 / Math.PI) % 360 + 360) % 360;
 }
 
 function serializeBody(body) {
@@ -253,7 +281,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.7 online. Planetary rotation and continuous body-fixed surface astronomy are active: celestial N-body time continues at 1× while landed, while ShipDynamics stays surface-constrained. FRAME and the accepted cockpit/WebKit renderer remain unchanged. Active backend: ${backend}. Build ROTASTRO-147.`);
+    this.hud.notify(`v0.1.4.7.1 online. Surface astronomy diagnostics and landed SKY PAUSE/RESUME are active on the physically accepted rotating-surface foundation. FRAME, ShipDynamics isolation, and the accepted cockpit/WebKit renderer remain unchanged. Active backend: ${backend}. Build ASTROHUD-1471.`);
   }
 
   newSystem(seed) {
@@ -500,6 +528,8 @@ export class UniverseLabApp {
     }
     const save = this.root.querySelector('#surfaceSaveButton');
     if (save) save.disabled = phase !== SURFACE_PHASE.LANDED;
+    const skyPause = this.root.querySelector('#surfaceAstronomyPause');
+    if (skyPause) skyPause.disabled = phase !== SURFACE_PHASE.LANDED;
     if (takeoff) {
       if (phase === SURFACE_PHASE.ASCENDING) {
         takeoff.disabled = true;
@@ -592,7 +622,8 @@ export class UniverseLabApp {
         this.setSurfaceControlsEnabled(false);
       }
       this.selectTarget(body.id);
-      this.updateSurfaceHud();
+      const astronomy = this.solveAstronomicalObserver();
+      this.updateSurfaceHud(astronomy);
       this.updateSurfaceTransitionUi();
       if (options.notify !== false) this.hud.notify(options.fromLoad
         ? `SURFACE RESTORED: ${body.name} · ${this.surfaceRegion.name}. Local exploration resumed beside the parked spacecraft; the body-fixed sky continues from saved simulation time.`
@@ -816,9 +847,32 @@ export class UniverseLabApp {
     }
     if (this.surfaceSession?.active && this.surfaceRegion) {
       stepSurfaceWeather(this.surfaceSession.weather, this.surfaceRegion, realDt);
-      this.updateSurfaceHud();
       this.updateSurfaceTransitionUi();
     }
+  }
+
+  syncPauseControls() {
+    const flightPause = this.root.querySelector('#pauseToggle');
+    if (flightPause) flightPause.textContent = this.running ? 'PAUSE' : 'RESUME';
+    const surfacePause = this.root.querySelector('#surfaceAstronomyPause');
+    if (surfacePause) {
+      surfacePause.textContent = this.running ? 'PAUSE SKY' : 'RESUME SKY';
+      surfacePause.setAttribute('aria-pressed', this.running ? 'false' : 'true');
+    }
+  }
+
+  toggleSurfaceAstronomyPause() {
+    if (!this.surfaceSession?.active || !this.surfaceRegion || this.surfaceTransition?.phase !== SURFACE_PHASE.LANDED) {
+      this.hud.notify('SKY PAUSE is available after touchdown while the landed surface session is active.');
+      return this.running;
+    }
+    this.running = !this.running;
+    this.syncPauseControls();
+    this.updateSurfaceHud();
+    this.hud.notify(this.running
+      ? 'Surface astronomy resumed at 1×. The parked spacecraft remains constrained to the landing site.'
+      : 'Surface astronomy paused. Local walking and weather remain active; celestial N-body time is held.');
+    return this.running;
   }
 
   setSurfaceHudExpanded(expanded, notify = false) {
@@ -854,7 +908,7 @@ export class UniverseLabApp {
     return true;
   }
 
-  updateSurfaceHud() {
+  updateSurfaceHud(astronomy = null) {
     if (!this.surfaceSession?.active || !this.surfaceRegion) return;
     const region = this.surfaceRegion;
     const nearest = nearestSurfacePoi(this.surfaceSession, region);
@@ -879,9 +933,50 @@ export class UniverseLabApp {
       : `${Math.floor(astronomySeconds).toLocaleString()} s`);
     const parentBody = this.registry.get(this.surfaceSession.bodyId);
     const rotationPeriod = Math.abs(Number(parentBody?.rotationPeriodSeconds));
-    set('#surfaceRotation', Number.isFinite(rotationPeriod) && rotationPeriod > 0
+    const physicalRotation = hasPhysicalRotationModel(parentBody);
+    set('#surfaceRotation', physicalRotation && Number.isFinite(rotationPeriod) && rotationPeriod > 0
       ? `${(rotationPeriod / 3600).toFixed(2)} h · ${(Number(parentBody?.rotationDirection) || 1) < 0 ? 'RETRO' : 'PRO'}`
       : 'STATIC FRAME');
+
+    const anchor = this.surfaceSession.bodyFixedAnchor;
+    const anchorValid = Array.isArray(anchor) && anchor.length >= 3 && anchor.every((value) => Number.isFinite(Number(value)));
+    set('#surfaceRotationPhase', physicalRotation ? `${degrees(rotationAngleAt(parentBody, astronomySeconds)).toFixed(2)}°` : '—');
+
+    const astronomySolution = astronomy ?? this.solveAstronomicalObserver();
+    const observer = astronomySolution?.observer;
+    let observerBodyFixed = anchorValid ? anchor : null;
+    if (physicalRotation && observer?.valid && observer?.inertialPosition && parentBody?.position) {
+      const observerFromCenter = [
+        Number(observer.inertialPosition[0]) - Number(parentBody.position[0]),
+        Number(observer.inertialPosition[1]) - Number(parentBody.position[1]),
+        Number(observer.inertialPosition[2]) - Number(parentBody.position[2]),
+      ];
+      if (observerFromCenter.every(Number.isFinite)) observerBodyFixed = inertialDirectionToBodyFixed(parentBody, observerFromCenter, astronomySeconds);
+    }
+    if (observerBodyFixed) {
+      const coordinates = surfaceLatitudeLongitude(observerBodyFixed);
+      set('#surfaceLatLon', formatBodyFixedCoordinate(coordinates.latitudeRad, coordinates.longitudeRad));
+    } else set('#surfaceLatLon', '—');
+
+    const primaryStar = this.registry.get('star-0') ?? this.bodies.find((body) => body.kind === BODY_KIND.STAR) ?? null;
+    const observedStar = primaryStar ? astronomySolution?.bodies?.find((record) => record.id === primaryStar.id) : null;
+    if (observedStar?.finite && Number.isFinite(observedStar.centerAltitudeRad)) {
+      const altitudeDeg = degrees(observedStar.centerAltitudeRad);
+      const azimuthDeg = horizontalAzimuthDegrees(observedStar.localDirection);
+      set('#surfaceStarAltAz', Number.isFinite(azimuthDeg)
+        ? `${altitudeDeg >= 0 ? '+' : ''}${altitudeDeg.toFixed(2)}° ALT · ${azimuthDeg.toFixed(2)}° AZ`
+        : `${altitudeDeg >= 0 ? '+' : ''}${altitudeDeg.toFixed(2)}° ALT · — AZ`);
+    } else set('#surfaceStarAltAz', '—');
+
+    if (physicalRotation && observerBodyFixed && primaryStar?.position && parentBody?.position) {
+      const starDirection = [
+        Number(primaryStar.position[0]) - Number(parentBody.position[0]),
+        Number(primaryStar.position[1]) - Number(parentBody.position[1]),
+        Number(primaryStar.position[2]) - Number(parentBody.position[2]),
+      ];
+      set('#surfaceSolarTime', formatSolarHours(localSolarTimeHours(parentBody, observerBodyFixed, starDirection, astronomySeconds)));
+    } else set('#surfaceSolarTime', '—');
+    this.syncPauseControls();
     set('#surfaceDiscoveries', `${this.surfaceSession.scannedPoiIds.size}/${surfacePois(region).length}`);
     const weatherStatus = this.root.querySelector('#surfaceWeatherStatus');
     if (weatherStatus) {
@@ -2156,6 +2251,7 @@ export class UniverseLabApp {
 
     const renderStart = performance.now();
     const astronomy = this.solveAstronomicalObserver();
+    this.updateSurfaceHud(astronomy);
     this.renderer.renderSurface({ session: this.surfaceSession, transition: this.surfaceTransition, realTimeSeconds: now / 1000, astronomy });
     this.renderMs = performance.now() - renderStart;
     this.fpsFrames += 1;
@@ -2543,10 +2639,10 @@ export class UniverseLabApp {
     $('#shipViewButton').addEventListener('click', () => { this.hud.toggleLab(false); this.returnToShipView(); });
     $('#rendezvousExperiment').addEventListener('click', () => this.rendezvousExperiment());
 
-    $('#pauseToggle').addEventListener('click', (e) => {
+    $('#pauseToggle').addEventListener('click', () => {
       this.hud.toggleMore(false);
       this.running = !this.running;
-      e.currentTarget.textContent = this.running ? 'PAUSE' : 'RESUME';
+      this.syncPauseControls();
       this.hud.notify(this.surfaceSession?.active
         ? (this.running ? 'Surface astronomy resumed at 1×; the parked spacecraft remains surface-constrained.' : 'Surface astronomy paused; local exploration and weather remain available.')
         : (this.running ? 'Simulation resumed.' : 'Simulation paused.'));
@@ -2643,6 +2739,7 @@ export class UniverseLabApp {
     });
 
     $('#surfaceScanButton').addEventListener('click', () => this.scanSurface());
+    $('#surfaceAstronomyPause').addEventListener('click', () => this.toggleSurfaceAstronomyPause());
     $('#surfaceSaveButton').addEventListener('click', () => { this.saveSystem.save(this.serialize()); this.hud.notify('Surface position and discoveries saved locally on this device.'); });
     $('#surfaceTakeoffButton').addEventListener('click', () => this.requestSurfaceTakeoff());
 

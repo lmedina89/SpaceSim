@@ -1,21 +1,19 @@
-# Universe Lab v0.1.4.7 — Planetary Rotation / Continuous Surface Astronomy iPhone Gate
+# Universe Lab v0.1.4.7.1 — Surface Astronomy Diagnostics / Pause iPhone Gate
 
-Before accepting this release on physical iPhone Safari:
+This hotfix sits on the already physically accepted v0.1.4.7 rotating-surface foundation. Before accepting v0.1.4.7.1 on physical iPhone Safari:
 
-1. Confirm HUD version **v0.1.4.7**, build marker **ROTASTRO-147**, and SYSTEM DIAGNOSTICS still reports **WebGL2 iOS**.
-2. LAND / DESCEND on the normal generated home planet and open surface DETAILS. Confirm **SKY TIME** advances while unpaused and **ROTATION** reports a finite period/direction instead of `STATIC FRAME`.
-3. Note the sky time, remain landed for at least a minute, and confirm celestial time continues rather than freezing at touchdown. Local WEATHER time should also continue on its separate clock.
-4. Turn around and verify the same star catalog remains continuous: no reseed/pop to a different pattern, no lower-hemisphere stars leaking through the ground, and no sudden Sun/planet jump at the landing handoff.
-5. Leave the surface running long enough to observe at least subtle astronomical drift on a short-period generated world if practical. Daylight/twilight presentation should follow the live star altitude rather than a fixed landing-time light direction.
-6. Tap PAUSE while landed. Confirm SKY TIME stops while local exploration/weather remains responsive; RESUME should restart celestial time. Surface warp must remain limited to **1×**.
-7. SAVE while landed, reload, and confirm the same region/local player state returns and the body-fixed observer resumes without a sky discontinuity.
-8. BOARD / TAKEOFF and confirm the surface framebuffer clears, the ship returns around the parent body's **current** advanced position, `ASCENT COMPLETE` follows the existing multi-frame orbital verification, and normal flight controls respond immediately.
-9. Repeat LAND → TAKEOFF once without refresh. Watch specifically for stale surface frames, large sky jumps, runtime errors, or a spacecraft handoff displaced from the parent body.
-10. Regress the accepted cockpit: four translucent MFDs, dedicated ENGINEERING / DIAGNOSTICS drawer, compact THRUST / REV / BRAKE controls, FRAME button, and real-physics APPROACH/BRAKE.
-11. Regress FRAME isolation: FRAME may move only the spacecraft; it must not rewrite or drag celestial bodies.
-12. Run the surface for several minutes and watch FPS/thermals. The full inertial star-catalog horizon reprojection is cadence-limited, but physical iPhone WebKit remains the performance gate.
+1. Confirm HUD version **v0.1.4.7.1**, build marker **ASTROHUD-1471**, and renderer **WebGL2 iOS**.
+2. LAND, open **DETAILS**, and confirm the existing **Astronomy time** and finite **Body rotation** readouts still behave exactly as v0.1.4.7.
+3. Confirm **Body-fixed lat/lon**, **Rotation phase**, **Primary star alt/az**, and **Local solar time** all show finite values rather than `—` on the normal generated landable planet.
+4. Leave DETAILS open for 20–30 seconds. Rotation phase and primary-star coordinates should evolve continuously with Astronomy time; body-fixed lat/lon should remain stable while you stand at the same landing site.
+5. Tap **PAUSE SKY** after touchdown. Astronomy time and rotation phase should stop changing. Walk around and verify local movement still works; local Weather time should continue.
+6. Tap **RESUME SKY**. Astronomy time and rotation phase should resume from the held instant, without a star-catalog jump/reseed.
+7. SAVE while landed, LOAD, and verify diagnostics return coherently. If saved while SKY is paused, the paused celestial state should restore and the button should show **RESUME SKY**.
+8. BOARD / TAKEOFF and confirm the already accepted handoff remains clean: no stale surface frame, no velocity spike, immediate controls, and successful multi-frame orbital verification.
+9. Regress the cockpit/FRAME path briefly. This hotfix must not alter the four MFDs, engineering drawer, FRAME isolation, APPROACH/BRAKE, or renderer policy.
+10. Watch short-landscape layout: the extra two diagnostic rows and full-width SKY button must remain scrollable/readable without covering the WALK pad.
 
-The new rotation model is a rigid deterministic observer foundation. It does **not** yet claim atmospheric scattering, axial precession/nutation, tidal spin evolution, seasons, phase shading, eclipses/occultations, or aerodynamic surface flight.
+Interpretation: ALT is signed degrees above/below the local geometric horizon. AZ is degrees clockwise from local north toward east. Local solar time is derived from primary-star hour angle; `12:00 SOLAR` means the primary star is on the observer's local meridian, not necessarily overhead.
 
 ## GitHub Pages deployment
 
@@ -25,7 +23,7 @@ Repository → **Settings → Pages**:
 - Branch: `main`
 - Folder: `/(root)`
 
-The distributable must unzip directly into the repository root and contain no `.github/workflows/*` files. After upload/reload, confirm **v0.1.4.7**, **ROTASTRO-147**, **WebGL2 iOS**, advancing surface SKY TIME, a finite ROTATION readout, the translucent four-MFD cockpit, dedicated engineering drawer, compact thrust controls, and the FRAME button. If an older marker appears, Safari/GitHub Pages is serving stale files.
+The distributable must unzip directly into the repository root and contain no `.github/workflows/*` files. After upload/reload, confirm **v0.1.4.7.1**, **ASTROHUD-1471**, **WebGL2 iOS**, advancing surface SKY TIME, a finite ROTATION readout, the translucent four-MFD cockpit, dedicated engineering drawer, compact thrust controls, and the FRAME button. If an older marker appears, Safari/GitHub Pages is serving stale files.
 
 Automated QA cannot prove physical iPhone WebKit presentation, touch ergonomics, thermal behavior, or the subjective cockpit layout. Physical Safari remains the release gate.
 
