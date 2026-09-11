@@ -1,4 +1,11 @@
-# Universe Lab v0.1.5.3.1 — Surface Input Release & Version Identity Hotfix
+# Universe Lab v0.1.5.4 — Celestial Rendering & Relativistic Object Realism
+
+**Build marker:** `CELESTREAL-154`  
+**Save schema:** `1`  
+**Three.js:** `0.185.0`
+
+This milestone upgrades how resolved planets, moons, stars and compact objects look while preserving the accepted v0.1.5.3.1 simulation state. Close planets/moons gain lazy environment-driven procedural detail and canonical visual rotation; stars gain darker photospheric spots; black holes and neutron stars use physically derived ratio/compactness diagnostics with explicitly bounded rendering proxies.
+
 
 **Build marker:** `INPUTREL-1531`  
 **Save schema:** 1 (unchanged)  

@@ -1,3 +1,9 @@
+# v0.1.5.4 architecture delta — celestial rendering only
+
+`src/render/celestialRealism.js` is a pure read-only presentation model. It consumes authoritative body/environment metadata and returns bounded visual profiles; it never mutates mass, radius, position, velocity, rotation metadata, environment state, landing state or saves. `celestialFactory.js` owns the generated material/compact-object geometry, while `threeRenderer.js` applies apparent-size LOD and exposure after camera placement. Near-orbit textures are lazy so iPhone Safari does not allocate detailed maps for every distant body at startup.
+
+Black-hole ratios are GR-informed but the renderer is not a GR ray tracer. Neutron-star compactness/redshift/light-cylinder values are physically derived diagnostics, while field/beam geometry is a readability-scaled proxy. Planetary oblateness is first-order and bounded because interior structure is not solved.
+
 # v0.1.5.3.1 architecture delta — input release hardening only
 
 This hotfix changes only UI input-lifecycle handling and build identity. The existing `bindHold()` path retains pointer capture, pointerup/pointercancel/lostpointercapture, document pointer release, blur, visibility and forced release hooks. It now also installs per-control `touchend` / `touchcancel` fallbacks that release only after that control has no remaining `targetTouches`. A document-level all-touches-up fallback and `pagehide` neutralization provide final iPhone/WebKit safety nets.

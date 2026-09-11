@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { createStarfieldView } from './starfield.js';
 import { createInertialStarCatalog } from '../core/inertialStarCatalog.js';
-import { createCelestialVisual, updateCelestialVisual, applyStellarPerceptualProfile, syncPlanetaryAtmosphereVisual } from './celestialFactory.js';
+import { createCelestialVisual, updateCelestialVisual, applyStellarPerceptualProfile, syncPlanetaryAtmosphereVisual, syncPlanetaryRealismVisual, applyPlanetaryPerceptualProfile } from './celestialFactory.js';
 import { createCosmicPhenomenonVisual, updateCosmicPhenomenonVisual } from './cosmicPhenomena.js';
 import { syncSpaceWeatherVisuals } from './spaceWeatherVisuals.js';
 import { updateScientificOverlayVisual } from './scientificOverlayVisuals.js';
@@ -11,12 +11,13 @@ import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPercep
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
 import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
-import { CockpitView } from './cockpitView.js?v=1531';
+import { CockpitView } from './cockpitView.js?v=154';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
     if (!material) return;
     if (material.userData?.disposeMap) material.map?.dispose?.();
+    if (material.userData?.disposeBumpMap) material.bumpMap?.dispose?.();
     material.dispose?.();
   };
   root.traverse?.((node) => {
@@ -84,6 +85,7 @@ export class UniverseRenderer {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this._stellarExposure = 1.0;
+    this._planetaryExposure = 1.0;
     this.surfaceWorld = null;
     this.container.appendChild(this.renderer.domElement);
     this.bodyVisuals = new Map();
@@ -211,6 +213,7 @@ export class UniverseRenderer {
       if (!this.bodyVisuals.has(body.id)) {
         const visual = createCelestialVisual(body);
         const environment = derivePlanetaryEnvironment(body, bodies);
+        syncPlanetaryRealismVisual(visual, body, environment);
         syncPlanetaryAtmosphereVisual(visual, body, environment, primaryStar);
         this.bodyVisuals.set(body.id, visual);
         this.scene.add(visual);
@@ -685,7 +688,7 @@ export class UniverseRenderer {
     // Exposure adaptation is deliberately gentle and only engages when a star occupies a
     // significant apparent angle. Macro stellar phenomena are not culled at long range.
     this._stellarExposure += (exposureTarget - this._stellarExposure) * 0.085;
-    this.renderer.toneMappingExposure = this._stellarExposure;
+    this.renderer.toneMappingExposure = Math.min(this._stellarExposure, this._planetaryExposure);
 
     const backdrop = this.scene.getObjectByName('visual-starfield');
     backdrop?.traverse?.((node) => {
@@ -695,6 +698,24 @@ export class UniverseRenderer {
       else if (node.userData?.role === 'galactic-band') node.material.opacity = base * galacticBandFactor;
       else if (node.userData?.role === 'background-nebula') node.material.opacity = base * Math.max(0.22, backgroundFactor);
     });
+  }
+
+  updatePlanetaryPerception() {
+    let exposureTarget = 1;
+    for (const visual of this.bodyVisuals.values()) {
+      const kind = visual.userData?.bodyKind;
+      if (kind !== BODY_KIND.PLANET && kind !== BODY_KIND.MOON) continue;
+      const radius = Math.max(1e-6, Number(visual.userData?.renderRadius) || 0);
+      const distance = Math.max(radius + 1e-9, visual.position.distanceTo(this.camera.position));
+      const angularRadius = apparentAngularRadius(radius, distance);
+      const profile = applyPlanetaryPerceptualProfile(visual, angularRadius);
+      if (!profile) continue;
+      const albedo = Math.max(.02, Math.min(.92, Number(visual.userData?.planetaryMaterialProfile?.albedo) || .28));
+      const brightnessWeight = .45 + albedo * .75;
+      exposureTarget = Math.min(exposureTarget, Math.max(.74, 1 - profile.close * .10 * brightnessWeight - profile.huge * .10 * brightnessWeight));
+    }
+    this._planetaryExposure += (exposureTarget - this._planetaryExposure) * .10;
+    this.renderer.toneMappingExposure = Math.min(this._stellarExposure, this._planetaryExposure);
   }
 
   centerStarfieldOnCamera() {
@@ -720,6 +741,7 @@ export class UniverseRenderer {
     this.camera.lookAt(basis.forward[0] * 100, basis.forward[1] * 100, basis.forward[2] * 100);
     this.centerStarfieldOnCamera();
     this.updateCameraClipPlane();
+    this.updatePlanetaryPerception();
     this.updateStellarPerception();
     this.renderer.render(this.scene, this.camera);
   }
@@ -745,6 +767,7 @@ export class UniverseRenderer {
     this.camera.lookAt(pose.lookAt[0], pose.lookAt[1], pose.lookAt[2]);
     this.centerStarfieldOnCamera();
     this.updateCameraClipPlane();
+    this.updatePlanetaryPerception();
     this.updateStellarPerception();
     this.renderer.render(this.scene, this.camera);
   }

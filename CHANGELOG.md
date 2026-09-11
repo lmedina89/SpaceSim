@@ -1,3 +1,14 @@
+## v0.1.5.4 — Celestial Rendering & Relativistic Object Realism
+
+- Added lazy near-orbit procedural albedo/relief maps for resolved planets and moons; distant bodies remain cheap.
+- Added environment-driven visual material families for rock, volatile-rich rock, ice/rock and gas envelopes, plus deterministic gas bands/storm structure. These are appearance proxies, not solved mineralogy/cloud chemistry.
+- Planet/moon rendering now follows canonical rotation axis/period/direction/phase metadata and adds bounded first-order rotational oblateness.
+- Stellar photosphere texture now carries dark seeded starspot structure on the physical disk while preserving existing granulation/corona/prominence/flare layers.
+- Black-hole rendering now uses GR-informed Schwarzschild shadow/critical-curve/ISCO ratios on the existing enlarged readability scale, with a 3–12 Rs accretion flow, first-order Doppler asymmetry, lensed-backside cue and jets. No geodesic ray tracer or GRMHD solver is claimed.
+- Neutron-star/magnetar visuals now derive compactness/redshift/light-cylinder diagnostics and use dipole-shaped field lines; pulsar beams and magnetar reconnection arcs remain scaled presentation proxies.
+- Added gentle close-planet HDR/exposure response combined with the existing close-star exposure model.
+- Physics, FRAME, atmosphere science, surface generation/exploration, save schema 1 and forced-WebGL2 iPhone policy remain unchanged.
+
 ## v0.1.5.3.1 — Surface Input Release & Version Identity Hotfix
 
 - Fixed the stale top-left shell badge so the running build visibly reports `v0.1.5.3.1` instead of the old `v0.1.5.2` label.

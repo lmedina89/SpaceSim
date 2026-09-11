@@ -1,3 +1,11 @@
+# v0.1.5.4 scientific boundary notes — celestial appearance
+
+This release improves visual realism without changing the authoritative physics state. Planet/moon albedo/relief is deterministic procedural presentation derived from canonical environment class/albedo/ice potential; it is **not** a solved global geology/mineralogy/topography model. Rotational flattening is a bounded first-order hydrostatic visual proxy.
+
+Black-hole rendering uses the Schwarzschild distant-observer shadow reference radius `3√3/2 Rs` and non-spinning ISCO `3 Rs` as proportional visual cues on the deliberately enlarged LAB readability scale. The starfield is not actually warped by null-geodesic integration, and accretion is not GRMHD. Neutron-star compactness, surface gravitational redshift and light-cylinder radius are derived from mass/radius/spin, but magnetospheres, reconnection and pulsar beams remain visualization proxies with no plasma/radiation transport.
+
+Existing Newtonian compact-object model guards remain authoritative.
+
 # v0.1.5.3.1 scientific boundary notes — no science-model changes
 
 This hotfix changes input lifecycle handling and build identity only. v0.1.5.3 atmospheric optics, v0.1.5.2 multi-world surfaces, canonical environment derivation, astronomy, N-body gravity, FRAME, collision/impact physics and save authority are unchanged.

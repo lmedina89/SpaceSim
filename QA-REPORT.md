@@ -1,3 +1,50 @@
+# v0.1.5.4 QA — Celestial Rendering & Relativistic Object Realism
+
+## Final worktree gate
+
+- `npm run qa`: **288/288 PASS**.
+- Static structure: **55 required files**.
+- All JS/MJS syntax checks: PASS.
+- Save schema remains **1**; Three.js remains **0.185.0**; iPhone/iPad WebKit forced-WebGL2 policy unchanged.
+- No `.github/workflows/*`.
+
+## Independent realism/property audit
+
+- 3,000 generated systems / **44,337 modeled planet/moon/rogue worlds**.
+- Gas-envelope profiles: **5,488**. Ice/rock profiles: **6,240**.
+- Zero invalid/non-finite profile failures.
+- Rotational flattening remained bounded in `[0, 0.13]`; max reached the explicit gas-giant presentation cap **0.13**.
+- 3 M☉ black-hole diagnostic: Schwarzschild radius **8,860.018 m**, shadow reference **2.598076 Rs**, non-spinning ISCO **3 Rs**.
+- 1.55 M☉ / 12 km magnetar diagnostic: compactness **0.381473**, gravitational redshift **0.271513**, light-cylinder radius **229,024,568 m** at 4.8 s spin.
+
+## Baseline compatibility
+
+- Exact baseline: physically accepted `v0.1.5.3.1 / INPUTREL-1531`.
+- Baseline source modules: **62**; v0.1.5.4 source modules: **63**.
+- **58 protected baseline source modules are byte-for-byte unchanged**, zero mismatches.
+- Changed baseline source modules: `src/app/app.js`, `src/main.js`, `src/render/celestialFactory.js`, `src/render/threeRenderer.js`.
+- Added: `src/render/celestialRealism.js`.
+- `app.js` / `main.js` changes are build/cache/startup identity only. Functional behavior is isolated to the celestial renderer/factory plus the new read-only realism model.
+- Independent 1,000-seed baseline-vs-v0.1.5.4 comparison: **17,254 bodies, zero mismatches** across tested identity/kind, mass/radius, parent/orbit metadata, Float64 position/velocity, rotation metadata and environment version metadata.
+
+## Release-candidate archive gate
+
+- RC archive: `UniverseLab-v0.1.5.4-Celestial-Rendering-Relativistic-Object-Realism-GitHub-RC.zip`.
+- ZIP integrity: PASS.
+- Clean-unzip `npm run qa`: **288/288 PASS**.
+- Local HTTP/module smoke: **15/15 returned 200**, including `celestialRealism.js`.
+- `.github/workflows/*`: none.
+- Extracted RC tree: **144 files, zero byte mismatches** versus frozen worktree.
+- RC SHA-256 before QA-report evidence update: `ffa3431f72671300959fce2ee8ec218b627e8fee73663857bb70596c72694516`.
+
+## Scientific boundary
+
+- Near-orbit planet/moon textures are deterministic visual albedo/relief proxies derived from canonical environment metadata; no global mineralogy/topography solver is claimed.
+- Rotational oblateness is a bounded first-order hydrostatic visual proxy.
+- Black-hole visuals use GR-informed Schwarzschild shadow/critical-curve/ISCO ratios on an enlarged readability scale, but **do not** ray-trace background null geodesics and **do not** solve GRMHD accretion.
+- Neutron-star compactness/redshift/light-cylinder diagnostics are derived; dipole lines, beams and magnetar reconnection arcs remain presentation proxies without plasma/radiation transport.
+- Core Newtonian gravity, velocity-Verlet, FRAME, collisions/impacts, atmosphere science, surface exploration, saves and WebKit backend remain unchanged.
+
 # v0.1.5.3.1 QA — Surface Input Release & Version Identity Hotfix
 
 - Baseline: exact frozen v0.1.5.3 `ATMOSKY-153` archive. Baseline QA: **276/276 PASS**.

@@ -1,3 +1,15 @@
+# Universe Lab v0.1.5.4 — Celestial Realism iPhone Gate
+
+Before physically accepting `CELESTREAL-154` on iPhone Safari/WebKit:
+
+1. Hard reload and confirm **v0.1.5.4 / CELESTREAL-154 / WebGL2 iOS**.
+2. Approach a rocky planet/moon from far range into low orbit; detail should appear only after the disk becomes resolved, with no startup hitch across the whole system and no flat single-color wall at very close range.
+3. Check Caelum-4361 h-A/f-A for distinct ice/rock vs regolith appearance and Caelum-4361 g/h for gas-envelope banding/oblateness.
+4. Verify d/e atmospheric limbs from v0.1.5.3.1 remain intact and f-A/h-A remain limb-free.
+5. Observe the primary star at safe range: photosphere should retain granulation/corona/prominence layers with darker spot structure; background exposure should remain smooth.
+6. LAB-spawn a black hole, pulsar and magnetar. Stay outside compact-object model guards. Confirm the black hole has one narrow critical-curve family rather than stacked decorative rings; neutron-star/magnetar fields should read as dipole-like rather than generic torus cages.
+7. Regress portrait↔landscape, surface WALK release, LAND/SAVE/LOAD/TAKEOFF, FRAME, Observation Planner and eclipse/phase behavior.
+
 # Universe Lab v0.1.5.3.1 — Surface Input Release iPhone Gate
 
 Before physically accepting `INPUTREL-1531` on iPhone Safari/WebKit:

@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { BODY_KIND, SIMULATION } from '../core/constants.js';
 import { createRng } from '../util/prng.js';
 import { solveOrbitalAtmosphereLimb } from '../physics/atmosphericOptics.js';
+import { blackHoleAppearanceProfile, nearOrbitDetailProfile, neutronStarAppearanceProfile, planetaryMaterialProfile } from './celestialRealism.js';
 
 function renderRadius(body) {
   const strictPhysicalDisk = body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ROGUE_PLANET;
@@ -66,6 +67,165 @@ function addGlow(group, color, scale, opacity = 0.3) {
   return sprite;
 }
 
+
+
+function clamp01(value) { return Math.max(0, Math.min(1, Number(value) || 0)); }
+
+function makePlanetarySurfaceMaps(body, profile) {
+  const width = profile.textureWidth;
+  const height = profile.textureHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const bumpCanvas = document.createElement('canvas');
+  bumpCanvas.width = width; bumpCanvas.height = height;
+  const ctx = canvas.getContext('2d');
+  const bumpCtx = bumpCanvas.getContext('2d');
+  const image = ctx.createImageData(width, height);
+  const bumpImage = bumpCtx.createImageData(width, height);
+  const rng = createRng(`${body.id}:${body.name}:celestial-surface-v1`);
+  const phases = Array.from({ length: 8 }, () => rng.range(0, Math.PI * 2));
+  const base = new THREE.Color(body.color ?? 0x888888);
+  const baseRgb = [base.r, base.g, base.b];
+  const craters = profile.gas ? [] : Array.from({ length: body.kind === BODY_KIND.MOON ? 10 : 6 }, () => ({
+    u: rng.random(), v: rng.range(0.12, 0.88), r: rng.range(0.018, body.kind === BODY_KIND.MOON ? 0.075 : 0.052), depth: rng.range(0.12, 0.34),
+  }));
+  const storms = profile.gas ? Array.from({ length: 4 }, () => ({ u:rng.random(), v:rng.range(.22,.78), rx:rng.range(.035,.095), ry:rng.range(.012,.045), gain:rng.range(.12,.28) })) : [];
+
+  for (let y = 0; y < height; y += 1) {
+    const v = y / height;
+    const lat = (v - 0.5) * Math.PI;
+    for (let x = 0; x < width; x += 1) {
+      const u = x / width;
+      let n = 0;
+      n += Math.sin((u * 3.1 + Math.sin(v * 6.7 + phases[0]) * .11) * Math.PI * 2 + phases[1]) * .42;
+      n += Math.sin((u * 8.3 - v * 3.7) * Math.PI * 2 + phases[2]) * .24;
+      n += Math.sin((u * 21.7 + Math.cos(v * 17.2 + phases[3]) * .07) * Math.PI * 2) * .13;
+      n += Math.sin((u * 53.0 + v * 37.0) * Math.PI * 2 + phases[4]) * .055;
+      let heightSignal = n;
+      let local = n * profile.baseContrast;
+
+      if (profile.gas) {
+        const bands = Math.sin(lat * 18 + phases[5]) * .42 + Math.sin(lat * 43 + phases[6]) * .17;
+        local = bands * profile.bandStrength + n * .09;
+        for (const spot of storms) {
+          let du = Math.abs(u - spot.u); du = Math.min(du, 1 - du);
+          const dv = v - spot.v;
+          const d2 = (du*du)/(spot.rx*spot.rx) + (dv*dv)/(spot.ry*spot.ry);
+          if (d2 < 1) local += (1-d2) * spot.gain;
+        }
+        heightSignal = 0;
+      } else {
+        for (const crater of craters) {
+          let du = Math.abs(u - crater.u); du = Math.min(du, 1 - du);
+          const dv = v - crater.v;
+          const cosLat = Math.max(.25, Math.cos(lat));
+          const d = Math.hypot(du * cosLat, dv) / crater.r;
+          if (d < 1) {
+            const bowl = -(1 - d*d) * crater.depth;
+            const rim = Math.exp(-(((d-.86)/.10)**2)) * crater.depth * .68;
+            local += bowl + rim;
+            heightSignal += bowl + rim;
+          }
+        }
+      }
+
+      let r = baseRgb[0], g = baseRgb[1], b = baseRgb[2];
+      if (profile.id === 'ice-rock') {
+        const ice = profile.ice;
+        r = 0.55 + ice*.30; g = 0.64 + ice*.27; b = 0.72 + ice*.26;
+        const darkRock = clamp01((local + .33) * 1.6);
+        r *= .72 + darkRock*.30; g *= .74 + darkRock*.29; b *= .76 + darkRock*.28;
+      } else if (profile.id === 'volatile-rock') {
+        const land = clamp01(.50 + local * 1.45);
+        const ocean = [baseRgb[0]*.58, baseRgb[1]*.70, Math.min(1, baseRgb[2]*1.13+.06)];
+        const continent = [Math.min(1, baseRgb[0]*1.14+.06), Math.min(1, baseRgb[1]*1.08+.04), baseRgb[2]*.76];
+        const edge = land > .52 ? 1 : 0;
+        r = edge ? continent[0] : ocean[0]; g = edge ? continent[1] : ocean[1]; b = edge ? continent[2] : ocean[2];
+        const mod = .86 + local*.20; r*=mod; g*=mod; b*=mod;
+      } else {
+        const mod = .82 + local * .42;
+        r *= mod; g *= mod; b *= mod;
+        if (profile.desert) { r = Math.min(1, r*1.09); g = Math.min(1, g*1.02); b *= .84; }
+      }
+      if (profile.gas) {
+        const mod = .88 + local*.34; r*=mod; g*=mod; b*=mod;
+      }
+      const k = (y * width + x) * 4;
+      image.data[k] = Math.round(clamp01(r) * 255);
+      image.data[k+1] = Math.round(clamp01(g) * 255);
+      image.data[k+2] = Math.round(clamp01(b) * 255);
+      image.data[k+3] = 255;
+      const hv = Math.round(clamp01(.5 + heightSignal * profile.smallScaleContrast) * 255);
+      bumpImage.data[k] = hv; bumpImage.data[k+1] = hv; bumpImage.data[k+2] = hv; bumpImage.data[k+3] = 255;
+    }
+  }
+  ctx.putImageData(image,0,0); bumpCtx.putImageData(bumpImage,0,0);
+  const map = new THREE.CanvasTexture(canvas); map.wrapS=THREE.RepeatWrapping; map.wrapT=THREE.ClampToEdgeWrapping; map.colorSpace=THREE.SRGBColorSpace; map.anisotropy=4;
+  const bumpMap = new THREE.CanvasTexture(bumpCanvas); bumpMap.wrapS=THREE.RepeatWrapping; bumpMap.wrapT=THREE.ClampToEdgeWrapping; bumpMap.anisotropy=2;
+  return { map, bumpMap };
+}
+
+function applyCanonicalBodyOrientation(visual, body, elapsedSimSeconds) {
+  const axis = body?.rotationAxisInertial;
+  const period = Math.abs(Number(body?.rotationPeriodSeconds) || 0);
+  if (!Array.isArray(axis) || axis.length < 3 || !(period > 0)) return false;
+  const a = new THREE.Vector3(Number(axis[0])||0, Number(axis[1])||1, Number(axis[2])||0);
+  if (a.lengthSq() < 1e-12) return false;
+  a.normalize();
+  const align = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), a);
+  const direction = Number(body?.rotationDirection) < 0 ? -1 : 1;
+  const epoch = Number(body?.rotationEpochSeconds) || 0;
+  const phase0 = Number(body?.rotationPhaseRad) || 0;
+  const phase = phase0 + direction * ((Number(elapsedSimSeconds)||0) - epoch) * (Math.PI*2/period);
+  const spin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), phase);
+  visual.quaternion.copy(align).multiply(spin);
+  return true;
+}
+
+export function syncPlanetaryRealismVisual(visual, body, environment) {
+  if (!visual || !body) return null;
+  const core = visual.children.find((child) => child.userData?.role === 'physical-reflector');
+  if (!core?.material) return null;
+  const profile = planetaryMaterialProfile(body, environment);
+  core.material.roughness = profile.roughness;
+  core.material.userData.baseBumpScale = profile.bumpScale;
+  core.material.userData.celestialRealismProfile = profile.id;
+  core.scale.set(1, 1 - profile.flattening, 1);
+  visual.userData.planetaryMaterialProfile = profile;
+  // Keep a lightweight reference for lazy near-orbit texture creation. No authoritative
+  // body/environment fields are mutated by the renderer.
+  visual.userData.planetaryTextureSource = body;
+  visual.userData.visualScientificStatusSurface = profile.scientificBoundary;
+  return profile;
+}
+
+export function applyPlanetaryPerceptualProfile(visual, apparentRadiusRad) {
+  const core = visual?.children?.find?.((child) => child.userData?.role === 'physical-reflector');
+  if (!core?.material) return null;
+  const profile = nearOrbitDetailProfile(apparentRadiusRad);
+  const materialProfile = visual.userData?.planetaryMaterialProfile;
+  const body = visual.userData?.planetaryTextureSource;
+  // Build close-detail maps only after the disk is genuinely resolved. This avoids allocating
+  // global textures for every distant body at startup on iPhone Safari.
+  if (!core.material.map && body && materialProfile && apparentRadiusRad >= 0.006) {
+    const maps = makePlanetarySurfaceMaps(body, materialProfile);
+    core.material.map = maps.map;
+    core.material.bumpMap = materialProfile.bumpScale > 0 ? maps.bumpMap : null;
+    if (!core.material.bumpMap) maps.bumpMap.dispose();
+    core.material.bumpScale = materialProfile.bumpScale * profile.bumpMultiplier;
+    core.material.color.setRGB(1,1,1);
+    core.material.needsUpdate = true;
+    core.material.userData.disposeMap = true;
+    core.material.userData.disposeBumpMap = Boolean(core.material.bumpMap);
+    visual.userData.nearOrbitTextureResident = true;
+  }
+  const baseBump = Number(core.material.userData?.baseBumpScale) || 0;
+  if (core.material.bumpMap) core.material.bumpScale = baseBump * profile.bumpMultiplier;
+  core.material.roughness = Math.max(.35, Math.min(1, Number(materialProfile?.roughness ?? .82) - profile.close*.08));
+  visual.userData.nearOrbitDetailProfile = profile;
+  return profile;
+}
+
 function makeStellarSurfaceTexture(body) {
   const rng = createRng(`${body.id}:${body.name}:stellar-surface-v2`);
   const canvas = document.createElement('canvas');
@@ -74,6 +234,7 @@ function makeStellarSurfaceTexture(body) {
   const image = ctx.createImageData(canvas.width, canvas.height);
   const phases = Array.from({ length: 10 }, () => rng.range(0, Math.PI * 2));
   const freqs = Array.from({ length: 10 }, (_, i) => rng.range(2.2 + i * 0.55, 5.0 + i * 1.2));
+  const spots = Array.from({ length: 7 }, () => ({ u:rng.random(), v:rng.range(.18,.82), r:rng.range(.018,.055), depth:rng.range(.14,.34) }));
   for (let y = 0; y < canvas.height; y += 1) {
     const v = y / canvas.height;
     for (let x = 0; x < canvas.width; x += 1) {
@@ -84,7 +245,14 @@ function makeStellarSurfaceTexture(body) {
         n += Math.sin((u * f + Math.sin(v * Math.PI * 2 + phases[(i + 3) % phases.length]) * 0.18) * Math.PI * 2 + phases[i]) * (1 / (1 + i * 0.42));
       }
       const cell = 0.5 + 0.5 * Math.sin((u * 43 + Math.sin(v * 17 + phases[0]) * 1.7) * Math.PI * 2) * Math.sin((v * 31 + phases[1]) * Math.PI * 2);
-      const brightness = Math.max(0, Math.min(1, 0.70 + n * 0.055 + (cell - 0.5) * 0.18));
+      let spotDarkening = 0;
+      for (const spot of spots) {
+        let du = Math.abs(u - spot.u); du = Math.min(du, 1 - du);
+        const dv = v - spot.v;
+        const d = Math.hypot(du * Math.max(.25, Math.cos((v-.5)*Math.PI)), dv) / spot.r;
+        if (d < 1) spotDarkening = Math.max(spotDarkening, (1-d*d) * spot.depth);
+      }
+      const brightness = Math.max(0, Math.min(1, 0.70 + n * 0.055 + (cell - 0.5) * 0.18 - spotDarkening));
       const value = Math.round(138 + brightness * 117);
       const k = (y * canvas.width + x) * 4;
       image.data[k] = value;
@@ -271,78 +439,98 @@ export function applyStellarPerceptualProfile(visual, profile) {
 }
 
 function createBlackHoleVisual(group, body, radius) {
-  const core = new THREE.Mesh(new THREE.SphereGeometry(radius, 40, 28), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-  group.add(core);
+  const profile = blackHoleAppearanceProfile(body);
+  group.userData.blackHoleAppearanceProfile = profile;
 
-  const photonGroup = new THREE.Group();
-  photonGroup.userData.role = 'photon-rings';
-  for (let i = 0; i < 6; i += 1) {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * (1.08 + i * 0.065), Math.max(radius * (0.012 + i * 0.002), 0.035), 8, 128),
-      new THREE.MeshBasicMaterial({
-        color: i < 2 ? 0xfff5da : i < 4 ? 0xffb95f : 0x77dfff,
-        transparent: true,
-        opacity: 0.7 - i * 0.075,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    );
-    ring.rotation.x = Math.PI / 2;
-    photonGroup.add(ring);
-  }
-  group.add(photonGroup);
+  // The LAB black hole is deliberately enlarged for readability. Within that visual scale,
+  // preserve the Schwarzschild critical-curve / shadow / ISCO ratios rather than stacking
+  // arbitrary decorative rings.
+  const shadowRadius = radius * profile.shadowRadiusRs;
+  const shadow = new THREE.Mesh(
+    new THREE.SphereGeometry(shadowRadius, 56, 36),
+    new THREE.MeshBasicMaterial({ color: 0x000000, depthWrite: true }),
+  );
+  shadow.userData.role = 'black-hole-shadow-proxy';
+  group.add(shadow);
 
-  const rng = createRng(`${body.id}:${body.name}:accretion`);
-  const count = body.visualParticleCount ?? 5_200;
+  const criticalCurve = new THREE.Mesh(
+    new THREE.TorusGeometry(radius * profile.criticalCurveRadiusRs, Math.max(radius * 0.020, 0.028), 10, 160),
+    addOpacityTaggedMaterial(new THREE.MeshBasicMaterial({
+      color: 0xfff2cf, transparent: true, opacity: 0.82, depthWrite: false, blending: THREE.AdditiveBlending,
+    }), 0.82),
+  );
+  criticalCurve.rotation.x = Math.PI / 2;
+  criticalCurve.userData.role = 'black-hole-critical-curve';
+  group.add(criticalCurve);
+
+  const secondary = new THREE.Mesh(
+    new THREE.TorusGeometry(radius * profile.secondaryRingRadiusRs, Math.max(radius * 0.010, 0.018), 8, 160),
+    addOpacityTaggedMaterial(new THREE.MeshBasicMaterial({
+      color: 0x9ccfff, transparent: true, opacity: 0.24, depthWrite: false, blending: THREE.AdditiveBlending,
+    }), 0.24),
+  );
+  secondary.rotation.x = Math.PI / 2;
+  secondary.userData.role = 'black-hole-secondary-ring';
+  group.add(secondary);
+
+  const rng = createRng(`${body.id}:${body.name}:accretion-gr-v1`);
+  const count = Math.max(1600, Math.min(Number(body.visualParticleCount) || 5200, 6200));
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
-  const inner = radius * 1.25;
-  const outer = radius * 5.2;
-  const hot = new THREE.Color(0xfff6da);
-  const mid = new THREE.Color(0xff8d2f);
-  const cool = new THREE.Color(0x6e8fff);
+  const inner = radius * profile.iscoRadiusRs;
+  const outer = radius * profile.diskOuterRadiusRs;
+  const hot = new THREE.Color(0xfff3d2);
+  const mid = new THREE.Color(0xff8c32);
+  const cool = new THREE.Color(0x697fff);
+  const blue = new THREE.Color(0xbfe6ff);
   const temp = new THREE.Color();
   for (let i = 0; i < count; i += 1) {
     const k = i * 3;
-    const q = Math.pow(rng.random(), 1.55);
+    const q = Math.pow(rng.random(), 1.72);
     const r = inner + q * (outer - inner);
     const a = rng.range(0, Math.PI * 2);
-    const thickness = radius * (0.025 + q * 0.15);
+    const thickness = radius * (0.030 + q * 0.19);
     positions[k] = Math.cos(a) * r;
-    positions[k + 1] = rng.range(-thickness, thickness);
+    positions[k + 1] = rng.range(-thickness, thickness) * (0.35 + q * 0.65);
     positions[k + 2] = Math.sin(a) * r;
-    const innerHeat = 1 - q;
-    temp.copy(cool).lerp(mid, Math.min(1, innerHeat * 1.5)).lerp(hot, Math.pow(innerHeat, 2.5));
-    const approaching = 0.58 + 0.42 * Math.max(0, Math.cos(a - 0.45));
-    const brightness = rng.range(0.45, 1.0) * approaching;
+    const heat = 1 - q;
+    temp.copy(cool).lerp(mid, Math.min(1, heat * 1.7)).lerp(hot, Math.pow(heat, 2.2));
+    // Screen-space GR beaming is not solved; this is an inclination-independent first-order
+    // brightness/color asymmetry cue for approaching vs receding orbital material.
+    const losVelocityCue = Math.cos(a - 0.42);
+    const boost = 1 + profile.dopplerAsymmetry * losVelocityCue;
+    if (losVelocityCue > 0) temp.lerp(blue, Math.min(.22, losVelocityCue*.18));
+    const brightness = rng.range(0.56, 1.0) * Math.max(.32, boost);
     colors[k] = temp.r * brightness; colors[k + 1] = temp.g * brightness; colors[k + 2] = temp.b * brightness;
   }
   const diskGeometry = new THREE.BufferGeometry();
   diskGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   diskGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   const diskPoints = new THREE.Points(diskGeometry, new THREE.PointsMaterial({
-    size: Math.max(0.10, radius * 0.032), vertexColors: true, transparent: true, opacity: 0.9,
+    size: Math.max(0.08, radius * 0.038), vertexColors: true, transparent: true, opacity: 0.92,
     depthWrite: false, blending: THREE.AdditiveBlending,
   }));
   diskPoints.frustumCulled = false;
   const diskGroup = new THREE.Group();
-  diskGroup.rotation.z = 0.18;
+  diskGroup.rotation.z = 0.24;
+  diskGroup.rotation.x = 0.11;
   diskGroup.userData.role = 'accretion-disk';
   diskGroup.add(diskPoints);
 
-  for (let i = 0; i < 5; i += 1) {
-    const torus = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * (1.45 + i * 0.67), Math.max(radius * (0.055 + i * 0.012), 0.08), 8, 128),
-      new THREE.MeshBasicMaterial({
-        color: [0xfff0c4, 0xffa13c, 0xff6b29, 0x91a1ff, 0x586fd6][i],
-        transparent: true,
-        opacity: 0.28 - i * 0.025,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
+  // A faint lensed-backside cue bends the far-side disk visually over/under the shadow.
+  // It is intentionally a rendering approximation, not a sampled null geodesic solution.
+  for (const sign of [-1, 1]) {
+    const arc = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * profile.criticalCurveRadiusRs * 1.06, Math.max(radius*.030,.035), 8, 160, Math.PI * .84),
+      addOpacityTaggedMaterial(new THREE.MeshBasicMaterial({
+        color: sign > 0 ? 0xffb55d : 0x9cb7ff, transparent: true, opacity: .23,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      }), .23),
     );
-    torus.rotation.x = Math.PI / 2;
-    diskGroup.add(torus);
+    arc.userData.role = 'black-hole-lensed-disk-cue';
+    arc.rotation.set(Math.PI/2, sign * .20, sign > 0 ? -.43 : Math.PI-.43);
+    arc.position.y = sign * radius * .08;
+    diskGroup.add(arc);
   }
   group.add(diskGroup);
 
@@ -351,100 +539,124 @@ function createBlackHoleVisual(group, body, radius) {
     jetGroup.userData.role = 'relativistic-jets-visual';
     for (const sign of [-1, 1]) {
       const cone = new THREE.Mesh(
-        new THREE.ConeGeometry(radius * 0.32, radius * 12, 20, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0x78caff, transparent: true, opacity: 0.045, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
+        new THREE.ConeGeometry(radius * 0.28, radius * 15, 24, 1, true),
+        addOpacityTaggedMaterial(new THREE.MeshBasicMaterial({
+          color: 0x8bd6ff, transparent: true, opacity: 0.035, side: THREE.DoubleSide,
+          depthWrite: false, blending: THREE.AdditiveBlending,
+        }), 0.035),
       );
-      cone.position.y = sign * radius * 6.7;
+      cone.position.y = sign * radius * 8.1;
       if (sign < 0) cone.rotation.z = Math.PI;
       jetGroup.add(cone);
     }
-    const jetCount = 1_500;
-    const jetPositions = new Float32Array(jetCount * 3);
-    for (let i = 0; i < jetCount; i += 1) {
-      const k = i * 3;
-      const sign = i % 2 ? 1 : -1;
-      const t = rng.random();
-      const radial = radius * rng.range(0.01, 0.22 + t * 0.08);
-      const a = rng.range(0, Math.PI * 2);
-      jetPositions[k] = Math.cos(a) * radial;
-      jetPositions[k + 1] = sign * radius * (1.2 + t * 12);
-      jetPositions[k + 2] = Math.sin(a) * radial;
-    }
-    const jetGeometry = new THREE.BufferGeometry();
-    jetGeometry.setAttribute('position', new THREE.BufferAttribute(jetPositions, 3));
-    const jets = new THREE.Points(jetGeometry, new THREE.PointsMaterial({
-      color: 0x9ee7ff, size: Math.max(0.08, radius * 0.027), transparent: true, opacity: 0.48, depthWrite: false, blending: THREE.AdditiveBlending,
-    }));
-    jets.frustumCulled = false;
-    jetGroup.add(jets);
     group.add(jetGroup);
   }
 
-  addGlow(group, body.color ?? 0x7658ff, radius * 10, 0.16);
-  const lensHalo = addGlow(group, 0x9bcfff, radius * 15, 0.06);
-  lensHalo.userData.role = 'pseudo-lensing-halo';
-  group.userData.visualScientificStatus = 'Active-accretion visual proxy with photon-ring and lens-halo cues; not a GR ray tracer or plasma solver.';
+  const lensHalo = addGlow(group, 0xa8d8ff, radius * 18, 0.045);
+  lensHalo.userData.role = 'black-hole-lensing-field-cue';
+  group.userData.visualScientificStatus = profile.scientificBoundary;
+}
+
+function createDipoleFieldGeometry(radius, extentRadii, phi, hemisphereScale = 1) {
+  const points = [];
+  const L = radius * extentRadii;
+  for (let i = 0; i <= 72; i += 1) {
+    const theta = 0.22 + (Math.PI - 0.44) * (i / 72);
+    const r = L * Math.sin(theta) ** 2;
+    const radial = r * Math.sin(theta);
+    points.push(new THREE.Vector3(
+      Math.cos(phi) * radial,
+      Math.cos(theta) * r * hemisphereScale,
+      Math.sin(phi) * radial,
+    ));
+  }
+  return new THREE.BufferGeometry().setFromPoints(points);
 }
 
 function createNeutronStarVisual(group, body, radius) {
   const color = body.color ?? 0xbfe8ff;
+  const profile = neutronStarAppearanceProfile(body);
+  group.userData.neutronStarAppearanceProfile = profile;
+  const observedColor = new THREE.Color(color);
+  const redshiftCue = Math.max(0, Math.min(.18, (Number(profile.gravitationalRedshift) || 0) * .22));
+  observedColor.lerp(new THREE.Color(0xffd8c9), redshiftCue);
   const star = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 32, 22),
-    new THREE.MeshBasicMaterial({ color }),
+    new THREE.SphereGeometry(radius, 48, 32),
+    new THREE.MeshBasicMaterial({ color: observedColor }),
   );
+  star.userData.role = 'neutron-star-surface';
   group.add(star);
-  addGlow(group, color, radius * 6, 0.5);
+  addGlow(group, color, radius * 5.5, 0.42);
 
   const magnetosphere = new THREE.Group();
   magnetosphere.userData.role = 'magnetosphere';
-  for (let i = 0; i < 5; i += 1) {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * (1.65 + i * 0.55), Math.max(radius * 0.025, 0.03), 8, 96),
-      new THREE.MeshBasicMaterial({ color: i % 2 ? 0x8f6cff : 0x79eaff, transparent: true, opacity: 0.26 - i * 0.025, depthWrite: false, blending: THREE.AdditiveBlending }),
+  const lineCount = body.compactType === 'magnetar' ? 16 : 10;
+  for (let i = 0; i < lineCount; i += 1) {
+    const phi = (i / lineCount) * Math.PI * 2;
+    const extent = profile.fieldExtentVisualRadii * (0.68 + (i % 4) * 0.105);
+    const line = new THREE.Line(
+      createDipoleFieldGeometry(radius, extent, phi),
+      addOpacityTaggedMaterial(new THREE.LineBasicMaterial({
+        color: i % 2 ? 0x91dfff : 0xbda8ff,
+        transparent: true,
+        opacity: body.compactType === 'magnetar' ? 0.24 : 0.16,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }), body.compactType === 'magnetar' ? 0.24 : 0.16),
     );
-    ring.rotation.set(0.35 + i * 0.2, 0.4 + i * 0.31, 0.2 * i);
-    magnetosphere.add(ring);
+    line.userData.role = 'dipole-field-line';
+    magnetosphere.add(line);
   }
+  magnetosphere.rotation.z = body.compactType === 'pulsar' ? 0.31 : 0.18;
   group.add(magnetosphere);
 
   if (body.compactType === 'magnetar') {
     const lobes = new THREE.Group();
     lobes.userData.role = 'magnetar-lobes';
-    for (let i = 0; i < 7; i += 1) {
-      const loop = new THREE.Mesh(
-        new THREE.TorusGeometry(radius * (2.0 + i * 0.62), Math.max(radius * 0.018, 0.025), 8, 128, Math.PI * 1.55),
-        new THREE.MeshBasicMaterial({ color: i % 2 ? 0x7beaff : 0xe4c4ff, transparent: true, opacity: 0.22 - i * 0.018, depthWrite: false, blending: THREE.AdditiveBlending }),
+    const rng = createRng(`${body.id}:${body.name}:magnetar-bursts-v2`);
+    // Sparse reconnecting arc cues rather than an isotropic spark cloud.
+    for (let i = 0; i < 5; i += 1) {
+      const phi = rng.range(0, Math.PI*2);
+      const extent = radius * rng.range(3.0, 7.6);
+      const pts = [];
+      for (let k=0;k<=42;k+=1) {
+        const t=k/42;
+        const theta=.34 + t*(Math.PI-.68);
+        const r=extent*Math.sin(theta)**2;
+        const wobble=1+.06*Math.sin(t*Math.PI*5+i);
+        pts.push(new THREE.Vector3(Math.cos(phi)*r*Math.sin(theta)*wobble, r*Math.cos(theta), Math.sin(phi)*r*Math.sin(theta)*wobble));
+      }
+      const arc = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        addOpacityTaggedMaterial(new THREE.LineBasicMaterial({ color:i%2?0xd9c7ff:0xa9f4ff, transparent:true, opacity:.30, depthWrite:false, blending:THREE.AdditiveBlending }), .30),
       );
-      loop.rotation.set(0.25 + i * 0.22, i * 0.73, 0.18 + i * 0.31);
-      lobes.add(loop);
+      arc.userData.role='magnetar-reconnection-arc';
+      lobes.add(arc);
     }
-    const rng = createRng(`${body.id}:${body.name}:magnetar-bursts`);
-    const count = 1200, positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i += 1) {
-      const k = i * 3, r = radius * rng.range(1.4, 8.0), a = rng.range(0, Math.PI * 2), u = rng.range(-1, 1), q = Math.sqrt(1 - u*u);
-      positions[k] = Math.cos(a) * q * r; positions[k + 1] = u * r; positions[k + 2] = Math.sin(a) * q * r;
-    }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const sparks = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xb9f6ff, size: Math.max(0.035, radius * 0.06), transparent: true, opacity: 0.38, depthWrite: false, blending: THREE.AdditiveBlending }));
-    sparks.frustumCulled = false; lobes.add(sparks); group.add(lobes);
+    group.add(lobes);
   }
 
   if (body.compactType === 'pulsar') {
     const beamPivot = new THREE.Group();
     beamPivot.userData.role = 'pulsar-beam-pivot';
     beamPivot.rotation.z = 0.35;
+    const height = radius * 15;
+    const beamRadius = Math.max(radius*.16, Math.tan(profile.beamOpeningRadians) * height);
     for (const sign of [-1, 1]) {
       const cone = new THREE.Mesh(
-        new THREE.ConeGeometry(radius * 0.34, radius * 14, 24, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0xb9f4ff, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
+        new THREE.ConeGeometry(beamRadius, height, 28, 1, true),
+        addOpacityTaggedMaterial(new THREE.MeshBasicMaterial({
+          color: 0xb9f4ff, transparent: true, opacity: 0.055, side: THREE.DoubleSide,
+          depthWrite: false, blending: THREE.AdditiveBlending,
+        }), 0.055),
       );
-      cone.position.y = sign * radius * 7.2;
+      cone.position.y = sign * height * .52;
       if (sign < 0) cone.rotation.z = Math.PI;
       beamPivot.add(cone);
     }
     group.add(beamPivot);
   }
-  group.userData.visualScientificStatus = 'Magnetosphere and radiation beams are visualization proxies. Compact-object gravity remains Newtonian outside the model guard.';
+  group.userData.visualScientificStatus = profile.scientificBoundary;
 }
 
 function createWhiteDwarfVisual(group, body, radius) {
@@ -545,7 +757,7 @@ export function createCelestialVisual(body) {
           emissive: physicalReflector ? 0x000000 : bodyColor,
           emissiveIntensity: physicalReflector ? 0 : 0.13,
         });
-    const geometry = new THREE.SphereGeometry(radius, body.kind === BODY_KIND.STAR ? 56 : 24, body.kind === BODY_KIND.STAR ? 36 : 16);
+    const geometry = new THREE.SphereGeometry(radius, body.kind === BODY_KIND.STAR ? 64 : (physicalReflector ? 64 : 28), body.kind === BODY_KIND.STAR ? 40 : (physicalReflector ? 40 : 20));
     const mesh = new THREE.Mesh(geometry, material);
     if (body.kind === BODY_KIND.STAR) mesh.userData.role = 'stellar-photosphere';
     else {
@@ -566,13 +778,17 @@ export function createCelestialVisual(body) {
       group.add(exposureShell);
     }
     if (body.kind === BODY_KIND.STAR) {
-      // Close-range photosphere detail is a separate visual layer so it can fade smoothly
-      // without changing the star's physical radius or long-range brightness.
+      // The seeded photosphere map is applied to the physical disk so dark starspots can
+      // actually subtract brightness instead of existing only inside an additive overlay.
+      const stellarSurfaceMap = makeStellarSurfaceTexture(body);
+      mesh.material.map = stellarSurfaceMap;
+      mesh.material.userData.disposeMap = true;
+      mesh.material.needsUpdate = true;
+      // A second additive layer retains sub-cell granulation sparkle without altering radius.
       const granulationMaterial = addOpacityTaggedMaterial(new THREE.MeshBasicMaterial({
-        color: bodyColor, map: makeStellarSurfaceTexture(body), transparent: true, opacity: 0.50,
+        color: bodyColor, map: stellarSurfaceMap, transparent: true, opacity: 0.34,
         depthWrite: false, blending: THREE.AdditiveBlending,
-      }), 0.50);
-      granulationMaterial.userData.disposeMap = true;
+      }), 0.34);
       const granulation = new THREE.Mesh(geometry.clone(), granulationMaterial);
       granulation.scale.setScalar(1.0015);
       granulation.renderOrder = 2;
@@ -667,11 +883,13 @@ export function updateCelestialVisual(visual, body, starBody, realDt = 0.016, el
     if (core?.material?.color) {
       const baseColor = Number(core.material.userData?.baseBodyColor ?? body.color ?? 0x888888);
       const stellarVisibility = Math.max(0, Math.min(1, Number(appearanceObservation?.stellarVisibilityAtBody ?? 1)));
-      core.material.color.setHex(baseColor).multiplyScalar(stellarVisibility);
+      if (core.material.map) core.material.color.setRGB(stellarVisibility, stellarVisibility, stellarVisibility);
+      else core.material.color.setHex(baseColor).multiplyScalar(stellarVisibility);
     }
   }
-  if (body.kind === BODY_KIND.PLANET) visual.rotation.y += dt * 0.09;
-  else if (body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ASTEROID) visual.rotation.y += dt * 0.035;
+  if (body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON) {
+    if (!applyCanonicalBodyOrientation(visual, body, elapsedSimSeconds)) visual.rotation.y += dt * (body.kind === BODY_KIND.PLANET ? 0.09 : 0.035);
+  } else if (body.kind === BODY_KIND.ASTEROID) visual.rotation.y += dt * 0.035;
   else if (body.kind === BODY_KIND.STAR) {
     visual.rotation.y += dt * 0.015;
     visual.userData.stellarVisualTime = (visual.userData.stellarVisualTime ?? 0) + dt;
@@ -712,10 +930,12 @@ export function updateCelestialVisual(visual, body, starBody, realDt = 0.016, el
     }
   } else if (body.kind === BODY_KIND.BLACK_HOLE) {
     const disk = visual.children.find((child) => child.userData?.role === 'accretion-disk');
-    const photons = visual.children.find((child) => child.userData?.role === 'photon-rings');
+    const critical = visual.children.find((child) => child.userData?.role === 'black-hole-critical-curve');
+    const secondary = visual.children.find((child) => child.userData?.role === 'black-hole-secondary-ring');
     const jets = visual.children.find((child) => child.userData?.role === 'relativistic-jets-visual');
     if (disk) disk.rotation.y += dt * 0.32;
-    if (photons) photons.rotation.y -= dt * 0.07;
+    if (critical) critical.rotation.z += dt * 0.018;
+    if (secondary) secondary.rotation.z -= dt * 0.011;
     if (jets) jets.rotation.y += dt * 0.04;
   } else if (body.kind === BODY_KIND.NEUTRON_STAR) {
     const magnetosphere = visual.children.find((child) => child.userData?.role === 'magnetosphere');
