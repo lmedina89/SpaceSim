@@ -1,3 +1,43 @@
+# Universe Lab v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry QA Report
+
+## Release identity
+
+- Version: **0.1.4.9**
+- Build marker: **CELEST-149**
+- Save schema: **1 (unchanged)**
+- Three.js: **0.185.0 (unchanged)**
+- Baseline: exact v0.1.4.8.2 `IMPNUM-1482` release ZIP
+
+## Scope and model boundary
+
+This release adds a read-only celestial-appearance layer on top of the accepted authoritative N-body/observer state. It does not modify direct Newtonian gravity, velocity-Verlet, generated-system physical consistency, planetary rotation, save compatibility, impact/collision hardening, NAV/FRAME, surface session/weather/landing lifecycle, or the iPhone/iPad forced-WebGL2 backend.
+
+Implemented appearance work includes physical apparent angular size; star-target-observer phase angle and illuminated fraction; finite apparent-disk overlap; observer-side stellar occultation; body-center stellar visibility/shadow; removal of planet/moon self-emission/readability shells in space; angularly correct surface star/planet/moon disks; phase-shaded surface spheres; stellar-cover attenuation of direct surface light/daylight presentation; NAV/scanner/surface diagnostics; and a fix for cumulative surface background/fog darkening.
+
+The appearance geometry is physical for the current spherical-body model, but brightness is not claimed as calibrated photometry. Space star light remains exposure-normalized, the surface phase sphere uses a Lambertian vertex proxy, body shadow is evaluated at the body center, and only the dominant single foreground occulter is applied. Atmospheric scattering/refraction and multi-occulter disk-union geometry remain future work.
+
+## Independent numerical / performance checks
+
+- **200,000 randomized appearance samples:** zero non-finite or out-of-range apparent angular radii, phase angles, illuminated fractions or finite-disk covered fractions.
+- Canonical analytic tests cover full/quarter/new phase endpoints and none/partial/interior/total finite-disk cases, including the requirement that an occulter be physically foreground of the background disk.
+- `ORIGIN-001` integration tests require every generated major body appearance record to remain finite/bounded and verify appearance refresh reuses observation records without mutating authoritative body position/velocity arrays.
+- Server-side observer/appearance microbenchmark: 12,000 `ORIGIN-001` ship-observer/body-update calls over simulated 60 Hz input with 19 major bodies completed in about **350.8 ms total / 0.029 ms per call** in this environment. This is an engineering measurement only, not an iPhone FPS guarantee.
+- Surface static regression verifies daylight/fog colors derive from immutable base colors rather than compounding frame-over-frame darkness.
+
+## Protected-source comparison
+
+The following v0.1.4.8.2 modules are byte-for-byte unchanged: core constants; system generation; planetary properties; planetary rotation; generated-body compatibility; save system; direct Newtonian gravity; velocity-Verlet; ShipDynamics; transit/FRAME core; FRAME orbit insertion; FRAME guard routing; system navigation; massive-pair timestep control; collision monitor; impact model/resolver; surface generator/session/weather; landing transition; and renderer backend policy.
+
+## Automated release gate
+
+Frozen-worktree `npm run qa`: **PASS** — static structure **50 required files**, all JS/MJS syntax valid, **219/219** Node tests passing.
+
+Release-candidate package verification: ZIP integrity **PASS**; clean-unzip `npm run qa` **219/219 PASS**; local static HTTP smoke **14/14 HTTP 200** across shell, versioned CSS/main/app/renderer/cockpit/HUD/map, astronomical observer, new celestial-appearance module, celestial factory, surface renderer, gravity module and `VERSION.json`; `.github/workflows/*` absent; extracted archive byte-for-byte matches the frozen worktree. The final archive is rebuilt from the same frozen tree after recording this report and these checks are repeated before handoff.
+
+Physical iPhone Safari/WebKit remains the final presentation/performance gate.
+
+---
+
 # Universe Lab v0.1.4.8.2 — Impact & Numerical Hardening QA Report
 
 ## Release identity

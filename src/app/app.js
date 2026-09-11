@@ -27,9 +27,9 @@ import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition, matchFrameExitVelocity } from '../physics/transitDrive.js';
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=1482';
-import { Hud } from '../ui/hud.js?v=1482';
-import { SystemMapController } from '../ui/systemMap.js?v=1482';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=149';
+import { Hud } from '../ui/hud.js?v=149';
+import { SystemMapController } from '../ui/systemMap.js?v=149';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -66,6 +66,27 @@ function horizontalAzimuthDegrees(localDirection) {
   const north = Number(localDirection?.[2]);
   if (![east, north].every(Number.isFinite)) return NaN;
   return ((Math.atan2(east, north) * 180 / Math.PI) % 360 + 360) % 360;
+}
+
+function formatAngularDiameter(radians) {
+  const value = Math.max(0, Number(radians) || 0);
+  const degreesValue = value * 180 / Math.PI;
+  if (degreesValue >= 1) return `${degreesValue.toFixed(3)}°`;
+  const arcMinutes = degreesValue * 60;
+  if (arcMinutes >= 1) return `${arcMinutes.toFixed(2)}′`;
+  return `${(arcMinutes * 60).toFixed(2)}″`;
+}
+
+function eclipseLabel(record) {
+  const fraction = Math.max(0, Math.min(1, Number(record?.observerStarEclipseFraction) || 0));
+  if (!(fraction > 0)) return 'NONE';
+  const state = record?.observerStarEclipseState === 'total'
+    ? 'TOTAL'
+    : record?.observerStarEclipseState === 'interior'
+      ? 'ANNULAR / TRANSIT'
+      : 'PARTIAL';
+  const occulter = record?.observerStarEclipseOcculterName ? ` · ${record.observerStarEclipseOcculterName}` : '';
+  return `${state} · ${(fraction * 100).toFixed(2)}%${occulter}`;
 }
 
 function serializeBody(body) {
@@ -288,7 +309,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.8.2 online. Impact resolution now uses first swept contact state, conservation-bounded representative fragmentation, black-hole sink accretion, adaptive close-pair major-body timesteps, and bounded one-way trajectory prediction. Core Newtonian gravity, generated-system consistency, NAV/FRAME, surface astronomy, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build IMPNUM-1482.`);
+    this.hud.notify(`v0.1.4.9 online. Celestial appearance now derives physical angular size, phase, illumination and finite-disk eclipse geometry from the authoritative observer/body state. Space planet/moon terminators keep live star-direction lighting while physical reflectors no longer self-emit; surface sky bodies use angularly correct phase disks and stellar occultation dims direct light. Core Newtonian gravity, impact hardening, NAV/FRAME, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build CELEST-149.`);
   }
 
   newSystem(seed) {
@@ -983,6 +1004,23 @@ export class UniverseLabApp {
       ];
       set('#surfaceSolarTime', formatSolarHours(localSolarTimeHours(parentBody, observerBodyFixed, starDirection, astronomySeconds)));
     } else set('#surfaceSolarTime', '—');
+
+    if (observedStar?.finite) {
+      set('#surfaceStarDisk', `${formatAngularDiameter(observedStar.angularDiameterRad)} · ${(Math.max(0, Math.min(1, Number(observedStar.observerStarVisibleFraction ?? 1))) * 100).toFixed(2)}% visible`);
+      set('#surfaceEclipse', eclipseLabel(observedStar));
+    } else {
+      set('#surfaceStarDisk', '—');
+      set('#surfaceEclipse', 'NONE');
+    }
+    const observedTarget = this.targetId ? astronomySolution?.bodies?.find((record) => record.id === this.targetId) : null;
+    if (observedTarget && observedTarget.id !== primaryStar?.id && observedTarget.id !== parentBody?.id) {
+      const shadow = Math.max(0, Math.min(1, Number(observedTarget.stellarEclipseFraction) || 0));
+      set('#surfaceTargetPhase', `${(Math.max(0, Math.min(1, Number(observedTarget.illuminatedFraction) || 0)) * 100).toFixed(2)}% lit · phase ${degrees(observedTarget.phaseAngleRad).toFixed(2)}°${shadow > 0 ? ` · shadow ${(shadow * 100).toFixed(1)}%` : ''}`);
+      set('#surfaceTargetAngular', formatAngularDiameter(observedTarget.angularDiameterRad));
+    } else {
+      set('#surfaceTargetPhase', '—');
+      set('#surfaceTargetAngular', '—');
+    }
     this.syncPauseControls();
     set('#surfaceDiscoveries', `${this.surfaceSession.scannedPoiIds.size}/${surfacePois(region).length}`);
     const weatherStatus = this.root.querySelector('#surfaceWeatherStatus');
@@ -1929,7 +1967,8 @@ export class UniverseLabApp {
     const target = this.target;
     if (!target) { this.hud.setTarget(null, null); this.updateLandingUi(); return; }
     const metrics = osculatingMetrics(this.ship.position, this.ship.velocity, target);
-    this.hud.setTarget(target, metrics, this.shipPrediction);
+    const appearance = this.astronomy?.bodyObservations?.find?.((record) => record.id === target.id) ?? null;
+    this.hud.setTarget(target, metrics, this.shipPrediction, appearance);
     this.updateLandingUi();
   }
 

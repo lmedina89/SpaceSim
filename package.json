@@ -1,9 +1,9 @@
 {
   "name": "universe-lab",
-  "version": "0.1.4.8.2",
+  "version": "0.1.4.9",
   "private": true,
   "type": "module",
-  "description": "Scientific mobile-first seeded universe laboratory with Newtonian N-body gravity, conservation-hardened impact resolution, adaptive close-pair timesteps, bounded one-way trajectory prediction, live star/planet/moon navigation, and an isolated speculative FRAME drive.",
+  "description": "Scientific mobile-first seeded universe laboratory with Newtonian N-body gravity, canonical celestial appearance geometry, physically sized planet/moon phase rendering, finite-disk eclipse diagnostics, live star/planet/moon navigation, and an isolated speculative FRAME drive.",
   "scripts": {
     "check": "node ./tests/static-check.mjs && find src tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "test": "node --test tests/*.test.mjs",

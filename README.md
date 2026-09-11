@@ -1,8 +1,21 @@
-# Universe Lab v0.1.4.8.2 — Impact & Numerical Hardening
+# Universe Lab v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry
 
-**Build marker:** `IMPNUM-1482`  
+**Build marker:** `CELEST-149`  
 **Save schema:** 1 (unchanged)  
 **Three.js:** 0.185.0 (unchanged)
+
+## v0.1.4.9 celestial appearance, phases & eclipse geometry
+
+This release turns the existing Sun-directed planet/moon shading into a measured, cross-view celestial-appearance system. The authoritative N-body positions, canonical observer, planetary rotation, impact hardening, NAV/FRAME, landing lifecycle and iPhone WebGL2 backend remain the sources of truth; appearance code is read-only with respect to simulation state.
+
+- Added `src/core/celestialAppearance.js`, a pure geometry layer for physical apparent angular radius, phase angle, illuminated fraction, finite apparent-disk overlap, observer-side stellar occultation and body-centered stellar shadow diagnostics.
+- Space planets/moons retain the existing real star-direction `MeshStandardMaterial` terminator, but physical reflectors no longer self-emit or receive the old readability shell. Their physical render radius remains separate from UI target markers. The star light is still exposure-normalized presentation rather than a radiometric inverse-square flux solver.
+- Surface-view stars now have a finite angular disk plus a separate glow cue. Planets/moons use phase-shaded 3-D spheres whose displayed angular diameter matches the physical radius/range solution; their shell depth is monotonically compressed only for render precision/occlusion and never changes sky direction or angular size.
+- Surface direct stellar lighting and the daylight proxy respond to the visible fraction of the finite stellar disk during an occultation. A foreground moon can therefore cover the rendered stellar disk when actual observer geometry aligns.
+- Surface DETAILS, NAV selection and target telemetry expose angular diameter, illuminated fraction/phase and stellar-shadow/occultation diagnostics from the same canonical appearance solution used by rendering.
+- Fixed cumulative surface-darkening drift: background/fog exposure is now recomputed from immutable base colors each frame instead of repeatedly multiplying the already-darkened color.
+- Appearance enrichment is cadence-bounded and record-reusing; ordinary body-direction observations still update continuously, while phase/eclipse enrichment refreshes at a bounded cadence or after meaningful observer displacement.
+- Finite-disk eclipse overlap currently uses the dominant single foreground occulter. Multiple simultaneous overlapping occulters are not union-solved. Surface phase shading is a Lambertian geometric proxy, not a BRDF/albedo/radiative-transfer model, and full atmospheric scattering/refraction remains future work.
 
 ## v0.1.4.8.2 impact & numerical hardening
 

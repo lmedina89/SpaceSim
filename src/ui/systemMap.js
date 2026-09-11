@@ -1,4 +1,5 @@
 import { BODY_KIND, PHYSICS } from '../core/constants.js';
+import { apparentAngularRadiusRad, phaseAppearance, stellarVisibilityAtBody } from '../core/celestialAppearance.js';
 import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { frameOrbitInsertionPlan } from '../physics/frameOrbitInsertion.js';
 import { navigationBodySnapshot, orderedNavigationBodies } from '../navigation/systemNavigation.js';
@@ -35,6 +36,14 @@ function rotationLabel(body) {
   if (!(seconds > 0)) return 'STATIC / UNMODELED';
   const direction = Number(body?.rotationDirection) < 0 ? 'RETRO' : 'PRO';
   return `${periodLabel(seconds)} · ${direction}`;
+}
+
+function angularDiameterLabel(radians) {
+  const degrees = Math.max(0, Number(radians) || 0) * 180 / Math.PI;
+  if (degrees >= 1) return `${degrees.toFixed(3)}°`;
+  const arcMinutes = degrees * 60;
+  if (arcMinutes >= 1) return `${arcMinutes.toFixed(2)}′`;
+  return `${(arcMinutes * 60).toFixed(2)}″`;
 }
 
 function bodyColor(body) {
@@ -365,7 +374,7 @@ export class SystemMapController {
     const selection = marker ?? this.currentMarker();
     if (landButton) { landButton.disabled = true; landButton.title = 'Select the current detailed landable world and move into its near-orbital descent envelope.'; }
 
-    for (const id of ['#mapSelectionDistance','#mapSelectionStarRange','#mapSelectionParent','#mapSelectionClass','#mapSelectionRadius','#mapSelectionMass','#mapSelectionGravity','#mapSelectionOrbit','#mapSelectionEccentricity','#mapSelectionRotation','#mapSelectionHill','#mapSelectionSurface','#mapSelectionAtmosphere','#mapSelectionFrameArrival']) this.setDetail(id, '—');
+    for (const id of ['#mapSelectionDistance','#mapSelectionStarRange','#mapSelectionParent','#mapSelectionClass','#mapSelectionRadius','#mapSelectionMass','#mapSelectionGravity','#mapSelectionOrbit','#mapSelectionEccentricity','#mapSelectionRotation','#mapSelectionHill','#mapSelectionSurface','#mapSelectionAtmosphere','#mapSelectionAngular','#mapSelectionPhase','#mapSelectionShadow','#mapSelectionFrameArrival']) this.setDetail(id, '—');
 
     if (!selection) {
       if (title) title.textContent = 'Choose a body or tap a marker';
@@ -393,6 +402,20 @@ export class SystemMapController {
       this.setDetail('#mapSelectionHill', distanceLabel(snapshot.hillRadiusMeters));
       this.setDetail('#mapSelectionSurface', snapshot.surfaceCapability);
       this.setDetail('#mapSelectionAtmosphere', snapshot.atmosphereModel);
+      const primaryStar = this.app.bodies.find((candidate) => candidate.kind === BODY_KIND.STAR) ?? null;
+      const shipRange = Math.max(0, Number(snapshot.shipRangeMeters) || 0);
+      this.setDetail('#mapSelectionAngular', angularDiameterLabel(apparentAngularRadiusRad(body.radius, shipRange) * 2));
+      if (body.kind === BODY_KIND.STAR) {
+        this.setDetail('#mapSelectionPhase', 'SELF-LUMINOUS');
+        this.setDetail('#mapSelectionShadow', 'N/A');
+      } else if (primaryStar?.position && this.app.ship?.position) {
+        const phase = phaseAppearance(this.app.ship.position, body.position, primaryStar.position);
+        this.setDetail('#mapSelectionPhase', `${(phase.illuminatedFraction * 100).toFixed(2)}% · phase ${(phase.phaseAngleRad * 180 / Math.PI).toFixed(2)}°`);
+        const shadow = stellarVisibilityAtBody(body, primaryStar, this.app.bodies);
+        this.setDetail('#mapSelectionShadow', shadow.eclipseFraction > 0
+          ? `${(shadow.eclipseFraction * 100).toFixed(2)}% stellar disk blocked${shadow.occulterName ? ` · ${shadow.occulterName}` : ''}`
+          : 'NONE');
+      }
       const arrival = frameOrbitInsertionPlan(this.app.ship, body, this.app.bodies);
       this.setDetail('#mapSelectionFrameArrival', arrival.ok
         ? `CIRCULAR +${distanceLabel(arrival.altitudeMeters)}${arrival.hillLimited ? ' · HILL-LIMITED' : ''}`

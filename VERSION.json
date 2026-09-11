@@ -1,6 +1,6 @@
 {
-  "version": "0.1.4.8.2",
-  "name": "Impact & Numerical Hardening",
+  "version": "0.1.4.9",
+  "name": "Celestial Appearance, Phases & Eclipse Geometry",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,7 @@
   "navigationNumerics": "adaptive ship strong-gravity substeps + adaptive massive-body pair encounter/crossing timestep ceiling + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "IMPNUM-1482",
+  "buildMarker": "CELEST-149",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric circular-CR3BP L1/L2/L3 numerical equilibrium roots at live separation + equilateral L4/L5 geometry + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples; overlays remain diagnostic approximations and do not alter gravity",
   "transitDrive": "explicitly fictional spacecraft-only FRAME translation with swept massive-body clearance; ordinary celestial integration remains authoritative; manual exit matches target inertial velocity and supported normal body arrivals use an exit-only circular-orbit insertion calculation",
@@ -79,7 +79,7 @@
   "rendererBackendPolicy": "WebGPURenderer remains the renderer family; iPhone/iPad-class WebKit forces its WebGL2 backend at boot for physical presentation-handoff isolation, while other platforms keep automatic WebGPU/WebGL2 selection; no live backend hot-swap",
   "astronomicalObserver": "one read-only canonical observer derives inertial position, look/local horizon bases, parent/anchor/altitude, simulation time and live major-body directions for ship, descent and surface modes; landed local-up/east/north now derive from a rotating body-fixed landing anchor when rotation metadata is available",
   "skyContinuity": "one deterministic inertial star catalog is reused in space and on surfaces; landed horizon projection is dynamically reprojected against the rotating body-fixed observer without reseeding or deleting catalog entries; atmospheric/daylight/weather visibility remains presentation-only",
-  "celestialApparentSize": "physical range and apparent angular radius remain separate from bounded rendering proxy size",
+  "celestialApparentSize": "planet/moon and stellar apparent angular radii use physical radius and observer range; distant UI markers remain separate from physical disk size",
   "surfaceSkyTime": "landed major-body celestial time advances at forced 1\u00d7 when running and can now be explicitly paused/resumed from the surface DETAILS HUD; local exploration/weather remain separate and responsive while paused",
   "magnetarPlacement": "repeated LAB magnetars use deterministic golden-angle collision-safe offsets; gravity remains Newtonian and magnetic/MHD forces remain unmodeled",
   "cockpitInteraction": "every visible cockpit screen and physical key is functional; NAV opens the System Map, FLIGHT opens the existing Flight/System controls, SCIENCE opens Science, and SYSTEM DIAGNOSTICS now opens a dedicated read-only Engineering/Diagnostics drawer instead of duplicating Flight/System; cockpit inputs dispatch existing app actions without duplicating simulation authority",
@@ -87,7 +87,7 @@
   "cockpitLighting": "mobile-safe emissive-only panel accents plus live POWER/TARGET/NAV/PROPULSION/CAUTION indicators; no additional dynamic cockpit lights or physics state",
   "cockpitDiagnostics": "live renderer, FPS, physics/render time, ship speed, simulation time, seed, major/test counts, draw calls, prediction time and experiment telemetry are mirrored into the right-side translucent ship-mounted MFD and a dedicated read-only Engineering/Diagnostics drawer; the values remain sourced from existing app/renderer state and own no simulation authority",
   "frameDrive": "tap-toggle speculative spacecraft-only translation toward a locked body/COSMOS target; real-time frame-rate tiers step down near arrival; world N-body/particle simulation authority is untouched; local ship acceleration is suspended while active; manual disengage matches the target inertial velocity, while normal planet/moon/rogue-planet completion may hand off into a calculated circular osculating orbit before ordinary ShipDynamics/gravity resume",
-  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build tag 1482; main/app/renderer module hops are also version-tagged so Safari/GitHub Pages do not mix the v0.1.4.8.2 shell with stale JavaScript.",
+  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build tag 149; main/app/renderer module hops are also version-tagged so Safari/GitHub Pages do not mix the v0.1.4.9 shell with stale JavaScript.",
   "planetaryRotation": "fresh generated planets use orbital-relative v2 spin poles derived from parent-relative orbital angular momentum, with PRO/RETRO classification matching the physical spin pole; generated moons use parent+moon synchronous periods and face the parent at the rotation epoch. Existing schema-1 saves preserve serialized v1 rotation frames so body-fixed landing anchors do not move.",
   "surfaceAstronomyDiagnostics": "read-only surface DETAILS diagnostics derive from the same canonical astronomical observer and rotation model used by rendering: procedural body-fixed latitude/longitude, rotation phase, primary-star altitude/azimuth, and geometric local solar time from primary-star hour angle; no independent sky model or physics authority",
   "planetaryNavigation": "generated stars, planets and moons are first-class selectable NAV targets from the authoritative body registry with live range, parent, radius, mass, gravity, Kepler-period, eccentricity, rotation, Hill-radius, surface-capability and atmosphere-model diagnostics",
@@ -103,5 +103,10 @@
   "minorFieldCadence": "minor test-particle field uses an accumulated simulation-time cadence at the configured 30 Hz when physics calls are finer than that interval, while large/high-warp substeps still update immediately; source start/end gravity states are retained for kick-drift-kick integration",
   "collisionAllocationPolicy": "major-body collision snapshots use reusable flat typed-array storage keyed by stable body topology; the pair scan remains scalar and avoids per-pair array allocation, allocating contact vectors only when an actual collision event is emitted",
   "impactMaterialTyping": "generated planetType gas aliases are normalized to gas-giant envelope response; gas planets do not use rocky crater estimation",
-  "postContactIntegration": "collision state is resolved at interpolated first swept contact; the unresolved remainder of that one global substep is advanced ballistically before ordinary N-body integration resumes, rather than claiming a full event-driven force re-integration"
+  "postContactIntegration": "collision state is resolved at interpolated first swept contact; the unresolved remainder of that one global substep is advanced ballistically before ordinary N-body integration resumes, rather than claiming a full event-driven force re-integration",
+  "celestialAppearance": "read-only canonical apparent-radius, phase-angle, illuminated-fraction and finite-disk occultation geometry derived from authoritative observer/body/star positions; presentation consumes these values without simulation authority",
+  "planetMoonLighting": "space planets and moons retain live star-direction MeshStandardMaterial terminator shading at physical render radius, with self-emission/readability shells removed from physical reflectors; star-light intensity remains exposure-normalized presentation rather than inverse-square radiative flux",
+  "surfaceCelestialDisks": "surface stars use finite angular disks plus a separate non-physical glow cue; resolved planets/moons use phase-shaded 3D spheres on a monotonic compressed sky-shell depth while preserving authoritative sky direction and apparent angular size exactly",
+  "eclipseGeometry": "finite apparent-disk overlap computes observer stellar occultation and body-centered stellar shadow using the dominant single foreground occulter; surface direct stellar light and daylight proxy respond to visible stellar fraction; overlapping multi-occulter disk unions are not yet solved",
+  "phaseRendering": "phase angle and illuminated fraction are derived from star-target-observer geometry; surface planet/moon vertex lighting uses the canonical target-to-star direction as a Lambertian geometric proxy, not a detailed albedo/BRDF/radiative-transfer model"
 }

@@ -1,4 +1,14 @@
-# Architecture — Universe Lab v0.1.4.8.2
+# Architecture — Universe Lab v0.1.4.9
+
+## v0.1.4.9 celestial-appearance boundary
+
+`core/celestialAppearance.js` is a pure, read-only derivation layer. It consumes authoritative observer/body/star positions and physical radii and returns apparent angular radius, phase angle, illuminated fraction, finite-disk overlap, observer stellar-occultation and body-centered stellar-visibility diagnostics. It owns no positions, velocities, masses, clock state, target state or save state.
+
+`AstronomicalObserverModel` enriches its reusable body observations with those appearance values at a bounded refresh cadence. Renderers consume the same observation records: the space renderer retains star-direction material lighting for physical planets/moons; the surface renderer maps authoritative sky directions onto a compressed rendering shell while preserving angular size, and computes phase-sphere vertex brightness from the canonical target-to-star direction. The shell compression is a rendering-coordinate device only.
+
+Surface direct stellar light consumes the observer-side visible stellar fraction. The terrain/background daylight model remains a bounded presentation proxy rather than atmospheric radiative transfer. Finite-disk overlap currently applies the dominant single foreground occulter; overlapping multi-occulter unions are deliberately deferred.
+
+No v0.1.4.9 appearance path mutates Newtonian dynamics, FRAME state, planetary rotation, collision/impact state, landing lifecycle or save schema.
 
 ## v0.1.4.8.2 impact / numerical-hardening boundary
 

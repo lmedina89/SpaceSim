@@ -10,7 +10,7 @@ import { computeObservationCameraPose } from './observationCamera.js';
 import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPerception.js';
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
-import { CockpitView } from './cockpitView.js?v=1482';
+import { CockpitView } from './cockpitView.js?v=149';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
@@ -608,7 +608,7 @@ export class UniverseRenderer {
     this._nextOverlayUpdateAt = now + 900;
   }
 
-  renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, ship = null, elapsedSimSeconds = 0 }) {
+  renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, ship = null, elapsedSimSeconds = 0, astronomy = null }) {
     this.syncBodies(bodies);
     const now = performance.now();
     const realDt = Math.min(0.05, Math.max(0, (now - this._lastSceneRenderAt) / 1000));
@@ -622,7 +622,8 @@ export class UniverseRenderer {
         this.sunLight.position.copy(this._temp);
         this.sunLight.color.setHex(body.color ?? 0xffffff);
       }
-      updateCelestialVisual(visual, body, starBody, realDt, elapsedSimSeconds);
+      const appearanceObservation = astronomy?.bodies?.find?.((record) => record.id === body.id) ?? null;
+      updateCelestialVisual(visual, body, starBody, realDt, elapsedSimSeconds, appearanceObservation);
     }
     if (minorField) this.updateMinorField(minorField, referenceFrame);
     this.syncParticleExperiments(particleExperiments, referenceFrame);
@@ -701,7 +702,7 @@ export class UniverseRenderer {
     // Observation support must never alter this code path when cameraMode === 'ship'.
     const observer = astronomy?.observer;
     referenceFrame.centerOn(observer?.inertialPosition ?? ship.position);
-    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, ship, elapsedSimSeconds });
+    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, ship, elapsedSimSeconds, astronomy });
     this._motionLines.visible = true;
     this.updateMotionCue(ship);
     const transitFactor = Math.max(0, Number(ship.transitVisualFactor) || 0);
@@ -718,9 +719,9 @@ export class UniverseRenderer {
     this.renderer.render(this.scene, this.camera);
   }
 
-  renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0, cameraView }) {
+  renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0, cameraView, astronomy = null }) {
     referenceFrame.centerOn(cameraView.center);
-    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, ship, elapsedSimSeconds });
+    this.renderSceneObjects({ bodies, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, ship, elapsedSimSeconds, astronomy });
     this._motionLines.visible = false;
     const desiredFov = 58;
     const nextFov = this.camera.fov + (desiredFov - this.camera.fov) * 0.16;
@@ -749,7 +750,7 @@ export class UniverseRenderer {
       this.renderShipView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, elapsedSimSeconds, astronomy });
       return;
     }
-    this.renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, elapsedSimSeconds, cameraView });
+    this.renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments, cosmicPhenomena, spaceWeather, scientificOverlays, target, elapsedSimSeconds, cameraView, astronomy });
   }
 
   dispose() {

@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 test('surface details expose canonical astronomy diagnostics and an accessible sky pause control', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-  for (const id of ['surfaceLatLon','surfaceRotationPhase','surfaceStarAltAz','surfaceSolarTime','surfaceAstronomyPause']) {
+  for (const id of ['surfaceLatLon','surfaceRotationPhase','surfaceStarAltAz','surfaceSolarTime','surfaceStarDisk','surfaceEclipse','surfaceTargetPhase','surfaceTargetAngular','surfaceAstronomyPause']) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} should be present in surface details`);
   }
   const detailsStart = html.indexOf('<div id="surfaceHudDetails"');
-  for (const id of ['surfaceLatLon','surfaceRotationPhase','surfaceStarAltAz','surfaceSolarTime','surfaceAstronomyPause']) {
+  for (const id of ['surfaceLatLon','surfaceRotationPhase','surfaceStarAltAz','surfaceSolarTime','surfaceStarDisk','surfaceEclipse','surfaceTargetPhase','surfaceTargetAngular','surfaceAstronomyPause']) {
     assert.ok(html.indexOf(`id="${id}"`) > detailsStart, `${id} should remain details-only`);
   }
   assert.match(html, /procedural body-fixed zero-meridian/);

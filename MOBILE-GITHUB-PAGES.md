@@ -1,3 +1,21 @@
+# Universe Lab v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry iPhone Gate
+
+Before accepting v0.1.4.9 on physical iPhone Safari/WebKit:
+
+1. Hard reload and confirm **v0.1.4.9**, build marker **CELEST-149**, and renderer **WebGL2 iOS**. An older marker means Safari/GitHub Pages has mixed cached files.
+2. In ORIGIN, open NAV/BODY CATALOG and select several planets/moons. **Observed angular diameter**, **Illuminated fraction**, and **Stellar shadow** must remain finite/sensible; a star should report self-luminous rather than a reflected phase.
+3. FRAME toward a planet or moon and watch angular diameter. It should increase smoothly as physical range falls; the target marker must remain a UI aid rather than enlarging the physical disk. Regress normal planet insertion and the `Caelum-4361 b-A` **SAFE BYPASS**.
+4. From space, inspect a planet/moon from several geometries. The bright hemisphere/terminator should face the live primary-star direction. Physical planets/moons should not glow uniformly from the night side.
+5. LAND on the existing detailed world and open DETAILS. Verify **Primary star disk**, **Stellar occultation**, **NAV target phase**, and **NAV target angular size** update without breaking existing SKY TIME, ROTATION, LAT/LON, ALT/AZ, SOLAR time or PAUSE/RESUME.
+6. Leave the dusty/foggy surface running for several minutes. Background/fog should react to lighting/weather but must not progressively darken merely because frames are accumulating. Watch FPS, render time and thermals.
+7. If you can obtain a natural star/moon alignment, verify the nearer disk crosses in front of the stellar disk and the direct scene light dims with the reported stellar covered fraction. Do not manufacture a visual eclipse if geometry says NONE.
+8. SAVE/LOAD while landed, then TAKEOFF. The accepted rotating-surface observer, appearance values and ascent handoff must remain continuous.
+9. Regress an impact preset/close compact-object scenario briefly; v0.1.4.9 must not disturb the accepted v0.1.4.8.2 collision/timestep hardening.
+
+Interpretation boundaries: phase/apparent-size/finite-disk overlap geometry is physical for the current spherical-body model. Space/surface brightness remains exposure-normalized presentation rather than calibrated photometry; the surface phase sphere is a Lambertian proxy; full Rayleigh/Mie scattering, atmospheric refraction, detailed albedo/BRDF, and multi-occulter disk-union eclipses are not modeled yet.
+
+---
+
 # Universe Lab v0.1.4.8.2 — Impact & Numerical Hardening iPhone Gate
 
 Before accepting v0.1.4.8.2 on physical iPhone Safari/WebKit:

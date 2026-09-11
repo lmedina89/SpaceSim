@@ -1,3 +1,4 @@
+import { apparentAngularRadiusRad, phaseAppearance, illuminationDirectionInObserverBasis, observerStarOccultation, stellarVisibilityAtBody } from './celestialAppearance.js';
 import { bodyFixedDirectionToInertial, hasPhysicalRotationModel, surfaceTangentBasis } from './planetaryRotation.js';
 const EPSILON = 1e-12;
 
@@ -180,6 +181,21 @@ function createBodyObservation() {
     rangeMeters: Infinity,
     physicalRadiusMeters: 0,
     apparentAngularRadiusRad: 0,
+    angularDiameterRad: 0,
+    phaseAngleRad: 0,
+    illuminatedFraction: 1,
+    illuminationDirectionLocal: new Float64Array([0, 0, 1]),
+    stellarVisibilityAtBody: 1,
+    stellarEclipseFraction: 0,
+    stellarEclipseState: 'none',
+    stellarEclipseOcculterId: null,
+    stellarEclipseOcculterName: '',
+    starAngularSeparationRad: Infinity,
+    observerStarVisibleFraction: 1,
+    observerStarEclipseFraction: 0,
+    observerStarEclipseState: 'none',
+    observerStarEclipseOcculterId: null,
+    observerStarEclipseOcculterName: '',
     centerAltitudeRad: Math.PI * 0.5,
     aboveHorizon: true,
     visibleAboveHorizon: true,
@@ -199,9 +215,8 @@ export function updateCelestialObservation(observer, body, target = createBodyOb
   normalize3(target.direction, dx, dy, dz, [0, 0, 1]);
   target.rangeMeters = Number.isFinite(range) && range > EPSILON ? range : 0;
   target.physicalRadiusMeters = Math.max(0, finite(body?.radius));
-  target.apparentAngularRadiusRad = target.rangeMeters > 0
-    ? Math.asin(Math.max(0, Math.min(1, target.physicalRadiusMeters / target.rangeMeters)))
-    : Math.PI * 0.5;
+  target.apparentAngularRadiusRad = apparentAngularRadiusRad(target.physicalRadiusMeters, target.rangeMeters);
+  target.angularDiameterRad = target.apparentAngularRadiusRad * 2;
   set3(target.localDirection,
     dot3(target.direction, observer.horizonEast),
     dot3(target.direction, observer.localUp),
@@ -229,15 +244,19 @@ function smoothstep(edge0, edge1, value) {
   return t * t * (3 - 2 * t);
 }
 
-export function surfaceSkyExposure({ starAltitudeRad = -Math.PI * 0.5, atmosphereAtmProxy = 1, weatherTransmission = 1 } = {}) {
+export function surfaceSkyExposure({ starAltitudeRad = -Math.PI * 0.5, atmosphereAtmProxy = 1, weatherTransmission = 1, starVisibleFraction = 1 } = {}) {
   const atmosphere = Math.max(0, finite(atmosphereAtmProxy, 1));
   const transmission = Math.max(0, Math.min(1, finite(weatherTransmission, 1)));
-  const daylight = atmosphere > 0.01 ? smoothstep(-0.12, 0.16, finite(starAltitudeRad, -Math.PI * 0.5)) : 0;
+  const visibleStar = Math.max(0, Math.min(1, finite(starVisibleFraction, 1)));
+  const geometricDaylight = atmosphere > 0.01 ? smoothstep(-0.12, 0.16, finite(starAltitudeRad, -Math.PI * 0.5)) : 0;
+  const daylight = geometricDaylight * visibleStar;
   const atmosphericWashout = Math.min(1, atmosphere * daylight);
   return {
     daylight,
     atmosphere,
     weatherTransmission: transmission,
+    starVisibleFraction: visibleStar,
+    geometricDaylight,
     starVisibility: Math.max(0.015, 1 - atmosphericWashout * 0.985) * transmission,
     galacticVisibility: Math.max(0.008, 1 - atmosphericWashout * 0.995) * transmission,
     exposure: Math.max(0.72, Math.min(1.08, 0.86 + daylight * 0.19)) * (0.88 + transmission * 0.12),
@@ -249,6 +268,9 @@ export class AstronomicalObserverModel {
     this.observer = createObserverState();
     this.bodyObservations = [];
     this._bodyRecords = new Map();
+    this._bodySources = [];
+    this._appearanceTimeSeconds = -Infinity;
+    this._appearanceObserverPosition = new Float64Array([Infinity, Infinity, Infinity]);
   }
 
   solveShip(input) {
@@ -263,16 +285,90 @@ export class AstronomicalObserverModel {
 
   updateBodies(bodies = []) {
     this.bodyObservations.length = 0;
+    this._bodySources.length = 0;
     const activeIds = new Set();
+    let primaryStar = null;
     for (const body of bodies) {
       if (!body?.id || !body?.position) continue;
+      if (!primaryStar && body.kind === 'star') primaryStar = body;
       let record = this._bodyRecords.get(body.id);
       if (!record) { record = createBodyObservation(); this._bodyRecords.set(body.id, record); }
       updateCelestialObservation(this.observer, body, record);
       this.bodyObservations.push(record);
+      this._bodySources.push(body);
       activeIds.add(body.id);
     }
     for (const id of this._bodyRecords.keys()) if (!activeIds.has(id)) this._bodyRecords.delete(id);
+
+    const appearanceTime = Number(this.observer.simulationTimeSeconds) || 0;
+    const ox = Number(this.observer.inertialPosition[0]) || 0;
+    const oy = Number(this.observer.inertialPosition[1]) || 0;
+    const oz = Number(this.observer.inertialPosition[2]) || 0;
+    const movedMeters = Math.hypot(
+      ox - this._appearanceObserverPosition[0],
+      oy - this._appearanceObserverPosition[1],
+      oz - this._appearanceObserverPosition[2],
+    );
+    const refreshAppearance = !Number.isFinite(this._appearanceTimeSeconds)
+      || Math.abs(appearanceTime - this._appearanceTimeSeconds) >= 0.1
+      || !Number.isFinite(movedMeters)
+      || movedMeters >= 100_000;
+    if (!refreshAppearance) return this.bodyObservations;
+
+    this._appearanceTimeSeconds = appearanceTime;
+    this._appearanceObserverPosition[0] = ox;
+    this._appearanceObserverPosition[1] = oy;
+    this._appearanceObserverPosition[2] = oz;
+    const starRecord = primaryStar ? this._bodyRecords.get(primaryStar.id) : null;
+    const observerOcculters = this.observer.parentBodyId
+      ? bodies.filter((body) => body?.id !== this.observer.parentBodyId)
+      : bodies;
+    const observerEclipse = primaryStar
+      ? observerStarOccultation(this.observer.inertialPosition, primaryStar, observerOcculters)
+      : null;
+
+    for (let i = 0; i < this.bodyObservations.length; i += 1) {
+      const record = this.bodyObservations[i];
+      const body = this._bodySources[i];
+      record.phaseAngleRad = 0;
+      record.illuminatedFraction = body?.kind === 'star' ? 1 : 0;
+      record.stellarVisibilityAtBody = 1;
+      record.stellarEclipseFraction = 0;
+      record.stellarEclipseState = 'none';
+      record.stellarEclipseOcculterId = null;
+      record.stellarEclipseOcculterName = '';
+      record.starAngularSeparationRad = starRecord && record.id !== starRecord.id
+        ? angularSeparationRad(record.direction, starRecord.direction)
+        : 0;
+      record.observerStarVisibleFraction = 1;
+      record.observerStarEclipseFraction = 0;
+      record.observerStarEclipseState = 'none';
+      record.observerStarEclipseOcculterId = null;
+      record.observerStarEclipseOcculterName = '';
+
+      if (primaryStar && body && body.id !== primaryStar.id) {
+        const phase = phaseAppearance(this.observer.inertialPosition, body.position, primaryStar.position);
+        record.phaseAngleRad = phase.phaseAngleRad;
+        record.illuminatedFraction = phase.illuminatedFraction;
+        illuminationDirectionInObserverBasis(this.observer, body, primaryStar, record.illuminationDirectionLocal);
+        const bodyEclipse = stellarVisibilityAtBody(body, primaryStar, bodies);
+        record.stellarVisibilityAtBody = bodyEclipse.visibleFraction;
+        record.stellarEclipseFraction = bodyEclipse.eclipseFraction;
+        record.stellarEclipseState = bodyEclipse.eclipseState;
+        record.stellarEclipseOcculterId = bodyEclipse.occulterId;
+        record.stellarEclipseOcculterName = bodyEclipse.occulterName;
+      } else {
+        set3(record.illuminationDirectionLocal, 0, 0, 1);
+      }
+
+      if (primaryStar && record.id === primaryStar.id && observerEclipse) {
+        record.observerStarVisibleFraction = observerEclipse.visibleFraction;
+        record.observerStarEclipseFraction = observerEclipse.eclipseFraction;
+        record.observerStarEclipseState = observerEclipse.eclipseState;
+        record.observerStarEclipseOcculterId = observerEclipse.occulterId;
+        record.observerStarEclipseOcculterName = observerEclipse.occulterName;
+      }
+    }
     return this.bodyObservations;
   }
 

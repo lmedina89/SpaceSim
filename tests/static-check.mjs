@@ -7,20 +7,20 @@ const required = [
   'src/physics/trajectoryPredictor.js','src/physics/planetaryProperties.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/frameOrbitInsertion.js','src/physics/massivePairStepControl.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
   'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/anomalyGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
-  'src/core/astronomicalObserver.js','src/core/planetaryRotation.js','src/core/generatedBodyCompatibility.js','src/core/inertialStarCatalog.js','src/navigation/systemNavigation.js','src/navigation/frameGuardRoute.js','src/render/starfield.js','src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/surfaceWorld.js','src/render/cockpitView.js','src/surface/surfaceGenerator.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
+  'src/core/astronomicalObserver.js','src/core/celestialAppearance.js','src/core/planetaryRotation.js','src/core/generatedBodyCompatibility.js','src/core/inertialStarCatalog.js','src/navigation/systemNavigation.js','src/navigation/frameGuardRoute.js','src/render/starfield.js','src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/surfaceWorld.js','src/render/cockpitView.js','src/surface/surfaceGenerator.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
 ];
 for (const file of required) await access(new URL(`../${file}`, import.meta.url), constants.R_OK);
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.8.2')) throw new Error('Shell version is not v0.1.4.8.2.');
-if (!html.includes('IMPNUM-1482')) throw new Error('IMPNUM-1482 build marker missing.');
-if (pkg.version !== '0.1.4.8.2') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.4.9')) throw new Error('Shell version is not v0.1.4.9.');
+if (!html.includes('CELEST-149')) throw new Error('CELEST-149 build marker missing.');
+if (pkg.version !== '0.1.4.9') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Flight/System control drawer missing.');
 if (!html.includes('id="engineeringPanel"') || !html.includes('id="engineeringClose"')) throw new Error('Dedicated Engineering/Diagnostics drawer missing.');
-if (!html.includes('./styles.css?v=1482') || !html.includes('./src/main.js?v=1482')) throw new Error('Build-version cache-busting tags missing.');
+if (!html.includes('./styles.css?v=149') || !html.includes('./src/main.js?v=149')) throw new Error('Build-version cache-busting tags missing.');
 if (html.includes('id="moreToggle"')) throw new Error('Redundant bottom MORE launcher must remain removed.');
 if (!html.includes('id="cockpitRestore"')) throw new Error('Cockpit restore failsafe missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -28,7 +28,9 @@ if (!html.includes('>BRAKE</button>')) throw new Error('Physical BRAKE control m
 for (const id of ['velocityMarker','progradeButton','retrogradeButton','turnBurnButton','transitToggle','transitPanel','transitTargetSource','transitTier','transitEngage','transitArrivalProfile','transitRouteProfile','frameQuick','thrustValue','cockpitOverlay','cockpitStatus','cockpitToggle','ascentDiagnostic']) if (!html.includes(`id="${id}"`)) throw new Error(`Navigation/transit/cockpit control missing: ${id}`);
 for (const id of ['particleMode','particleCount','spawnParticleField','fireParticleGun','clearParticleExperiments','particleStatus','experimentSelect','observeExperiment','trackExperiment','orbitExperiment','rendezvousExperiment','shipViewButton','replayExperiment','cameraChip']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Particle experiment control missing: ${id}`);
 for (const id of ['cosmosToggle','cosmosPanel','phenomenonSelect','phenomenonReality','phenomenonScanDepth','mapToggle','mapPanel','systemMapCanvas','mapBodySelect','mapViewMode','mapSelectionFrameArrival','mapZoom','mapUnknownToggle','mapSelectAction','mapScanAction','mapTransitAction','mapCosmosAction','scanPhenomenon','observePhenomenon','orbitPhenomenon','nextPhenomenon','rendezvousPhenomenon','shipViewCosmos','compactObjectType','neutronStarMass','pulsarSpinPeriod','pulsarMagneticField','spawnNeutronStar','extremeObjectType','spawnExtremeObject','spaceWeatherActive','spaceWeatherNext','spaceWeatherStatus','triggerCme','autoWeatherToggle','overlayToggle','overlayPanel','overlayMaster','overlayLagrange','overlayHill','overlayRoche','overlayGravity','overlayOrbitPlane']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Cosmic exploration control missing: ${id}`);
-for (const id of ['landTarget','surfaceLandButton','mapLandAction','surfaceHud','surfaceWorldName','surfaceBiome','surfaceGravity','surfaceTemperature','surfaceAtmosphere','surfaceCoords','surfaceDiscoveries','surfaceNearest','surfaceScanStatus','surfaceScanButton','surfaceSprintButton','surfaceSaveButton','surfaceTakeoffButton','surfaceMovePad','surfaceForward','surfaceBack','surfaceLeft','surfaceRight','surfaceWeather','surfaceWind','surfaceShipDistance','surfaceClock','surfaceWeatherStatus','surfaceRegionSelect','surfaceRegionLabel','surfaceHudToggle','surfaceHudDetails','surfaceShipCompact','surfacePhase','surfaceSkyClock','surfaceRotation','surfaceLatLon','surfaceRotationPhase','surfaceStarAltAz','surfaceSolarTime','surfaceAstronomyPause']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Surface foundation control missing: ${id}`);
+for (const id of ['landTarget','surfaceLandButton','mapLandAction','surfaceHud','surfaceWorldName','surfaceBiome','surfaceGravity','surfaceTemperature','surfaceAtmosphere','surfaceCoords','surfaceDiscoveries','surfaceNearest','surfaceScanStatus','surfaceScanButton','surfaceSprintButton','surfaceSaveButton','surfaceTakeoffButton','surfaceMovePad','surfaceForward','surfaceBack','surfaceLeft','surfaceRight','surfaceWeather','surfaceWind','surfaceShipDistance','surfaceClock','surfaceWeatherStatus','surfaceRegionSelect','surfaceRegionLabel','surfaceHudToggle','surfaceHudDetails','surfaceShipCompact','surfacePhase','surfaceSkyClock','surfaceRotation','surfaceLatLon','surfaceRotationPhase','surfaceStarAltAz','surfaceSolarTime','surfaceAstronomyPause','surfaceStarDisk','surfaceEclipse','surfaceTargetPhase','surfaceTargetAngular']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Surface foundation control missing: ${id}`);
+for (const id of ['mapSelectionAngular','mapSelectionPhase','mapSelectionShadow']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Celestial appearance map diagnostic missing: ${id}`);
+for (const id of ['targetAngularDiameter','targetIllumination','targetStellarShadow']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Celestial appearance scanner diagnostic missing: ${id}`);
 const surfaceGenerator = await readFile(new URL('../src/surface/surfaceGenerator.js', import.meta.url), 'utf8');
 for (const token of ['Shatterfall Basin','Glasswind Flats','Frostscar Rise','fracture-gate','gravity-knot','frozen-lightning','reverse-shadow','vacuum-bloom','ghost-ruin','chronal-shear','IMPOSSIBLE / FICTIONAL']) if (!surfaceGenerator.includes(token)) throw new Error(`Surface generator token missing: ${token}`);
 const surfaceSession = await readFile(new URL('../src/surface/surfaceSession.js', import.meta.url), 'utf8');
@@ -36,9 +38,12 @@ for (const token of ['createSurfaceSession','serializeSurfaceSession','stepSurfa
 for (const token of ['bodyFixedAnchor','anchorCapturedAtSimSeconds','rotationModelVersion']) if (!surfaceSession.includes(token)) throw new Error(`Body-fixed surface session token missing: ${token}`);
 const planetaryRotation = await readFile(new URL('../src/core/planetaryRotation.js', import.meta.url), 'utf8');
 for (const token of ['captureBodyFixedSurfaceAnchor','bodyFixedDirectionToInertial','inertialDirectionToBodyFixed','surfaceTangentBasis','rotationAngleAt','localSolarTimeHours']) if (!planetaryRotation.includes(token)) throw new Error(`Planetary rotation token missing: ${token}`);
+const celestialAppearance = await readFile(new URL('../src/core/celestialAppearance.js', import.meta.url), 'utf8');
+for (const token of ['apparentAngularRadiusRad','phaseAngleRad','illuminatedFractionFromPhaseAngle','diskOccultation','stellarVisibilityAtBody','observerStarOccultation']) if (!celestialAppearance.includes(token)) throw new Error(`Celestial appearance token missing: ${token}`);
 const surfaceWorld = await readFile(new URL('../src/render/surfaceWorld.js', import.meta.url), 'utf8');
 for (const token of ['SurfaceWorldVisual','createTerrain','InstancedMesh','createFractureGate','createGravityKnot','createFrozenLightning','createReverseShadow','createVacuumBloom','createGhostRuin','createChronalShear','createLandedShip','createShipTransitionFx','createWeatherRig','updateWeather','updateShipTransition']) if (!surfaceWorld.includes(token)) throw new Error(`Surface renderer token missing: ${token}`);
 for (const token of ['updateStarfieldViewBasis','_astronomicalSkyProjectionTime','daylightFactor']) if (!surfaceWorld.includes(token)) throw new Error(`Continuous surface sky token missing: ${token}`);
+for (const token of ['createSurfacePhaseSphere','compressedSkyShellDistance','observerStarVisibleFraction','_baseBackgroundColor','_baseFogColor']) if (!surfaceWorld.includes(token)) throw new Error(`Celestial surface appearance token missing: ${token}`);
 const app = await readFile(new URL('../src/app/app.js', import.meta.url), 'utf8');
 const collisionMonitor = await readFile(new URL('../src/physics/collisionMonitor.js', import.meta.url), 'utf8');
 for (const token of ['CollisionStateBuffer','stepFraction','contactPositionA','contactVelocityA']) if (!collisionMonitor.includes(token)) throw new Error(`Collision hardening token missing: ${token}`);
@@ -75,7 +80,7 @@ for (const token of ['selectstart','contextmenu','lostpointercapture','document.
 }
 if (!html.includes('data-preset="chicxulub"')) throw new Error('Impact preset controls missing.');
 const factory = await readFile(new URL('../src/render/celestialFactory.js', import.meta.url), 'utf8');
-if (!factory.includes('Exposure-floor shell')) throw new Error('WebGPU body-color exposure floor missing.');
+if (!factory.includes('physical-reflector') || !factory.includes('small-body-readability-proxy')) throw new Error('Physical-reflector / small-body readability separation missing.');
 for (const token of ['accretion-disk','photon-rings','relativistic-jets-visual','pseudo-lensing-halo','pulsar-beam-pivot','comet-tail']) if (!factory.includes(token)) throw new Error(`Cosmic celestial visual token missing: ${token}`);
 for (const token of ['stellar-photosphere','stellar-granulation','stellar-limb-darkening','stellar-corona-micro','stellar-prominence-core','stellar-active-regions','stellar-flare-sites']) if (!factory.includes(token)) throw new Error(`Stellar rendering token missing: ${token}`);
 if (!impactResolver.includes('resolveImpact')) throw new Error('Impact resolver missing.');
@@ -97,9 +102,9 @@ for (const token of ['enterObservation','currentCameraView','rendezvousExperimen
 const backendPolicy = await readFile(new URL('../src/render/backendPolicy.js', import.meta.url), 'utf8');
 for (const token of ['isAppleMobileWebKit','rendererBackendPolicy','MacIntel','maxTouchPoints','ios-webkit-presentation-isolation']) if (!backendPolicy.includes(token)) throw new Error(`Renderer backend policy token missing: ${token}`);
 const renderer = await readFile(new URL('../src/render/threeRenderer.js', import.meta.url), 'utf8');
-if (!main.includes("./app/app.js?v=1482")) throw new Error('Main-to-app cache-busting import missing.');
-if (!app.includes("../render/threeRenderer.js?v=1482") || !app.includes("../ui/hud.js?v=1482")) throw new Error('App cache-busting imports missing.');
-if (!renderer.includes("./cockpitView.js?v=1482")) throw new Error('Cockpit renderer cache-busting import missing.');
+if (!main.includes("./app/app.js?v=149")) throw new Error('Main-to-app cache-busting import missing.');
+if (!app.includes("../render/threeRenderer.js?v=149") || !app.includes("../ui/hud.js?v=149")) throw new Error('App cache-busting imports missing.');
+if (!renderer.includes("./cockpitView.js?v=149")) throw new Error('Cockpit renderer cache-busting import missing.');
 const cockpit = await readFile(new URL('../src/render/cockpitView.js', import.meta.url), 'utf8');
 for (const token of ['class CockpitView','NAVIGATION','FLIGHT','SCIENCE','SYSTEM DIAGNOSTICS','diagnostics-screen','drawDiagnosticsScreen','pick(clientX','cockpitAction','MAP','APPR','ENG','SCAN','OVR']) if (!cockpit.includes(token)) throw new Error(`3D cockpit token missing: ${token}`);
 for (const token of ['experimentVisuals','syncParticleExperiments','cosmicVisuals','syncCosmicPhenomena','PointsMaterial','particleExperiments = []','cosmicPhenomena = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(observer?.inertialPosition ?? ship.position)','centerStarfieldOnCamera']) if (!renderer.includes(token)) throw new Error(`Renderer integration token missing: ${token}`);
@@ -125,7 +130,7 @@ if (!css.includes('.ship-cockpit-enabled .top-hud .stat{display:none}') || !css.
 if (!app.includes('toggleCockpit') || !app.includes('updateCockpitUi') || !app.includes('syncViewClasses') || !app.includes('cockpitEnabled') || !app.includes('handleCockpitAction') || !app.includes('cockpitTelemetry')) throw new Error('Interactive cockpit app integration missing.');
 for (const token of ['rendererBackend: this.rendererBackend','physicsMs: this.physicsMs','renderMs: this.renderMs','drawCalls: runtime.drawCalls','predictionMs: this.predictionMs','experimentParticles: this.particleExperiments.activeParticles']) if (!app.includes(token)) throw new Error(`Cockpit diagnostics telemetry missing: ${token}`);
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'IMPNUM-1482') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'CELEST-149') throw new Error('VERSION.json build marker mismatch.');
 if (!String(versionJson.collisionDetection || '').includes('first relative-motion intersection root')) throw new Error('VERSION.json swept-contact capability missing.');
 if (!String(versionJson.impactConservation || '').includes('linear momentum') || !String(versionJson.impactConservation || '').includes('COM impact energy')) throw new Error('VERSION.json impact-conservation capability missing.');
 if (!String(versionJson.blackHoleAccretion || '').includes('mandatory collision sink')) throw new Error('VERSION.json black-hole sink capability missing.');
@@ -136,6 +141,10 @@ if (!String(versionJson.planetaryRotation || '').includes('body-fixed')) throw n
 if (!String(versionJson.surfacePhysicsBoundary || '').includes('N-body') || !String(versionJson.surfacePhysicsBoundary || '').includes('ShipDynamics')) throw new Error('VERSION.json continuous surface-astronomy boundary missing.');
 if (!String(versionJson.surfaceSkyTime || '').includes('1×')) throw new Error('VERSION.json continuous surface sky-time capability missing.');
 if (!String(versionJson.surfaceAstronomyDiagnostics || '').includes('primary-star altitude/azimuth') || !String(versionJson.surfaceAstronomyDiagnostics || '').includes('local solar time')) throw new Error('VERSION.json surface astronomy diagnostics capability missing.');
+if (!String(versionJson.celestialAppearance || '').includes('phase-angle') || !String(versionJson.celestialAppearance || '').includes('finite-disk')) throw new Error('VERSION.json celestial appearance capability missing.');
+if (!String(versionJson.planetMoonLighting || '').includes('self-emission') || !String(versionJson.planetMoonLighting || '').includes('exposure-normalized')) throw new Error('VERSION.json planet/moon lighting boundary missing.');
+if (!String(versionJson.surfaceCelestialDisks || '').includes('apparent angular size') || !String(versionJson.surfaceCelestialDisks || '').includes('compressed')) throw new Error('VERSION.json surface celestial disk capability missing.');
+if (!String(versionJson.eclipseGeometry || '').includes('dominant single foreground occulter')) throw new Error('VERSION.json eclipse-geometry limitation missing.');
 if (!String(versionJson.cockpitView || '').includes('SYSTEM DIAGNOSTICS') || !String(versionJson.cockpitInteraction || '').includes('SYSTEM DIAGNOSTICS')) throw new Error('VERSION.json integrated cockpit diagnostics capability missing.');
 if (!String(versionJson.cockpitLighting || '').includes('emissive-only')) throw new Error('VERSION.json cockpit lighting capability missing.');
 if (!String(versionJson.cockpitDiagnostics || '').includes('renderer') || !String(versionJson.cockpitDiagnostics || '').includes('draw calls')) throw new Error('VERSION.json cockpit diagnostics capability missing.');

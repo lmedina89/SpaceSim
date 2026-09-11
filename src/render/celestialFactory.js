@@ -3,15 +3,19 @@ import { BODY_KIND, SIMULATION } from '../core/constants.js';
 import { createRng } from '../util/prng.js';
 
 function renderRadius(body) {
-  const physical = (body.visualRadiusMeters ?? body.radius) / SIMULATION.metersPerRenderUnit;
+  const strictPhysicalDisk = body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ROGUE_PLANET;
+  const physicalRadiusMeters = strictPhysicalDisk ? body.radius : (body.visualRadiusMeters ?? body.radius);
+  const physical = physicalRadiusMeters / SIMULATION.metersPerRenderUnit;
   if (body.kind === BODY_KIND.STAR) return Math.max(physical, 18);
   if (body.kind === BODY_KIND.BLACK_HOLE) return Math.max(physical, 8);
   if (body.kind === BODY_KIND.NEUTRON_STAR) return Math.max(physical, 3.5);
   if (body.kind === BODY_KIND.WHITE_DWARF) return Math.max(physical, 4.2);
   if (body.kind === BODY_KIND.BROWN_DWARF) return Math.max(physical, 5.5);
-  if (body.kind === BODY_KIND.ROGUE_PLANET) return Math.max(physical, 0.95);
-  if (body.kind === BODY_KIND.PLANET) return Math.max(physical, 0.85);
-  if (body.kind === BODY_KIND.MOON) return Math.max(physical, 0.34);
+  // Resolved planets/moons use their physical radius in render units. Distant discovery remains
+  // a UI-marker responsibility rather than inflating the physical celestial disk.
+  if (body.kind === BODY_KIND.ROGUE_PLANET) return Math.max(physical, 0.003);
+  if (body.kind === BODY_KIND.PLANET) return Math.max(physical, 0.003);
+  if (body.kind === BODY_KIND.MOON) return Math.max(physical, 0.003);
   if (body.kind === BODY_KIND.COMET) return Math.max(physical, 0.08);
   if (body.kind === BODY_KIND.ASTEROID) return Math.max(physical, body.isImpactFragment ? 0.007 : 0.025);
   return Math.max(physical, 0.025);
@@ -530,23 +534,34 @@ export function createCelestialVisual(body) {
     createCometVisual(group, body, radius);
   } else {
     const bodyColor = body.color ?? 0x888888;
+    const physicalReflector = body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON;
     const material = body.kind === BODY_KIND.STAR
       ? new THREE.MeshBasicMaterial({ color: bodyColor })
-      : new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.82, metalness: 0.02, emissive: bodyColor, emissiveIntensity: 0.13 });
+      : new THREE.MeshStandardMaterial({
+          color: bodyColor,
+          roughness: 0.82,
+          metalness: 0.02,
+          emissive: physicalReflector ? 0x000000 : bodyColor,
+          emissiveIntensity: physicalReflector ? 0 : 0.13,
+        });
     const geometry = new THREE.SphereGeometry(radius, body.kind === BODY_KIND.STAR ? 56 : 24, body.kind === BODY_KIND.STAR ? 36 : 16);
     const mesh = new THREE.Mesh(geometry, material);
     if (body.kind === BODY_KIND.STAR) mesh.userData.role = 'stellar-photosphere';
+    else {
+      mesh.userData.role = physicalReflector ? 'physical-reflector' : 'celestial-core';
+      mesh.material.userData.baseBodyColor = bodyColor;
+    }
     group.add(mesh);
-    if (body.kind !== BODY_KIND.STAR) {
-      // Exposure-floor shell: visual-only, deliberately faint, and independent of renderer light units.
-      // It guarantees a seeded body color remains readable on WebGPU/iOS while the StandardMaterial
-      // underneath still supplies the starward day/night shading and terminator.
+    if (body.kind !== BODY_KIND.STAR && !physicalReflector) {
+      // Non-planetary small-body readability proxy retained for legacy experiment objects.
+      // Planets and moons intentionally do not receive this shell in the physical-appearance path.
       const exposureShell = new THREE.Mesh(
         geometry.clone(),
         new THREE.MeshBasicMaterial({ color: bodyColor, transparent: true, opacity: 0.10, depthWrite: false }),
       );
       exposureShell.scale.setScalar(1.002);
       exposureShell.renderOrder = 1;
+      exposureShell.userData.role = 'small-body-readability-proxy';
       group.add(exposureShell);
     }
     if (body.kind === BODY_KIND.STAR) {
@@ -589,9 +604,17 @@ export function createCelestialVisual(body) {
   return group;
 }
 
-export function updateCelestialVisual(visual, body, starBody, realDt = 0.016, elapsedSimSeconds = 0) {
+export function updateCelestialVisual(visual, body, starBody, realDt = 0.016, elapsedSimSeconds = 0, appearanceObservation = null) {
   if (!visual) return;
   const dt = Math.min(0.05, Math.max(0, realDt));
+  if (body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON) {
+    const core = visual.children.find((child) => child.userData?.role === 'physical-reflector');
+    if (core?.material?.color) {
+      const baseColor = Number(core.material.userData?.baseBodyColor ?? body.color ?? 0x888888);
+      const stellarVisibility = Math.max(0, Math.min(1, Number(appearanceObservation?.stellarVisibilityAtBody ?? 1)));
+      core.material.color.setHex(baseColor).multiplyScalar(stellarVisibility);
+    }
+  }
   if (body.kind === BODY_KIND.PLANET) visual.rotation.y += dt * 0.09;
   else if (body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ASTEROID) visual.rotation.y += dt * 0.035;
   else if (body.kind === BODY_KIND.STAR) {

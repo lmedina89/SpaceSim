@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry
+
+- Added pure `core/celestialAppearance.js` geometry for apparent angular radius, phase angle, illuminated fraction, finite-disk overlap, observer stellar occultation and body-centered stellar shadow.
+- Enriched the canonical astronomical body observations with reusable phase/eclipse fields; no appearance calculation owns or mutates simulation state.
+- Preserved existing live star-direction terminator lighting for space planets/moons while removing physical-reflector self-emission/readability shells.
+- Replaced additive glowing surface planet/moon sprites with angularly correct phase-shaded 3-D spheres at monotonic compressed render depth; physical sky direction and apparent angular size remain authoritative.
+- Added finite stellar disk rendering and observer stellar-cover fraction to surface direct-light/daylight presentation.
+- Added surface, NAV and scanner diagnostics for angular diameter, illuminated fraction/phase and stellar shadow/occultation.
+- Fixed cumulative surface background/fog darkening by recalculating exposure from immutable base colors each frame.
+- Added canonical analytic/property/integration/static tests for phase endpoints, finite-disk overlap, observer/body eclipses, record reuse/non-mutation, surface phase rendering and daylight-exposure stability.
+- Documented limitations: dominant single occulter only, exposure-normalized rather than radiometric light, Lambertian surface-sky phase proxy, no atmospheric radiative transfer/refraction.
+- Updated Safari/GitHub Pages cache tags to `?v=149`.
+
 ## v0.1.4.8.2 — Impact & Numerical Hardening
 
 - Added reusable flat `CollisionStateBuffer` previous-state storage and first swept sphere-contact root detection, eliminating per-substep Map/per-body snapshot allocation and resolving collisions at interpolated first contact instead of penetrated step-end state.

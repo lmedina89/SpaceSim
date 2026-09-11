@@ -31,6 +31,15 @@ function acceleration(value) {
   return value >= 0.01 ? `${fmt(value, 4)} m/s²` : `${value.toExponential(3)} m/s²`;
 }
 
+function angularDiameter(value) {
+  if (!Number.isFinite(value) || value < 0) return '—';
+  const degrees = value * 180 / Math.PI;
+  if (degrees >= 1) return `${fmt(degrees, 3)}°`;
+  const arcMinutes = degrees * 60;
+  if (arcMinutes >= 1) return `${fmt(arcMinutes, 2)}′`;
+  return `${fmt(arcMinutes * 60, 2)}″`;
+}
+
 function stellarProximity(body, metrics) {
   if (body?.kind !== 'star' || !Number.isFinite(body.radius) || body.radius <= 0 || !Number.isFinite(metrics?.distanceMeters)) return null;
   const radii = metrics.distanceMeters / body.radius;
@@ -95,6 +104,9 @@ export class Hud {
     this.targetPeriapsis = root.querySelector('#targetPeriapsis');
     this.targetApoapsis = root.querySelector('#targetApoapsis');
     this.targetOrbitState = root.querySelector('#targetOrbitState');
+    this.targetAngularDiameter = root.querySelector('#targetAngularDiameter');
+    this.targetIllumination = root.querySelector('#targetIllumination');
+    this.targetStellarShadow = root.querySelector('#targetStellarShadow');
     this.targetImpactCount = root.querySelector('#targetImpactCount');
     this.predictedApproach = root.querySelector('#predictedApproach');
     this.impactReadout = root.querySelector('#impactReadout');
@@ -133,7 +145,7 @@ export class Hud {
     if (holdMs > 0) this._messageTimer = setTimeout(() => { this.message.hidden = true; }, holdMs);
   }
 
-  setTarget(body, metrics, prediction = null) {
+  setTarget(body, metrics, prediction = null, appearance = null) {
     if (!body || !metrics) {
       this.targetChip.hidden = true;
       this.targetName.textContent = 'No target';
@@ -159,6 +171,15 @@ export class Hud {
     this.targetPeriapsis.textContent = distance(metrics.periapsisAltitudeMeters);
     this.targetApoapsis.textContent = Number.isFinite(metrics.apoapsisAltitudeMeters) ? distance(metrics.apoapsisAltitudeMeters) : 'unbound';
     this.targetOrbitState.textContent = metrics.boundTwoBody ? 'bound (two-body osculating)' : 'unbound / escape-like';
+    if (this.targetAngularDiameter) this.targetAngularDiameter.textContent = appearance ? angularDiameter(appearance.angularDiameterRad) : '—';
+    if (this.targetIllumination) this.targetIllumination.textContent = body.kind === 'star'
+      ? 'SELF-LUMINOUS'
+      : appearance ? `${fmt((appearance.illuminatedFraction ?? 0) * 100, 2)}% · phase ${fmt((appearance.phaseAngleRad ?? 0) * 180 / Math.PI, 2)}°` : '—';
+    if (this.targetStellarShadow) this.targetStellarShadow.textContent = body.kind === 'star'
+      ? 'N/A'
+      : appearance && (appearance.stellarEclipseFraction ?? 0) > 0
+        ? `${fmt(appearance.stellarEclipseFraction * 100, 2)}% blocked${appearance.stellarEclipseOcculterName ? ` · ${appearance.stellarEclipseOcculterName}` : ''}`
+        : 'NONE';
     this.targetImpactCount.textContent = String(body.damageRecords?.length ?? 0);
     const predictionLimit = prediction?.accuracyLimited ? ' · numerical step budget limited' : '';
     if (prediction?.impact) {

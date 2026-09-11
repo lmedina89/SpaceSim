@@ -135,3 +135,27 @@ test('observer model reuses body records and never mutates authoritative arrays'
   assert.deepEqual([...ship.position], beforeShip);
   assert.deepEqual([...body.position], beforeBody);
 });
+
+test('observer model enriches bodies with phase and finite-disk stellar occultation data', () => {
+  const model = new AstronomicalObserverModel();
+  model.solveShip({ ship: { position: new Float64Array([0, 0, 0]), yaw: 0, pitch: 0, roll: 0 }, simulationTimeSeconds: 0 });
+  const star = { id: 'star', kind: 'star', name: 'Star', radius: 10, position: new Float64Array([0, 0, 1000]) };
+  const moon = { id: 'moon', kind: 'moon', name: 'Moon', radius: 2, position: new Float64Array([0, 0, 100]) };
+  const records = model.updateBodies([star, moon]);
+  const starRecord = records.find((record) => record.id === 'star');
+  const moonRecord = records.find((record) => record.id === 'moon');
+  assert.ok(starRecord.observerStarEclipseFraction > 0);
+  assert.equal(starRecord.observerStarEclipseOcculterId, 'moon');
+  assert.ok(moonRecord.illuminatedFraction >= 0 && moonRecord.illuminatedFraction <= 1);
+  assert.equal(moonRecord.angularDiameterRad, moonRecord.apparentAngularRadiusRad * 2);
+  assert.ok([...moonRecord.illuminationDirectionLocal].every(Number.isFinite));
+});
+
+test('surface daylight proxy dims when the finite stellar disk is occulted', () => {
+  const clear = surfaceSkyExposure({ starAltitudeRad: 0.8, atmosphereAtmProxy: 1, weatherTransmission: 1, starVisibleFraction: 1 });
+  const half = surfaceSkyExposure({ starAltitudeRad: 0.8, atmosphereAtmProxy: 1, weatherTransmission: 1, starVisibleFraction: 0.5 });
+  const total = surfaceSkyExposure({ starAltitudeRad: 0.8, atmosphereAtmProxy: 1, weatherTransmission: 1, starVisibleFraction: 0 });
+  assert.ok(clear.daylight > half.daylight);
+  assert.ok(half.daylight > total.daylight);
+  assert.equal(total.daylight, 0);
+});

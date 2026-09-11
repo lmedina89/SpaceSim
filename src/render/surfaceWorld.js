@@ -60,6 +60,97 @@ function makeGlowTexture(color = '#ffffff') {
   return texture;
 }
 
+function makeStellarDiskTexture(color = '#ffffff') {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gradient.addColorStop(0, color);
+  gradient.addColorStop(0.94, color);
+  gradient.addColorStop(0.985, 'rgba(255,255,255,0.96)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 256, 256);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.userData.surfaceOwned = true;
+  return texture;
+}
+
+function createSurfaceStarDisk(observed) {
+  const group = new THREE.Group();
+  group.userData.surfaceCelestialKind = 'star';
+  const disk = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeStellarDiskTexture(cssHex(observed.color)),
+    color: observed.color,
+    transparent: true,
+    opacity: 0.98,
+    depthWrite: false,
+    depthTest: true,
+  }));
+  disk.userData.role = 'physical-stellar-disk';
+  group.add(disk);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture(cssHex(observed.color)),
+    color: observed.color,
+    transparent: true,
+    opacity: 0.22,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+  }));
+  glow.userData.role = 'stellar-glow-proxy';
+  group.add(glow);
+  group.userData.disk = disk;
+  group.userData.glow = glow;
+  return group;
+}
+
+function createSurfacePhaseSphere(observed) {
+  const geometry = new THREE.SphereGeometry(1, 28, 18);
+  const position = geometry.getAttribute('position');
+  const colors = new Float32Array(position.count * 3);
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const material = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: true });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.userData.surfaceCelestialKind = 'reflective-body';
+  mesh.userData.baseColor = Number(observed.color) >>> 0;
+  mesh.userData.lastAppearanceTime = -Infinity;
+  return mesh;
+}
+
+function updateSurfacePhaseSphere(mesh, observed, simulationTimeSeconds = 0) {
+  const last = Number(mesh.userData.lastAppearanceTime);
+  if (Number.isFinite(last) && Math.abs(simulationTimeSeconds - last) < 0.25) return;
+  mesh.userData.lastAppearanceTime = simulationTimeSeconds;
+  const base = new THREE.Color(Number(observed.color) >>> 0);
+  const light = observed.illuminationDirectionLocal ?? [0, 0, 1];
+  const lx = Number(light[0]) || 0, ly = Number(light[1]) || 0, lz = Number(light[2]) || 0;
+  const lm = Math.hypot(lx, ly, lz) || 1;
+  const visibility = Math.max(0, Math.min(1, Number(observed.stellarVisibilityAtBody ?? 1)));
+  const normals = mesh.geometry.getAttribute('normal');
+  const colors = mesh.geometry.getAttribute('color');
+  for (let i = 0; i < normals.count; i += 1) {
+    const cosine = Math.max(0, (normals.getX(i) * lx + normals.getY(i) * ly + normals.getZ(i) * lz) / lm);
+    const lambert = cosine * visibility;
+    colors.setXYZ(i, base.r * lambert, base.g * lambert, base.b * lambert);
+  }
+  colors.needsUpdate = true;
+}
+
+function compressedSkyShellDistance(rangeMeters, minRangeMeters, maxRangeMeters) {
+  const minShell = 2100;
+  const maxShell = 2700;
+  const range = Math.max(1, Number(rangeMeters) || 1);
+  const minRange = Math.max(1, Number(minRangeMeters) || range);
+  const maxRange = Math.max(minRange, Number(maxRangeMeters) || minRange);
+  if (!(maxRange > minRange * (1 + 1e-12))) return (minShell + maxShell) * 0.5;
+  const lo = Math.log(minRange);
+  const hi = Math.log(maxRange);
+  const t = Math.max(0, Math.min(1, (Math.log(range) - lo) / Math.max(1e-12, hi - lo)));
+  return minShell + (maxShell - minShell) * t;
+}
+
 function poiColor(poi) {
   if (poi.realityClass === 'impossible') return 0xff62cf;
   if (poi.realityClass === 'anomalous') return 0xa97cff;
@@ -541,9 +632,11 @@ export class SurfaceWorldVisual {
     this._astronomicalSkyProjectionTime = -Infinity;
     this.astronomicalBodies = new Map();
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(region.palette.skyTop);
+    this._baseBackgroundColor = new THREE.Color(region.palette.skyTop);
+    this._baseFogColor = new THREE.Color(region.palette.fog);
+    this.scene.background = this._baseBackgroundColor.clone();
     this._baseFogDensity = 0.00115 / Math.max(0.3, region.atmosphereAtmProxy);
-    this.scene.fog = new THREE.FogExp2(region.palette.fog, this._baseFogDensity);
+    this.scene.fog = new THREE.FogExp2(this._baseFogColor.clone(), this._baseFogDensity);
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.08, 6200);
     this.rng = createRng(`${region.seed}:render`);
     this.poiGroups = new Map();
@@ -555,7 +648,10 @@ export class SurfaceWorldVisual {
 
     const hemi = new THREE.HemisphereLight(region.palette.skyHorizon, 0x17120f, 1.55); this.scene.add(hemi); this.hemi = hemi;
     const sunColor = new THREE.Color(star?.color ?? 0xffe1b0);
-    this.sun = new THREE.DirectionalLight(sunColor, 3.2); this.scene.add(this.sun);
+    this.sun = new THREE.DirectionalLight(sunColor, 3.2);
+    this.sun.target.position.set(0, 0, 0);
+    this.scene.add(this.sun);
+    this.scene.add(this.sun.target);
 
     this.terrain = createTerrain(region); this.scene.add(this.terrain);
     this.scatter = createScatter(region, this.rng); this.scene.add(this.scatter);
@@ -616,6 +712,7 @@ export class SurfaceWorldVisual {
       starAltitudeRad: starObservation?.centerAltitudeRad,
       atmosphereAtmProxy: this.region.atmosphereAtmProxy,
       weatherTransmission: transmission,
+      starVisibleFraction: starObservation?.observerStarVisibleFraction ?? 1,
     });
     // This is a bounded presentation proxy, not an atmospheric scattering solver. The physically
     // derived star altitude controls whether the local sky is day/twilight/night; weather then
@@ -623,8 +720,8 @@ export class SurfaceWorldVisual {
     const daylightFactor = this.region.atmosphereAtmProxy > 0.01 ? 0.075 + exposure.daylight * 0.925 : 0.025;
     if (this.sky?.material?.color) this.sky.material.color.setScalar(daylightFactor);
     if (this.hemi) this.hemi.intensity = 0.12 + exposure.daylight * 1.43;
-    this.scene.background?.multiplyScalar?.(Math.max(0.04, daylightFactor));
-    this.scene.fog?.color?.multiplyScalar?.(Math.max(0.10, daylightFactor));
+    if (this.scene.background?.copy) this.scene.background.copy(this._baseBackgroundColor).multiplyScalar(Math.max(0.04, daylightFactor));
+    if (this.scene.fog?.color?.copy) this.scene.fog.color.copy(this._baseFogColor).multiplyScalar(Math.max(0.10, daylightFactor));
     this.astronomicalSky?.traverse((node) => {
       if (!node.material) return;
       const base = node.material.userData?.baseOpacity ?? node.material.opacity ?? 1;
@@ -632,39 +729,67 @@ export class SurfaceWorldVisual {
     });
 
     const liveIds = new Set();
-    for (const observed of astronomy.bodies) {
-      if (!observed?.id || observed.id === this.body?.id) continue;
+    const renderedObservations = astronomy.bodies.filter((observed) => observed?.id && observed.id !== this.body?.id && Number.isFinite(Number(observed.rangeMeters)) && observed.rangeMeters > 0);
+    const finiteRanges = renderedObservations.map((observed) => observed.rangeMeters).filter((value) => Number.isFinite(value) && value > 0);
+    const minRange = finiteRanges.length ? Math.min(...finiteRanges) : 1;
+    const maxRange = finiteRanges.length ? Math.max(...finiteRanges) : minRange;
+    const simulationTimeSeconds = Number(astronomy.observer.simulationTimeSeconds) || 0;
+
+    for (const observed of renderedObservations) {
       liveIds.add(observed.id);
-      let sprite = this.astronomicalBodies.get(observed.id);
-      if (!sprite) {
-        const material = new THREE.SpriteMaterial({
-          map: makeGlowTexture(cssHex(observed.color)), color: observed.color,
-          transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending,
-        });
-        sprite = new THREE.Sprite(material);
-        sprite.name = `surface-celestial-${observed.id}`;
-        this.astronomicalBodies.set(observed.id, sprite);
-        this.scene.add(sprite);
+      const wantsStar = observed.kind === 'star';
+      let visual = this.astronomicalBodies.get(observed.id);
+      if (!visual || (visual.userData?.surfaceCelestialKind === 'star') !== wantsStar) {
+        if (visual) { this.scene.remove(visual); disposeTree(visual); }
+        visual = wantsStar ? createSurfaceStarDisk(observed) : createSurfacePhaseSphere(observed);
+        visual.name = `surface-celestial-${observed.id}`;
+        this.astronomicalBodies.set(observed.id, visual);
+        this.scene.add(visual);
       }
+
       const direction = observed.localDirection;
-      const shellDistance = 2700;
-      sprite.position.set(eye[0] + direction[0] * shellDistance, eye[1] + direction[1] * shellDistance, eye[2] + direction[2] * shellDistance);
-      const physicalDiameterAtSkyShell = 2 * shellDistance * Math.tan(observed.apparentAngularRadiusRad);
-      const visualProxyDiameter = Math.max(observed.kind === 'star' ? 34 : 8, Math.min(260, physicalDiameterAtSkyShell));
-      sprite.scale.set(visualProxyDiameter, visualProxyDiameter, 1);
-      sprite.userData.physicalDiameterAtSkyShell = physicalDiameterAtSkyShell;
-      sprite.userData.visualProxyDiameter = visualProxyDiameter;
-      sprite.visible = observed.visibleAboveHorizon;
-      sprite.material.opacity = Math.max(0.08, exposure.weatherTransmission) * (observed.kind === 'star' ? 0.95 : 0.82);
-      if (observed === starObservation) {
-        this.sun.position.set(eye[0] + direction[0] * 900, eye[1] + direction[1] * 900, eye[2] + direction[2] * 900);
-        this.sun.visible = observed.visibleAboveHorizon;
-        this.sun.intensity = observed.visibleAboveHorizon ? 3.2 * Math.max(0.18, exposure.weatherTransmission) : 0;
+      const shellDistance = compressedSkyShellDistance(observed.rangeMeters, minRange, maxRange);
+      visual.position.set(
+        eye[0] + direction[0] * shellDistance,
+        eye[1] + direction[1] * shellDistance,
+        eye[2] + direction[2] * shellDistance,
+      );
+      visual.visible = observed.visibleAboveHorizon;
+      visual.userData.shellDistance = shellDistance;
+      visual.userData.apparentAngularRadiusRad = observed.apparentAngularRadiusRad;
+
+      if (wantsStar) {
+        const angularRadius = Math.max(0, Math.min(1.45, Number(observed.apparentAngularRadiusRad) || 0));
+        const physicalDiameter = 2 * shellDistance * Math.tan(angularRadius);
+        const disk = visual.userData.disk;
+        const glow = visual.userData.glow;
+        if (disk) {
+          disk.scale.set(physicalDiameter, physicalDiameter, 1);
+          disk.material.opacity = Math.max(0.03, exposure.weatherTransmission) * 0.98;
+        }
+        if (glow) {
+          const glowDiameter = physicalDiameter * 2.8;
+          glow.scale.set(glowDiameter, glowDiameter, 1);
+          glow.material.opacity = 0.22 * Math.max(0.05, exposure.weatherTransmission) * Math.max(0.16, Number(observed.observerStarVisibleFraction ?? 1));
+        }
+        if (observed === starObservation) {
+          this.sun.position.set(eye[0] + direction[0] * 900, eye[1] + direction[1] * 900, eye[2] + direction[2] * 900);
+          this.sun.target.position.set(eye[0], eye[1], eye[2]);
+          this.sun.visible = observed.visibleAboveHorizon;
+          this.sun.intensity = observed.visibleAboveHorizon
+            ? 3.2 * Math.max(0.18, exposure.weatherTransmission) * Math.max(0, Math.min(1, Number(observed.observerStarVisibleFraction ?? 1)))
+            : 0;
+        }
+      } else {
+        const angularRadius = Math.max(0, Math.min(Math.PI * 0.499, Number(observed.apparentAngularRadiusRad) || 0));
+        const physicalRadius = shellDistance * Math.sin(angularRadius);
+        visual.scale.setScalar(Math.max(1e-6, physicalRadius));
+        updateSurfacePhaseSphere(visual, observed, simulationTimeSeconds);
       }
     }
-    for (const [id, sprite] of this.astronomicalBodies) {
+    for (const [id, visual] of this.astronomicalBodies) {
       if (liveIds.has(id)) continue;
-      this.scene.remove(sprite); disposeTree(sprite); this.astronomicalBodies.delete(id);
+      this.scene.remove(visual); disposeTree(visual); this.astronomicalBodies.delete(id);
     }
     return exposure;
   }

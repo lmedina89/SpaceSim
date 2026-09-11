@@ -1,5 +1,15 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.8.2
+# Scientific / Model Notes — Universe Lab v0.1.4.9
 
+
+**v0.1.4.9 note — celestial appearance:** for a spherical target of physical radius `R` at center range `d`, apparent angular radius is `asin(clamp(R/d, 0, 1))`. Phase angle `φ` is the angle at the target between target→observer and target→primary-star directions; illuminated fraction is `(1 + cos φ) / 2`. These are geometry quantities, not fitted visual phases.
+
+Observer-side eclipses/occultations use finite apparent stellar/foreground disks and analytic circle-overlap area. A foreground body must be closer than the background body. The current model reports/applies the **single dominant occulter**; simultaneous overlapping occulting disks are not yet union-solved. Body-centered stellar visibility uses the same finite-disk geometry from the target body's center, so it is an eclipse/shadow diagnostic rather than a full spatial umbra/penumbra illumination map over the target surface.
+
+In space, ordinary planets/moons remain `MeshStandardMaterial` reflectors lit from the primary star's live direction, so the pre-existing geometric terminator behavior is preserved. Their self-emissive floor/readability shell is removed. Renderer light intensity remains exposure-normalized for usability and is **not** a physical inverse-square stellar-flux/radiative-transfer solution.
+
+On the surface, the stellar disk and phase bodies preserve canonical sky direction and physical apparent angular size. Their finite 3-D placement uses a monotonic compressed sky-shell depth solely for floating/render precision and correct nearer-before-farther depth ordering; that depth is not an astronomical distance measurement. Planet/moon surface-sky brightness uses a Lambertian vertex proxy (`max(0,n·l)`) from the canonical target→star direction, multiplied by the body-center stellar-visible fraction. It does not model wavelength-dependent albedo, roughness BRDF, atmospheric scattering, refraction, limb darkening of the illuminating star in eclipse integration, cloud shadowing or thermal emission.
+
+Surface direct-light/daylight presentation is attenuated by the observer's finite-disk stellar visible fraction. This makes a geometrically aligned occultation darken the scene consistently, but it is not yet a full sky/atmosphere radiative-transfer eclipse model. The surface fog/background exposure is recomputed from immutable base colors each frame; it no longer compounds darkness frame-over-frame.
 
 **v0.1.4.8.2 note:** the audited direct Newtonian force law and velocity-Verlet major-body integrator are unchanged. Collision detection now solves the **first finite-radius contact** under linear relative motion over each substep. Position and velocity are interpolated to that contact before impact resolution. The short remaining part of the same substep is then drifted ballistically; this is intentionally not described as a full event-driven N-body collision integrator because gravity is not re-solved during that remainder.
 
