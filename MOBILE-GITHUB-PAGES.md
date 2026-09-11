@@ -1,3 +1,17 @@
+# Universe Lab v0.1.5.1.1 — Portrait Flight UX iPhone Gate
+
+Before physically accepting `PORTRAIT-1511` on iPhone Safari/WebKit:
+
+1. Hard reload and confirm **v0.1.5.1.1**, build **PORTRAIT-1511**, and **WebGL2 iOS**.
+2. In **landscape**, verify the familiar four-MFD cockpit, diagnostics pane, physical keys, LOOK, thrust cluster and bottom bar are unchanged.
+3. Rotate to **portrait** while flying. Confirm one central FLIGHT MFD is readable, side MFDs/diagnostics/key row are not cropped into view, and the sky remains the dominant area.
+4. Confirm `NAV / FLIGHT / SCI / SYS` portrait shortcuts open the System Map, Flight/System drawer, Science drawer and Engineering/Diagnostics drawer respectively.
+5. Confirm LOOK and THRUST/REV/BRAKE do not overlap the six-button bottom bar and respect the current browser safe area.
+6. Rotate portrait → landscape → portrait without resetting target, throttle state, camera attitude, FRAME state, simulation time or save state.
+7. Regress v0.1.5.1 home-world landing and Caelum-4361 f-A proof-surface landing/takeoff; orientation work must not alter surface behavior.
+
+## Retained v0.1.5.1 surface gate
+
 # Universe Lab v0.1.5.1 — Multi-World Surface Architecture iPhone Gate
 
 Before physically accepting `SURFARCH-151` on iPhone Safari/WebKit:

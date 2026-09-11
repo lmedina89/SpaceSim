@@ -1,4 +1,4 @@
-# Universe Lab Architecture — v0.1.5.1
+# Universe Lab Architecture — v0.1.5.1.1
 
 ## Multi-world surface boundary
 
@@ -266,3 +266,6 @@ This gives the project a scalable scene boundary before world streaming, weather
 
 ## v0.1.4.9.1.1 planner UI boundary
 The mobile planner hotfix changes CSS/layout only. Planner propagation, finite-disk astronomy, and all authoritative simulation state remain unchanged. iOS text autosizing suppression is scoped to `.event-planner-panel` rather than applied globally.
+## Portrait cockpit hotfix boundary
+
+`CockpitView.setViewport(width, height)` is presentation-only. The renderer forwards viewport dimensions after updating camera projection. Portrait mode hides wide-layout shell/MFD/key geometry and repositions the central FLIGHT MFD; landscape restores stored base transforms. HTML portrait shortcuts call `UniverseLabApp.handleCockpitAction()` and therefore reuse the same NAV/FLIGHT/SCIENCE/Engineering drawers. Orientation state is not serialized and has no physics authority.

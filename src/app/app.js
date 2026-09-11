@@ -29,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=151';
-import { Hud } from '../ui/hud.js?v=151';
-import { SystemMapController } from '../ui/systemMap.js?v=151';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1511';
+import { Hud } from '../ui/hud.js?v=1511';
+import { SystemMapController } from '../ui/systemMap.js?v=1511';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -336,7 +336,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.1 online. Multi-world surface architecture is active: the accepted atmospheric home world is preserved and one qualifying airless rocky moon can use the new vacuum/regolith proof profile. Other solid worlds remain landing-disabled. Existing N-body gravity, environment science, appearance/eclipses, observation planning, FRAME, impacts, and WebKit renderer remain protected. Active backend: ${backend}. Build SURFARCH-151.`);
+    this.hud.notify(`v0.1.5.1.1 online. Portrait flight UX hotfix is active: portrait ship view uses a compact single-MFD cockpit layout while landscape restores the accepted four-MFD deck. Multi-world surface architecture, N-body gravity, environment science, appearance/eclipses, observation planning, FRAME, impacts, saves, and the WebKit renderer remain protected. Active backend: ${backend}. Build PORTRAIT-1511.`);
   }
 
   newSystem(seed) {
@@ -2949,6 +2949,10 @@ export class UniverseLabApp {
     $('#overlayToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateOverlayPanel(); this.hud.toggleOverlays(); });
     $('#cockpitToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.toggleCockpit(); });
     $('#cockpitRestore').addEventListener('click', () => this.toggleCockpit(true));
+    $('#portraitNavMfd').addEventListener('click', () => this.handleCockpitAction('nav-screen'));
+    $('#portraitFlightMfd').addEventListener('click', () => this.handleCockpitAction('flight-screen'));
+    $('#portraitScienceMfd').addEventListener('click', () => this.handleCockpitAction('science-screen'));
+    $('#portraitSystemMfd').addEventListener('click', () => this.handleCockpitAction('diagnostics-screen'));
     $('#overlayClose').addEventListener('click', () => this.hud.toggleOverlays(false));
     $('#overlayMaster').addEventListener('change', (event) => this.setOverlaySetting('enabled', event.target.checked));
     $('#overlayLagrange').addEventListener('change', (event) => this.setOverlaySetting('lagrange', event.target.checked));

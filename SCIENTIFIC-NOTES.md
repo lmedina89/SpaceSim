@@ -1,4 +1,4 @@
-# Universe Lab Scientific Notes — v0.1.5.1 Multi-World Surface Architecture
+# Universe Lab Scientific Notes — v0.1.5.1.1 Portrait Flight UX Hotfix
 
 The surface engine now consumes the canonical planetary-environment record through a separate architectural profile layer. This does **not** make procedural terrain a new physical authority: body mass/radius/orbit/rotation/atmosphere proxy remain authoritative upstream inputs, while local terrain, regolith color and geology are deterministic presentation/proxy outputs.
 
@@ -164,3 +164,7 @@ The upgraded surface spacecraft, VTOL plumes, landing glow and ascent/descent mo
 
 ## v0.1.4.9.1.1 scientific boundary
 No scientific model changes. This release only corrects iPhone Safari planner layout/text sizing and event-list scrolling.
+
+## Portrait layout scientific boundary
+
+Portrait cockpit adaptation changes only presentation geometry and HTML control placement. It does not change camera attitude mathematics, observer position, body state, gravity, time integration, navigation, celestial appearance, environment science, landing state, or save schema.

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.5.1.1 — Portrait Flight UX & Responsive Cockpit Hotfix
+
+- Added aspect-responsive 3D cockpit layout for portrait ship view.
+- Portrait keeps one readable central FLIGHT MFD and the canopy while hiding landscape-only side MFDs, diagnostics mount and physical key row.
+- Added compact `NAV / FLIGHT / SCI / SYS` portrait shortcuts that reuse existing cockpit/app actions and own no simulation state.
+- Repositioned LOOK, THRUST/REV/BRAKE, messages, RCS and bottom controls for narrow iPhone safe-area geometry.
+- Hidden portrait cockpit objects are rejected by cockpit ray-picking.
+- Landscape cockpit transforms and all v0.1.5.1 multi-world surface behavior are retained.
+- Save schema remains 1; Three.js remains 0.185.0; iPhone/iPad WebKit remains forced WebGL2.
+
 ## v0.1.5.1 — Multi-World Surface Architecture
 
 - Added `src/surface/surfaceProfiles.js`, a read-only profile/access layer over the canonical planetary-environment model.

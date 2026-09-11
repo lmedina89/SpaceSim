@@ -240,6 +240,8 @@ export class CockpitView {
     this.glowStripMaterial = new THREE.MeshBasicMaterial({ color: 0x58bde6, transparent: true, opacity: 0.52, toneMapped: false });
     this.utilityGlowMaterial = new THREE.MeshBasicMaterial({ color: 0xe3ad64, transparent: true, opacity: 0.20, toneMapped: false });
     this.statusLights = new Map();
+    this.portraitHiddenShell = [];
+    this.viewportMode = 'landscape';
 
     this.buildShell();
     this.buildScreensAndControls();
@@ -252,16 +254,21 @@ export class CockpitView {
     // Low dashboard and side consoles. Geometry intentionally stays below the primary astronomy view.
     const dash = makePanelBox([1.34, 0.12, 0.46], [0, -0.43, -0.82], [-0.08, 0, 0], this.shellMaterial);
     g.add(dash);
+    this.portraitHiddenShell.push(dash);
     const lower = makePanelBox([1.58, 0.19, 0.34], [0, -0.58, -0.62], [-0.18, 0, 0], this.softMaterial);
     g.add(lower);
+    this.portraitHiddenShell.push(lower);
 
     const leftConsole = makePanelBox([0.44, 0.18, 0.58], [-0.78, -0.43, -0.68], [-0.10, 0.17, -0.06], this.shellMaterial);
     const rightConsole = makePanelBox([0.44, 0.18, 0.58], [0.78, -0.43, -0.68], [-0.10, -0.17, 0.06], this.shellMaterial);
     g.add(leftConsole, rightConsole);
+    this.portraitHiddenShell.push(leftConsole, rightConsole);
     for (let i = 0; i < 5; i += 1) {
       const y = -0.405 + i * 0.026;
-      g.add(makePanelBox([0.17, 0.008, 0.018], [-0.86, y, -0.925], [0, 0.17, 0], this.trimMaterial));
-      g.add(makePanelBox([0.17, 0.008, 0.018], [0.86, y, -0.925], [0, -0.17, 0], this.trimMaterial));
+      const leftStrip = makePanelBox([0.17, 0.008, 0.018], [-0.86, y, -0.925], [0, 0.17, 0], this.trimMaterial);
+      const rightStrip = makePanelBox([0.17, 0.008, 0.018], [0.86, y, -0.925], [0, -0.17, 0], this.trimMaterial);
+      g.add(leftStrip, rightStrip);
+      this.portraitHiddenShell.push(leftStrip, rightStrip);
     }
 
     // Thin canopy structure inspired by the user's wide-window reference images.
@@ -277,24 +284,32 @@ export class CockpitView {
     for (const [a, b, r] of beams) g.add(makeBeam(a, b, r, this.trimMaterial));
 
     // Small center console spine and tactile lip add physical depth without blocking the horizon.
-    g.add(makePanelBox([0.14, 0.11, 0.52], [0, -0.48, -0.52], [-0.10, 0, 0], this.trimMaterial));
+    const centerSpine = makePanelBox([0.14, 0.11, 0.52], [0, -0.48, -0.52], [-0.10, 0, 0], this.trimMaterial);
+    g.add(centerSpine);
+    this.portraitHiddenShell.push(centerSpine);
 
     // Restrained instrument illumination: emissive geometry only (no extra dynamic lights on mobile).
-    g.add(makePanelBox([1.18, 0.014, 0.018], [0, -0.318, -0.905], [0, 0, 0], this.glowStripMaterial));
-    g.add(makePanelBox([0.28, 0.010, 0.018], [-0.82, -0.355, -0.845], [0, 0.17, 0], this.utilityGlowMaterial));
-    g.add(makePanelBox([0.28, 0.010, 0.018], [0.82, -0.355, -0.845], [0, -0.17, 0], this.utilityGlowMaterial));
+    const dashGlow = makePanelBox([1.18, 0.014, 0.018], [0, -0.318, -0.905], [0, 0, 0], this.glowStripMaterial);
+    const leftUtilityGlow = makePanelBox([0.28, 0.010, 0.018], [-0.82, -0.355, -0.845], [0, 0.17, 0], this.utilityGlowMaterial);
+    const rightUtilityGlow = makePanelBox([0.28, 0.010, 0.018], [0.82, -0.355, -0.845], [0, -0.17, 0], this.utilityGlowMaterial);
+    g.add(dashGlow, leftUtilityGlow, rightUtilityGlow);
+    this.portraitHiddenShell.push(dashGlow, leftUtilityGlow, rightUtilityGlow);
 
     // Compact glare shield remains behind the MFD faces so it no longer visually slices through them.
-    g.add(makePanelBox([1.24, 0.040, 0.12], [0, -0.250, -0.985], [-0.14, 0, 0], this.shellMaterial));
+    const glareShield = makePanelBox([1.24, 0.040, 0.12], [0, -0.250, -0.985], [-0.14, 0, 0], this.shellMaterial);
+    g.add(glareShield);
+    this.portraitHiddenShell.push(glareShield);
 
     // Right-side engineering display mount. The actual live pane sits slightly inboard of this
     // physical rail so it reads as a ship-installed holo/MFD rather than a windshield HUD card.
-    g.add(makePanelBox([0.056, 0.55, 0.10], [0.940, 0.150, -0.735], [0, -0.26, -0.015], this.shellMaterial));
-    g.add(makePanelBox([0.022, 0.53, 0.110], [0.912, 0.150, -0.765], [0, -0.26, -0.015], this.trimMaterial));
+    const diagnosticsMount = makePanelBox([0.056, 0.55, 0.10], [0.940, 0.150, -0.735], [0, -0.26, -0.015], this.shellMaterial);
+    const diagnosticsRail = makePanelBox([0.022, 0.53, 0.110], [0.912, 0.150, -0.765], [0, -0.26, -0.015], this.trimMaterial);
     // Keep the cyan projector rail just outside the screen edge so it reads as
     // a mount instead of masking the right side of the diagnostics glass.
-    g.add(makePanelBox([0.010, 0.47, 0.018], [0.896, 0.150, -0.790], [0, -0.26, -0.015], this.glowStripMaterial));
-    g.add(makeBeam([0.86, -0.12, -0.79], [0.76, -0.31, -0.88], 0.012, this.trimMaterial));
+    const diagnosticsGlow = makePanelBox([0.010, 0.47, 0.018], [0.896, 0.150, -0.790], [0, -0.26, -0.015], this.glowStripMaterial);
+    const diagnosticsBrace = makeBeam([0.86, -0.12, -0.79], [0.76, -0.31, -0.88], 0.012, this.trimMaterial);
+    g.add(diagnosticsMount, diagnosticsRail, diagnosticsGlow, diagnosticsBrace);
+    this.portraitHiddenShell.push(diagnosticsMount, diagnosticsRail, diagnosticsGlow, diagnosticsBrace);
   }
 
   addScreen({ id, title, position, rotation, width, height, action, accent, bufferWidth = 448, bufferHeight = 280, holographic = false, bezelPadding = 0.038, bezelDepth = 0.026 }) {
@@ -312,7 +327,11 @@ export class CockpitView {
     screen.renderOrder = 4500;
     this.group.add(screen);
     this.interactives.push(screen);
-    this.screenEntries.set(id, { ...buffer, screen, title, accent });
+    this.screenEntries.set(id, {
+      ...buffer, screen, bezel, title, accent,
+      basePosition: [...position],
+      baseRotation: [...rotation],
+    });
     return screen;
   }
 
@@ -409,6 +428,39 @@ export class CockpitView {
     }
   }
 
+  applyScreenTransform(entry, position, rotation, scale = 1) {
+    if (!entry) return;
+    entry.screen.position.set(...position);
+    entry.screen.rotation.set(...rotation);
+    entry.screen.scale.setScalar(scale);
+    entry.bezel.position.set(position[0], position[1], position[2] - 0.018);
+    entry.bezel.rotation.set(...rotation);
+    entry.bezel.scale.setScalar(scale);
+  }
+
+  setViewport(width, height) {
+    const portrait = Number.isFinite(width) && Number.isFinite(height) && height > width;
+    const nextMode = portrait ? 'portrait' : 'landscape';
+    if (nextMode === this.viewportMode) return;
+    this.viewportMode = nextMode;
+
+    for (const object of this.portraitHiddenShell) object.visible = !portrait;
+    for (const [id, entry] of this.screenEntries) {
+      const visible = !portrait || id === 'flight';
+      entry.screen.visible = visible;
+      entry.bezel.visible = visible;
+      if (portrait && id === 'flight') {
+        // Narrow-view compact flight deck: one readable central instrument instead of
+        // squeezing four landscape MFDs into a portrait viewport.
+        this.applyScreenTransform(entry, [0, -0.145, -1.12], [-0.055, 0, 0], 0.94);
+      } else {
+        this.applyScreenTransform(entry, entry.basePosition, entry.baseRotation, 1);
+      }
+    }
+    for (const entry of this.buttonEntries.values()) entry.group.visible = !portrait;
+    for (const entry of this.statusLights.values()) entry.lamp.visible = !portrait;
+  }
+
   setVisible(visible) { this.group.visible = Boolean(visible); }
 
   update(telemetry = {}, now = performance.now()) {
@@ -499,6 +551,13 @@ export class CockpitView {
     raycaster.setFromCamera(pointer, this.camera);
     const hits = raycaster.intersectObjects(this.interactives, true);
     for (const hit of hits) {
+      let visibilityNode = hit.object;
+      let visible = true;
+      while (visibilityNode && visibilityNode !== this.group.parent) {
+        if (visibilityNode.visible === false) { visible = false; break; }
+        visibilityNode = visibilityNode.parent;
+      }
+      if (!visible) continue;
       let node = hit.object;
       while (node && node !== this.group.parent) {
         if (node.userData?.cockpitAction) {

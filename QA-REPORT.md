@@ -1,248 +1,63 @@
-# Universe Lab v0.1.5.1 — Multi-World Surface Architecture QA Report
+# Universe Lab v0.1.5.1.1 — Portrait Flight UX & Responsive Cockpit Hotfix QA Report
 
-## Release identity
-- Version: **0.1.5.1**
-- Build marker: **SURFARCH-151**
+- Version: **v0.1.5.1.1**
+- Build marker: **PORTRAIT-1511**
+- Baseline: **v0.1.5.1 / SURFARCH-151**
 - Save schema: **1 (unchanged)**
 - Three.js: **0.185.0 (unchanged)**
-- Baseline: exact v0.1.5.0 `ENVSCI-150` release
-
-## Scope
-This release generalizes the accepted surface stack around read-only canonical environment/profile records without widening landing access indiscriminately. The existing detailed atmospheric home world remains the regression baseline. At most one deterministic qualifying airless rocky moon per generated system is enabled as a proof surface; `ORIGIN-001` selects **Caelum-4361 f-A / moon-5-1**. Other solid bodies remain profile-classified but landing-disabled.
-
-The airless proof profile uses deterministic regolith/crater terrain, a black vacuum sky, no atmospheric fog/clouds/wind/weather scheduling, no anomaly sites, and conventional geology POIs while retaining canonical rotating-surface astronomy, phases/eclipses, save/load and landing lifecycle.
-
-## Moon takeoff safety
-The legacy home-world 5-radius takeoff path is unchanged. A small moon can have a 5-radius point outside its conservative Hill region, so enabled moon surfaces reuse the existing Hill-screened circular-orbit insertion planner. The planning radial direction is reconstructed from the active surface session's **current rotated body-fixed landing anchor** at the current simulation epoch, preventing a stale pre-landing inertial spacecraft coordinate from selecting the takeoff plane.
-
-For `ORIGIN-001` f-A, the current planner resolves an orbit about **48.32 km** above the surface with conservative Hill radius about **3.363 Mm**.
-
-## Regression / compatibility validation
-- Final versioned worktree `npm run qa`: **PASS** — static structure **53 required files**, all JS/MJS syntax valid, **248/248 tests passing**.
-- `ORIGIN-001` home `shatterfall-basin` legacy payload, after removing only new architecture metadata, is byte-identical to v0.1.5.0: SHA-256 `c8ac739d60d0b0ab639c00b4cc135973a5287da8efc26b2bf3a95762b95753e7`.
-- Home-world deterministic weather state after 60 simulated seconds at 60 Hz is byte-identical to the v0.1.5.0 core state: SHA-256 `6c6197a3e1475e7dbf140a4e50415e4609d1ed5ca952f348029b72bc9e1017d3` after excluding the new explicit `disabled:false` field.
-- Independent **1,000-seed** v0.1.5.0 vs v0.1.5.1 orbital compatibility sweep: **17,112 bodies, zero mismatches** across identity/kind, mass/radius, parent/orbital metadata, Float64 positions/velocities and rotation metadata.
-- Independent **3,000-system** proof-surface population sweep: **2,809** systems had a qualifying airless proof moon, **191** had none, **0** selected proof moons lacked a safe circular insertion plan, and **no system enabled more than two surfaces** (home + one proof moon).
-- SHA-256 protected-source comparison: **22 protected scientific/runtime modules, zero mismatches** versus the exact v0.1.5.0 baseline. Protected modules include system generation/environment/properties/rotation/save, direct gravity, velocity-Verlet, ShipDynamics, FRAME/transit/insertion/routing, massive-pair/collision/impact hardening, celestial appearance/observer, Observation Planner, WebKit backend and landing-transition logic.
-
-## Release-package gate
-- Release-candidate ZIP integrity: **PASS**.
-- Clean-unzip `npm run qa`: **248/248 PASS** with static structure **53 required files** and all JS/MJS syntax valid.
-- Local static HTTP smoke: **15/15 HTTP 200** across the shell, versioned CSS/main/app/renderer/cockpit/HUD/map chain, new surface profile/generator/session/world modules, planetary environment, Observation Planner and `VERSION.json`.
-- `.github/workflows/*`: **absent**.
-- Extracted candidate archive: **135 files, zero byte mismatches** versus the frozen worktree.
-
-Physical iPhone Safari remains the final release gate for home-world regression, airless moon presentation, save/load, rotating-sky pause/resume and Hill-safe body-fixed-anchor moon takeoff.
-
----
-
-# Universe Lab v0.1.5.0 — Planetary Environment Model Foundation QA Report
-
-## Release identity
-- Version: **0.1.5.0**
-- Build marker: **ENVSCI-150**
-- Save schema: **1 (unchanged)**
-- Three.js: **0.185.0 (unchanged)**
-- Baseline: exact physically tested v0.1.4.9.1.1 `OBSUI-14911` release
-
-## Scope
-This release adds the canonical planetary-environment derivation/classification layer and read-only NAV/cockpit science presentation. It intentionally does **not** add generalized surfaces, new landing destinations, atmosphere rendering, climate, or chemistry.
-
-## Equation/reference validation
-Automated tests check Earth/Sun reference-scale values for stellar flux, `GM/R²` surface gravity, `sqrt(2GM/R)` escape speed, radiative-equilibrium temperature and an Earth-atmosphere mass-fraction pressure reference. Additional tests verify finite/bounded/monotonic thermal-retention behavior, deterministic/nonmutating ORIGIN environment derivation, gas-giant no-surface semantics and save compatibility.
-
-## Population validation
-Independent 3,000-system audit: **44,331 worlds**; 5,434 gas giants; 38,897 solids; 21,409 moons; 1,889 rogues. Results: 0 non-finite environment records, 0 gas/solid-surface contradictions, 0 atmosphere pressure-cap hits, 0 hot ice-rich misclassifications, and 0 home-world pressure-continuity failures. Equilibrium-temperature span ~**23.29–595.36 K**; solid pressure-proxy span **0–72.64 atm**; stellar flux span ~**0.131–34,355 W/m²**.
-
-## Protected-source boundary
-The direct Newtonian gravity solver, velocity-Verlet integrator, ShipDynamics, transit/FRAME physics, FRAME insertion/routing, collision/impact hardening, massive-pair timestep control, celestial appearance/observer geometry, planetary rotation, Observation Planner, surface generation/session/weather/landing lifecycle and WebKit backend policy are protected from this feature. Generator changes are limited to an independent environment metadata stream/calibration after orbital generation; no authoritative mass/radius/position/velocity/orbit is changed by environment derivation.
-
-## Automated worktree gate
-Final release QA is recorded below after the frozen worktree and archive-level checks complete.
-
----
-
-# Universe Lab v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix QA Report
-
-## Release identity
-- Version: **0.1.4.9.1.1**
-- Build marker: **OBSUI-14911**
-- Save schema: **1 (unchanged)**
-- Three.js: **0.185.0 (unchanged)**
-- Baseline: exact v0.1.4.9.1 `OBSPLAN-1491` release ZIP
-
-## Scope
-Presentation-only correction for physical iPhone Safari short-landscape planner overlap. Planner-local text autosizing is fixed at 100%; event cards are content-sized with explicit wrapping/line-height/minimum height; the event-results region has independent inertial vertical scrolling. Observation math and simulation authority are unchanged.
-
-## Focused regression
-`tests/observationPlannerMobileLayout.test.mjs` asserts planner-scoped WebKit text-size control, content-sized result cards, short-landscape minimum card geometry, and independent event-results scrolling.
-
----
-
-# Universe Lab v0.1.4.9.1 — Observation Planning & Astronomy Validation QA Report
-
-## Release identity
-
-- Version: **0.1.4.9.1**
-- Build marker: **OBSPLAN-1491**
-- Save schema: **1 (unchanged)**
-- Three.js: **0.185.0 (unchanged)**
-- Baseline: exact v0.1.4.9 `CELEST-149` release ZIP
-
-## Scope and authority boundary
-
-This release adds a read-only forward astronomy event planner. The planner clones the current gravity-source ephemeris and advances only that private copy with the same direct Newtonian solver and velocity-Verlet integrator used by the live simulation. It does not advance or mutate authoritative bodies, the ship, SimulationClock, save state, NAV target, FRAME state, or surface session.
-
-The selected planet/moon BODY CENTER is the default observation reference. When planning from the currently landed body, the planner can instead follow the exact saved body-fixed surface anchor and planetary rotation model, allowing predicted primary-star altitude/horizon status at the player's current site.
-
-The search uses a **300 s coarse sample ceiling** and locally re-integrates candidate angular-separation minima to about **10 s** resolution. Stellar transit/eclipse coverage reuses the same finite apparent-disk geometry as `celestialAppearance.js`. Search work is chunked across animation frames on the UI path and has an explicit numerical-work budget: physically stiff close-pair systems report **BUDGET LIMITED** instead of silently reducing requested numerical resolution.
-
-Important limits: the planner predicts from the current epoch and does not predict future pilot maneuvers; it does not replay future collision/fragmentation resolution in the cloned ephemeris; and event timing becomes stale if the live simulation advances materially after the search, in which case the UI warns that the search should be rerun.
-
-## Observation-planner validation
-
-- Dedicated planner unit/static tests cover cloned-state isolation, finite stellar-transit detection, incremental progress, exact landed-site reference/horizon metadata, explicit numerical-budget limiting, NAV/surface UI wiring and scientific limitation copy.
-- Independent **40-seed × 7-day** generated-system sweep: zero planner errors, zero non-finite event geometry, zero out-of-range eclipse fractions, and byte-identical authoritative position/velocity arrays before vs after every search. **238** reportable stellar alignments were found; slowest search in this server environment was ~**94.3 ms**.
-- Fresh `ORIGIN-001` **180-day** body-center search: COMPLETE, **51,840** coarse propagation steps + **14,880** refinement steps, **12** retained events, ~**1.37 s** in this server environment. This is not an iPhone benchmark; mobile execution is animation-frame chunked.
-- The planner's event cards can promote the event body to the existing NAV target, but this is ordinary UI target selection only; no body or spacecraft is moved.
-
-## Protected-source comparison
-
-A SHA-256 comparison against the exact v0.1.4.9 baseline found **0 mismatches across all 54 pre-existing source files outside the intentionally changed app/UI/cache/planner surface**. Protected code includes direct gravity, velocity-Verlet, system generation, planetary properties/rotation/save compatibility, celestial appearance/observer math, ShipDynamics, FRAME arrival/routing, impact hardening, system navigation/map math, surface world/session/weather, landing transition and backend policy.
-
-## Automated worktree gate
-
-Frozen-worktree `npm run qa`: **PASS** — static structure **51 required files**, all JS/MJS syntax valid, **226/226** Node tests passing.
-
-Release-candidate archive verification: ZIP integrity **PASS**; clean-unzip `npm run qa` **226/226 PASS**; direct repo-root layout **PASS**; local static HTTP smoke **14/14 HTTP 200** across the shell, versioned CSS/main/app/renderer/cockpit/HUD/map chain, observation planner, celestial appearance/observer, system generator, direct gravity module, and `VERSION.json`; `.github/workflows/*` absent; extracted archive **byte-for-byte matches** the frozen 129-file worktree.
-
-The final archive is rebuilt from this same frozen tree after recording these results, then archive integrity, clean-unzip QA, HTTP smoke and tree identity are repeated before handoff.
-
-# Universe Lab v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry QA Report
-
-## Release identity
-
-- Version: **0.1.4.9**
-- Build marker: **CELEST-149**
-- Save schema: **1 (unchanged)**
-- Three.js: **0.185.0 (unchanged)**
-- Baseline: exact v0.1.4.8.2 `IMPNUM-1482` release ZIP
-
-## Scope and model boundary
-
-This release adds a read-only celestial-appearance layer on top of the accepted authoritative N-body/observer state. It does not modify direct Newtonian gravity, velocity-Verlet, generated-system physical consistency, planetary rotation, save compatibility, impact/collision hardening, NAV/FRAME, surface session/weather/landing lifecycle, or the iPhone/iPad forced-WebGL2 backend.
-
-Implemented appearance work includes physical apparent angular size; star-target-observer phase angle and illuminated fraction; finite apparent-disk overlap; observer-side stellar occultation; body-center stellar visibility/shadow; removal of planet/moon self-emission/readability shells in space; angularly correct surface star/planet/moon disks; phase-shaded surface spheres; stellar-cover attenuation of direct surface light/daylight presentation; NAV/scanner/surface diagnostics; and a fix for cumulative surface background/fog darkening.
-
-The appearance geometry is physical for the current spherical-body model, but brightness is not claimed as calibrated photometry. Space star light remains exposure-normalized, the surface phase sphere uses a Lambertian vertex proxy, body shadow is evaluated at the body center, and only the dominant single foreground occulter is applied. Atmospheric scattering/refraction and multi-occulter disk-union geometry remain future work.
-
-## Independent numerical / performance checks
-
-- **200,000 randomized appearance samples:** zero non-finite or out-of-range apparent angular radii, phase angles, illuminated fractions or finite-disk covered fractions.
-- Canonical analytic tests cover full/quarter/new phase endpoints and none/partial/interior/total finite-disk cases, including the requirement that an occulter be physically foreground of the background disk.
-- `ORIGIN-001` integration tests require every generated major body appearance record to remain finite/bounded and verify appearance refresh reuses observation records without mutating authoritative body position/velocity arrays.
-- Server-side observer/appearance microbenchmark: 12,000 `ORIGIN-001` ship-observer/body-update calls over simulated 60 Hz input with 19 major bodies completed in about **350.8 ms total / 0.029 ms per call** in this environment. This is an engineering measurement only, not an iPhone FPS guarantee.
-- Surface static regression verifies daylight/fog colors derive from immutable base colors rather than compounding frame-over-frame darkness.
-
-## Protected-source comparison
-
-The following v0.1.4.8.2 modules are byte-for-byte unchanged: core constants; system generation; planetary properties; planetary rotation; generated-body compatibility; save system; direct Newtonian gravity; velocity-Verlet; ShipDynamics; transit/FRAME core; FRAME orbit insertion; FRAME guard routing; system navigation; massive-pair timestep control; collision monitor; impact model/resolver; surface generator/session/weather; landing transition; and renderer backend policy.
-
-## Automated release gate
-
-Frozen-worktree `npm run qa`: **PASS** — static structure **50 required files**, all JS/MJS syntax valid, **219/219** Node tests passing.
-
-Release-candidate package verification: ZIP integrity **PASS**; clean-unzip `npm run qa` **219/219 PASS**; local static HTTP smoke **14/14 HTTP 200** across shell, versioned CSS/main/app/renderer/cockpit/HUD/map, astronomical observer, new celestial-appearance module, celestial factory, surface renderer, gravity module and `VERSION.json`; `.github/workflows/*` absent; extracted archive byte-for-byte matches the frozen worktree. The final archive is rebuilt from the same frozen tree after recording this report and these checks are repeated before handoff.
-
-Physical iPhone Safari/WebKit remains the final presentation/performance gate.
-
----
-
-# Universe Lab v0.1.4.8.2 — Impact & Numerical Hardening QA Report
-
-## Release identity
-
-- Version: **0.1.4.8.2**
-- Build marker: **IMPNUM-1482**
-- Save schema: **1 (unchanged)**
-- Three.js: **0.185.0 (unchanged)**
-- Baseline: exact v0.1.4.8.1 `SCICONS-1481` release ZIP
+- iPhone/iPad WebKit policy: **forced WebGL2 (unchanged)**
 
 ## Scope
 
-This release addresses impact/collision correctness and numerical/performance hardening findings from the full v0.1.4.8 audit. The audited direct pairwise Newtonian gravity law and velocity-Verlet major-body integrator remain unchanged. v0.1.4.8.1 generator/rotation/save compatibility, v0.1.4.8 NAV/FRAME, surface astronomy/landing, and the iPhone/iPad forced-WebGL2 backend remain protected.
+Presentation-only narrow-viewport cockpit hotfix. Portrait ship view keeps the canopy and one central FLIGHT MFD, hides wide-layout side MFDs/diagnostics mount/physical key row, adds direct NAV/FLIGHT/SCI/SYS shortcuts through existing app actions, and recomposes mobile controls around safe areas. Landscape restores the accepted v0.1.5.1 cockpit transforms.
 
-Implemented hardening:
+No changes are intended to gravity, integration, system generation, planetary environment science, FRAME physics/routing/insertion, celestial appearance/eclipses, observation planning, collision/impact behavior, landing/surface generation/weather, save schema, or WebKit backend policy.
 
-- reusable flat previous-state collision snapshots;
-- first swept finite-radius contact root with interpolated contact position/velocity;
-- gas-world material normalization and no rocky crater estimate for gas giants;
-- COM-frame representative fragmentation with target recoil, 3-D represented momentum conservation, and a bounded ejecta/recoil energy budget;
-- mandatory black-hole collision sink with mass/momentum accretion and Schwarzschild-radius refresh;
-- dynamically re-evaluated close massive-pair timestep ceiling;
-- bounded fine-step minor-field cadence and source scratch reuse;
-- one-way test-particle trajectory prediction with local/pair adaptive steps, reusable scratch, bounded work, and explicit `accuracyLimited` telemetry;
-- numerical circular-CR3BP roots for L1/L2/L3, including comparable-mass binaries.
+## Automated QA
 
-## Independent numerical validation performed during development
+- Final versioned worktree `npm run qa`: **PASS**.
+- Static structure: **53 required files PASS**.
+- All JS/MJS syntax: **PASS**.
+- Node tests: **253/253 PASS** (248 retained + 5 portrait-layout regressions).
+- Portrait regressions verify:
+  - renderer forwards current viewport dimensions to `CockpitView`;
+  - portrait keeps only the central FLIGHT MFD while landscape restores stored accepted transforms;
+  - hidden MFD/key geometry cannot remain invisible ray-pick targets;
+  - NAV/FLIGHT/SCI/SYS portrait shortcuts dispatch existing cockpit actions;
+  - portrait-only CSS recomposes controls while landscape media rules remain separate.
 
-A randomized 2,000-impact stress check of fragment-resolution cases found represented mass conservation to about **2.2e-16 relative**, 3-D linear momentum conservation to about **4.0e-16 normalized relative**, and no represented ejecta/recoil kinetic-energy budget overrun beyond floating-point roundoff (worst ratio about **1.0000000000000002**).
+## Baseline-protection audit
 
-A 500-generated-system timestep sweep left every ordinary generated system at the existing **300 s** major-body ceiling. A deliberately close pair of 1.55-solar-mass magnetars separated by 120,000 km reduced the pairwise ceiling to about **5.18 s**, demonstrating that the new limiter activates on pathological close LAB encounters without penalizing normal generated systems.
+Compared exact v0.1.5.1 archive against the v0.1.5.1.1 worktree:
 
-A server-side ORIGIN benchmark with roughly 4,000 minor test particles and 19 major sources over 120 calls at 1/60 simulation-second input measured an average of roughly **5.14 ms/call** on the old always-step path versus **1.77 ms/call** with the bounded 30 Hz fine-step cadence (60 actual particle updates). This is an environment-specific engineering benchmark, not an iPhone FPS guarantee.
+- **120 protected baseline files checked, 0 mismatches** outside the explicit hotfix allowlist.
+- **57 protected source JS modules checked, 0 mismatches** outside `src/main.js`, `src/app/app.js`, `src/render/threeRenderer.js`, and `src/render/cockpitView.js`.
+- `src/app/app.js` changes are limited to cache tags, startup/build text, and four portrait shortcut event bindings.
+- `src/render/threeRenderer.js` changes are limited to the cockpit cache tag and forwarding viewport width/height after camera/renderer resize.
+- Existing landscape MFD coordinates remain the accepted v0.1.5.1 literals and are restored by `basePosition`/`baseRotation`.
+- Existing CSS rules are retained; v0.1.5.1.1 portrait rules are appended as orientation-specific overrides.
 
-Analytic swept-contact spot checks and permanent automated tests verify the first root is used rather than closest approach. Comparable-mass CR3BP regression verifies equal-primary normalized roots `L1 = 0`, `L2 ≈ +1.19840614455492`, and `L3 ≈ -1.19840614455492`.
+## Physical iPhone gate
 
-## Numerical-model boundaries
+Automated tests do **not** claim physical Safari visual acceptance. On-device acceptance should verify:
 
-- Contact state is interpolated assuming linear relative motion inside one completed global substep. The post-contact remainder is drifted ballistically; it is **not** a full event-driven N-body re-integration.
-- Fragmentation is a bounded representative-body heuristic, not material hydrodynamics/strength/fracture/vaporization physics.
-- Black-hole absorption is a Newtonian sink treatment with Schwarzschild-radius bookkeeping, not general relativity.
-- Massive-pair adaptive stepping improves Newtonian resolution but does not make compact-object close encounters relativistically valid.
-- Trajectory prediction is deliberately CPU-bounded; `accuracyLimited` means the requested horizon cannot honor the preferred numerical step within its work budget.
-- Lagrange overlays remain instantaneous circular restricted-three-body diagnostics, not full N-body equilibrium solutions.
+1. Landscape four-MFD cockpit is unchanged.
+2. Rotate to portrait during live flight: one readable central FLIGHT MFD, no cropped side MFDs/diagnostics/key row, sky remains dominant.
+3. NAV / FLIGHT / SCI / SYS shortcuts open the correct existing drawers.
+4. LOOK and THRUST/REV/BRAKE do not overlap the six-button bottom bar or browser safe area.
+5. Portrait → landscape → portrait does not reset target, attitude, throttle/controls, FRAME, sim time, or save state.
+6. Home-world and Caelum-4361 f-A landing/takeoff still behave exactly as v0.1.5.1.
 
-## Automated release gate
+## Packaging
 
-Release-candidate verification from the frozen v0.1.4.8.2 worktree:
+Final archive verification is recorded after the frozen worktree is zipped and clean-extracted.
 
-- `npm run qa`: **PASS** — static structure **49 required files**, all JS/MJS syntax valid, **206/206** Node tests passing;
-- ZIP integrity (`unzip -t`): **PASS**;
-- clean-unzip `npm run qa`: **PASS**, **206/206**;
-- local static HTTP smoke from the extracted archive: **14/14 HTTP 200** for the shell, versioned CSS/main/app/renderer/HUD/map/cockpit chain, collision/impact modules, new massive-pair step control, trajectory predictor, and `VERSION.json`;
-- `.github/workflows/*`: **absent**;
-- release archive is repo-root ready (no wrapper directory).
+## Release-candidate archive verification
 
-The final archive is rebuilt from this same frozen tree after recording this report, then the clean-unzip QA, HTTP smoke, archive integrity, workflow absence, and byte-for-byte tree comparison are repeated before handoff.
+- RC ZIP integrity: **PASS** (`unzip -t`).
+- Clean-unzip `npm run qa`: **253/253 PASS**; static structure 53 required files; all JS/MJS syntax valid.
+- Local HTTP shell/module smoke: **15/15 returned 200**.
+- `.github/workflows/*`: **0 files**.
+- Clean-extracted archive vs frozen worktree: **136 files, byte-for-byte identical**.
 
-Physical iPhone Safari/WebKit remains the final presentation/performance gate.
-
-## v0.1.4.9.1.1 automated gate
-
-- Frozen worktree `npm run qa`: **PASS** — static structure **51 required files**, all JS/MJS syntax valid, **228/228** Node tests passing.
-- Baseline diff against exact v0.1.4.9.1: 15 changed/new files, limited to planner CSS, one focused layout regression test, release/cache identity strings, and release documentation. No planner numerical code or protected scientific/physics module changed.
-- Physical release gate remains iPhone Safari short-landscape: event cards must stack without text/border overlap and the result region must scroll independently.
-
-## Final package verification
-
-- Release ZIP integrity: **PASS** (`unzip -t`).
-- Clean-unzip `npm run qa`: **PASS — 228/228 tests**.
-- Extracted archive file tree: **130 files**, byte-for-byte identical to the frozen worktree before final QA-report recording.
-- Static HTTP smoke: **14/14** shell/versioned module/science-module paths returned HTTP 200.
-- No `.github/workflows/*` files.
-
-## v0.1.5.0 frozen-worktree verification
-
-- `npm run qa`: **238/238 PASS**; static structure **52 required files**; all JS/MJS syntax valid.
-- Independent 3,000-system environment sweep: **44,331 worlds**; zero invalid environment records, gas/solid-surface contradictions, pressure-cap hits, hot ice-rich classifications, or home-pressure continuity failures.
-- 1,000-seed baseline/current orbital-compatibility comparison: **17,580 bodies, 0 mismatches** across id/kind/mass/radius/parent/orbital fields, Float64 position/velocity state and rotation metadata. The new environment RNG/metadata therefore does not perturb the accepted initial N-body systems.
-- SHA-256 comparison across **23 protected pre-existing scientific/runtime modules: 0 mismatches**. This includes gravity, velocity-Verlet, ShipDynamics, FRAME transit/insertion/routing, massive-pair step control, collision/impact hardening, celestial appearance/observer geometry, planetary properties/rotation, Observation Planner, save engine, surface renderer/generator/session/weather/landing, and WebKit backend policy.
-
-Archive-level verification is performed on a clean extraction before handoff.
-
-## v0.1.5.0 release-candidate archive verification
-
-The repo-root release-candidate ZIP passed `unzip -t`; a clean extraction passed `npm run qa` with **238/238 tests**, static structure **52 required files**, and all JS/MJS syntax valid. Local static HTTP smoke returned **15/15 HTTP 200** for the shell, v150 CSS/main/app/renderer/cockpit/HUD/System Map chain, the new planetary-environment module, Observation Planner, celestial appearance/observer, system generator, direct gravity module and `VERSION.json`. `.github/workflows/*` is absent, and the extracted **133-file** archive matched the frozen worktree byte-for-byte.
-
-The final handoff archive is rebuilt from this same frozen tree after recording this evidence, then the archive-level checks are repeated without further source edits.
+The final handoff archive is rebuilt from this frozen worktree and rechecked independently below.

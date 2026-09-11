@@ -10,7 +10,7 @@ import { computeObservationCameraPose } from './observationCamera.js';
 import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPerception.js';
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
-import { CockpitView } from './cockpitView.js?v=151';
+import { CockpitView } from './cockpitView.js?v=1511';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
@@ -159,6 +159,7 @@ export class UniverseRenderer {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
+    this.cockpitView?.setViewport(width, height);
     this.surfaceWorld?.resize(width, height);
   }
 
