@@ -1,3 +1,32 @@
+# Universe Lab v0.1.5.4.2 — Stellar Irradiance / Daylight iPhone Gate
+
+Before physical acceptance of `IRRAD-1542`:
+
+1. Hard reload and confirm **v0.1.5.4.2 / IRRAD-1542 / WebGL2 iOS**.
+2. FRAME or navigate between an inner, roughly Earth-flux and outer planet/moon. Confirm reflected disks retain their existing texture/terminator detail but outer worlds are visibly dimmer and inner worlds brighter without turning into flat white walls.
+3. Observe a body during an eclipse/occultation if convenient; confirm eclipse darkening still multiplies the new distance/luminosity illumination rather than disappearing.
+4. Land on two enabled worlds at meaningfully different stellar flux when available. Confirm direct sun and diffuse daylight differ coherently while atmospheric/vacuum sky behavior remains unchanged.
+5. LAND → SAVE/LOAD → TAKEOFF and repeat once. Confirm no stale surface frame, stuck controls, renderer/backend change or version/cache mismatch.
+6. Regress cockpit readability, target/scan, FRAME, system map, Observation Planner, surface WALK/LOOK/SCAN and portrait/landscape rotation.
+
+Automated QA cannot physically certify iPhone Safari rendering. This build remains pending physical acceptance until those checks are performed.
+
+---
+
+# Universe Lab v0.1.5.4.1 — Planet/Moon Realism iPhone Gate
+
+Before physical acceptance of `PLANETREAL-1541`:
+
+1. Hard reload and confirm **v0.1.5.4.1 / PLANETREAL-1541 / WebGL2 iOS**.
+2. Revisit a very low rocky/moon orbit where v0.1.5.4 could become a pale flat wall. Confirm local relief/roughness remains visible as the disk fills the screen and no severe one-time hitch occurs when close detail first becomes resident.
+3. Compare a previously good-looking mid-range body; it should retain its v0.1.5.4 identity rather than being replaced by a new global style.
+4. Check h-A or another ice-rich body for fractured/icy close lighting without atmospheric leakage.
+5. Check a gas giant; banding/oblateness should remain stable and it should not receive rocky micro-relief.
+6. LAB black hole: confirm the disk reads more continuously beneath the plasma particles while the shadow/critical rings remain stable. This is still not GR ray tracing.
+7. Regress d/e atmosphere limbs, f-A/h-A vacuum behavior, portrait/landscape, WALK release, LAND/SAVE/LOAD/TAKEOFF, FRAME and Observation Planner.
+
+---
+
 # Universe Lab v0.1.5.4 — Celestial Realism iPhone Gate
 
 Before physically accepting `CELESTREAL-154` on iPhone Safari/WebKit:

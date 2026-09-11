@@ -1,3 +1,23 @@
+# v0.1.5.4.2 scientific boundary notes — stellar irradiance & displayed daylight
+
+- Physical stellar irradiance is still `L / (4πr²)` through the existing `stellarFluxWm2()` helper and modeled stellar luminosity. At 1 AU from a 1 L☉ star the reference remains ~1361.17 W/m².
+- Orbital reflected-body brightness and surface daylight now respond to live stellar distance/luminosity rather than a fixed visual intensity alone. Existing eclipse visibility continues to attenuate the result independently.
+- Renderer brightness is **not** a calibrated radiance measurement. Universe Lab maps physical `S⊕` to display gain with `sqrt(S⊕)` plus extreme safety bounds. This is an HDR/display transform only; the scientific flux value is not modified.
+- Surface atmospheric optics still solve their existing Rayleigh/aerosol/transmission proxies. Irradiance scaling is applied after that optical state is derived, so it does not invent pressure, composition, greenhouse physics or climate.
+- No global illumination, multiple-bounce lighting, BRDF/mineral-specific reflectance, spectral radiometry, atmospheric multiple scattering or detector response is claimed.
+
+---
+
+# v0.1.5.4.1 scientific boundary notes — close celestial materials
+
+The new close-orbit planet/moon layer is a **deterministic geological appearance proxy**, not a global topography or mineralogy model. It supplies bounded small/mesoscale normal and roughness variation from the already-classified rock/ice/volatile visual family. Physical radius, gravity, body-fixed coordinates, atmosphere, collision geometry and landing terrain are unchanged.
+
+The stronger large-disk exposure response is camera presentation only and does not alter photometric/scientific values.
+
+The black-hole continuous disk is a rendering improvement using the existing GR-informed Schwarzschild scale ratios and first-order Doppler asymmetry. Background photons are still not traced along null geodesics, black-hole spin/frame dragging is not solved, and the accretion flow is not GRMHD.
+
+---
+
 # v0.1.5.4 scientific boundary notes — celestial appearance
 
 This release improves visual realism without changing the authoritative physics state. Planet/moon albedo/relief is deterministic procedural presentation derived from canonical environment class/albedo/ice potential; it is **not** a solved global geology/mineralogy/topography model. Rotational flattening is a bounded first-order hydrostatic visual proxy.

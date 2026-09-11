@@ -1,3 +1,23 @@
+# v0.1.5.4.2 architecture delta — stellar irradiance presentation bridge
+
+`src/render/stellarIrradiance.js` is a read-only presentation adapter. It imports the existing canonical `stellarFluxWm2()` equation rather than defining a second irradiance law. Inputs are modeled stellar luminosity plus live star-observer/body distance; outputs are physical flux, `S⊕`, and a bounded display gain. It owns no simulation state and writes no body/environment fields.
+
+Orbital reflected-body rendering calls `stellarIrradianceForBody()` from `updateCelestialVisual()`. The existing scene light still provides the star-facing geometric terminator; the irradiance gain modulates reflected-light amplitude before tone mapping and is multiplied by the existing finite-disk eclipse visibility. Surface rendering calls the same bridge with the canonical astronomical observer's live star range and scales both the direct `DirectionalLight` and diffuse `HemisphereLight` after atmospheric optics are solved.
+
+The exact physical flux remains linear inverse-square radiometry. `displayGain = sqrt(S⊕)` is an explicit HDR presentation transform with only extreme safety bounds. This avoids forcing a phone display to span the full astrophysical dynamic range while preserving monotonic brightness ordering. Per-frame call sites reuse the previous output record to avoid avoidable GC pressure.
+
+No ownership boundary changes: `UniverseLabApp`/physics remain authoritative; render code remains read-only; save schema stays 1; forced-WebGL2 iPhone/iPad policy stays intact.
+
+---
+
+# v0.1.5.4.1 architecture delta — close-orbit material polish
+
+The v0.1.5.4 global albedo/bump map remains the authoritative *rendering identity* for medium distance. `applyPlanetaryPerceptualProfile()` now adds a second lazy close-only detail tier once apparent angular radius reaches 0.030 rad. `makePlanetaryCloseDetailMaps()` creates a small deterministic tileable normal/roughness pair from body/environment visual profile data; it does not mutate body/environment state and is disposed with the celestial material.
+
+This deliberately avoids giant 2K/4K procedural global textures on iPhone Safari. Detail density is increased through texture repeat as the body grows in the camera while memory remains bounded. `threeRenderer.js` also applies a bounded large-disk exposure response after camera placement. Compact-object polish is isolated to the render factory: a continuous accretion-flow texture sits under the pre-existing black-hole particle field.
+
+---
+
 # v0.1.5.4 architecture delta — celestial rendering only
 
 `src/render/celestialRealism.js` is a pure read-only presentation model. It consumes authoritative body/environment metadata and returns bounded visual profiles; it never mutates mass, radius, position, velocity, rotation metadata, environment state, landing state or saves. `celestialFactory.js` owns the generated material/compact-object geometry, while `threeRenderer.js` applies apparent-size LOD and exposure after camera placement. Near-orbit textures are lazy so iPhone Safari does not allocate detailed maps for every distant body at startup.

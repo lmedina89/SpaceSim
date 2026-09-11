@@ -1,3 +1,27 @@
+## v0.1.5.4.2 — Stellar Irradiance & Daylight Realism Polish
+
+- Added pure read-only `src/render/stellarIrradiance.js`, reusing the canonical `stellarFluxWm2()` equation and the modeled stellar luminosity.
+- Orbital planets/moons now scale reflected-light amplitude from live star-body distance while retaining the accepted geometric terminator, phase/eclipsing visibility, material maps and close-orbit detail.
+- Surface direct stellar light and diffuse hemisphere daylight now consume the same live irradiance bridge in addition to atmospheric transmission/scattering.
+- Exact physical flux and `S⊕` ratio remain unchanged scientific values; display gain uses `sqrt(S⊕)` HDR compression with extreme visibility bounds rather than pretending the renderer is a radiometer.
+- Reused small irradiance result records in per-frame orbital/surface paths to avoid new result allocation churn on iPhone Safari.
+- 3,000-system / 42,888 planet+moon irradiance sweep: zero non-finite results; no generated body hit the dim floor and only one extreme inner-body sample reached the bright display ceiling.
+- No gravity, integrator, FRAME, albedo/environment physics, atmosphere solver, landing, save-schema or WebKit backend changes.
+
+---
+
+## v0.1.5.4.1 — Planet & Moon Realism Polish
+
+- Preserved v0.1.5.4 global planet/moon maps and medium-distance appearance.
+- Added lazy close-only tileable normal/roughness detail for rocky and icy bodies at apparent radius >= 0.030 rad.
+- Rocky/moon close detail emphasizes bounded crater relief; icy bodies add deterministic fractured-ice grooves; volatile-rich surfaces remain smoother.
+- Added stronger bounded close-body exposure adaptation to reduce pale-wall washout at huge apparent size.
+- Added disposal support for close normal/roughness textures.
+- Added a continuous radial-temperature/Doppler-asymmetric black-hole accretion-flow layer beneath the existing turbulent particle field.
+- No gravity, integrator, FRAME, atmosphere, surface, landing, save-schema or WebKit backend changes.
+
+---
+
 ## v0.1.5.4 — Celestial Rendering & Relativistic Object Realism
 
 - Added lazy near-orbit procedural albedo/relief maps for resolved planets and moons; distant bodies remain cheap.

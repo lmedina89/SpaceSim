@@ -7,9 +7,9 @@ test('planetary material profile separates gas, ice and rocky bodies without inv
   const gas = planetaryMaterialProfile({ kind:'planet', planetType:'gas', mass:1e27, radius:6e7, rotationPeriodSeconds:36000 }, { physicalSurfaceExists:false, bondAlbedo:.45 });
   const ice = planetaryMaterialProfile({ kind:'moon', mass:4e22, radius:1.8e6, rotationPeriodSeconds:80000 }, { physicalSurfaceExists:true, surfaceFamily:'ICE / ROCK', icePotential01:.82, bondAlbedo:.68 });
   const rock = planetaryMaterialProfile({ kind:'planet', planetType:'rocky', mass:6e24, radius:6.4e6, rotationPeriodSeconds:86400 }, { physicalSurfaceExists:true, surfaceFamily:'ROCK', bondAlbedo:.25 });
-  assert.equal(gas.id, 'gas-envelope'); assert.equal(gas.bumpScale, 0);
-  assert.equal(ice.id, 'ice-rock'); assert.ok(ice.roughness < rock.roughness);
-  assert.equal(rock.id, 'rock');
+  assert.equal(gas.id, 'gas-envelope'); assert.equal(gas.bumpScale, 0); assert.equal(gas.microReliefStrength, 0);
+  assert.equal(ice.id, 'ice-rock'); assert.ok(ice.roughness < rock.roughness); assert.ok(ice.microReliefStrength > 0);
+  assert.equal(rock.id, 'rock'); assert.ok(rock.closeDetailResolution >= 256);
 });
 
 test('rotation flattening proxy is bounded and gas giants can flatten more than rocky bodies', () => {
@@ -21,7 +21,9 @@ test('rotation flattening proxy is bounded and gas giants can flatten more than 
 
 test('near-orbit detail rises smoothly with apparent angular radius', () => {
   const far = nearOrbitDetailProfile(.002); const near = nearOrbitDetailProfile(.4); const huge = nearOrbitDetailProfile(1.1);
-  assert.ok(far.resolved < near.resolved); assert.ok(near.close < huge.close); assert.ok(huge.huge > .5);
+  assert.ok(far.resolved < near.resolved); assert.ok(far.micro < near.micro); assert.ok(near.close < huge.close); assert.ok(huge.huge > .5);
+  assert.ok(near.detailRepeatU > far.detailRepeatU); assert.ok(huge.normalStrength > near.normalStrength);
+  assert.ok(huge.exposureRelief > near.exposureRelief);
 });
 
 test('black-hole profile uses Schwarzschild shadow and non-spinning ISCO reference ratios', () => {

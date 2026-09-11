@@ -7,21 +7,21 @@ const required = [
   'src/physics/trajectoryPredictor.js','src/physics/planetaryProperties.js','src/physics/planetaryEnvironment.js','src/physics/atmosphericOptics.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/frameOrbitInsertion.js','src/physics/massivePairStepControl.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
   'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/anomalyGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
-  'src/core/astronomicalObserver.js','src/core/celestialAppearance.js','src/core/planetaryRotation.js','src/core/generatedBodyCompatibility.js','src/core/inertialStarCatalog.js','src/navigation/systemNavigation.js','src/navigation/frameGuardRoute.js','src/navigation/observationPlanner.js','src/render/starfield.js','src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/celestialRealism.js','src/render/surfaceWorld.js','src/render/cockpitView.js','src/surface/surfaceGenerator.js','src/surface/surfaceProfiles.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
+  'src/core/astronomicalObserver.js','src/core/celestialAppearance.js','src/core/planetaryRotation.js','src/core/generatedBodyCompatibility.js','src/core/inertialStarCatalog.js','src/navigation/systemNavigation.js','src/navigation/frameGuardRoute.js','src/navigation/observationPlanner.js','src/render/starfield.js','src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/celestialRealism.js','src/render/stellarIrradiance.js','src/render/surfaceWorld.js','src/render/cockpitView.js','src/surface/surfaceGenerator.js','src/surface/surfaceProfiles.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
 ];
 for (const file of required) await access(new URL(`../${file}`, import.meta.url), constants.R_OK);
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.5.4')) throw new Error('Shell version is not v0.1.5.3.');
-if (!html.includes('<div class="brand">UNIVERSE LAB <span>v0.1.5.4</span></div>')) throw new Error('Visible top-left build badge is not v0.1.5.4.');
-if (!html.includes('CELESTREAL-154')) throw new Error('CELESTREAL-154 build marker missing.');
-if (pkg.version !== '0.1.5.4') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.5.4.2')) throw new Error('Shell version is not v0.1.5.4.2.');
+if (!html.includes('<div class="brand">UNIVERSE LAB <span>v0.1.5.4.2</span></div>')) throw new Error('Visible top-left build badge is not v0.1.5.4.2.');
+if (!html.includes('IRRAD-1542')) throw new Error('IRRAD-1542 build marker missing.');
+if (pkg.version !== '0.1.5.4.2') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Flight/System control drawer missing.');
 if (!html.includes('id="engineeringPanel"') || !html.includes('id="engineeringClose"')) throw new Error('Dedicated Engineering/Diagnostics drawer missing.');
-if (!html.includes('./styles.css?v=154') || !html.includes('./src/main.js?v=154')) throw new Error('Build-version cache-busting tags missing.');
+if (!html.includes('./styles.css?v=1542') || !html.includes('./src/main.js?v=1542')) throw new Error('Build-version cache-busting tags missing.');
 if (html.includes('id="moreToggle"')) throw new Error('Redundant bottom MORE launcher must remain removed.');
 if (!html.includes('id="cockpitRestore"')) throw new Error('Cockpit restore failsafe missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -135,7 +135,7 @@ const atmosphericOptics = await readFile(new URL('../src/physics/atmosphericOpti
 for (const token of ['ATMOSPHERIC_OPTICS_MODEL_VERSION','rayleighVerticalOpticalDepthRgb','opticalAirMass','atmosphericScaleHeightMeters','solveSurfaceAtmosphericOptics','solveOrbitalAtmosphereLimb','Dry-air-like Rayleigh']) if (!atmosphericOptics.includes(token)) throw new Error(`Atmospheric optics token missing: ${token}`);
 for (const token of ['syncPlanetaryAtmosphereVisual','planetary-atmosphere-limb','THREE.BackSide']) if (!factory.includes(token)) throw new Error(`Orbital atmosphere-limb token missing: ${token}`);
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'CELESTREAL-154') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'IRRAD-1542') throw new Error('VERSION.json build marker mismatch.');
 if (!String(versionJson.atmosphericOpticsModel || '').includes('Rayleigh') || !String(versionJson.atmosphericOpticsModel || '').includes('aerosol/Mie')) throw new Error('VERSION.json atmospheric optics model boundary missing.');
 if (!String(versionJson.surfaceAtmosphericOptics || '').includes('Airless') && !String(versionJson.surfaceAtmosphericOptics || '').includes('airless')) throw new Error('VERSION.json surface atmosphere optics boundary missing.');
 if (!String(versionJson.orbitalAtmosphereLimb || '').includes('scale height')) throw new Error('VERSION.json orbital atmosphere limb capability missing.');
@@ -210,4 +210,6 @@ if (!app.includes('showRuntimeError') || !app.includes('_runtimeFaulted')) throw
 for (const key of ['nearOrbitCelestialDetail','planetaryVisualRotation','planetaryOblateness','blackHoleVisualModel','neutronStarVisualModel','celestialExposure']) if (!versionJson[key]) throw new Error(`VERSION.json celestial realism capability missing: ${key}`);
 if (!String(versionJson.blackHoleVisualModel).includes('3√3/2') || !String(versionJson.blackHoleVisualModel).includes('not geodesically ray-traced')) throw new Error('VERSION.json black-hole scientific boundary missing.');
 if (!String(versionJson.neutronStarVisualModel).includes('compactness') || !String(versionJson.neutronStarVisualModel).includes('plasma transport')) throw new Error('VERSION.json neutron-star scientific boundary missing.');
+if (!String(versionJson.planetMoonCloseMaterial || '').includes('normal/roughness') || !String(versionJson.planetMoonCloseMaterial || '').includes('topography')) throw new Error('VERSION.json planet/moon close-material boundary missing.');
+if (!String(versionJson.stellarIrradiancePresentation || '').includes('inverse-square') || !String(versionJson.stellarIrradiancePresentation || '').includes('sqrt(flux ratio)') || !String(versionJson.stellarIrradiancePresentation || '').includes('per-frame result allocation')) throw new Error('VERSION.json stellar irradiance presentation boundary missing.');
 console.log(`Static structure OK (${required.length} required files).`);

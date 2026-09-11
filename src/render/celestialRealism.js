@@ -52,6 +52,13 @@ export function planetaryMaterialProfile(body, environment = null) {
     bumpScale: gas ? 0 : rocky ? 0.020 + (1 - albedo) * 0.018 : 0.012,
     textureWidth: body?.kind === 'moon' ? 512 : 768,
     textureHeight: body?.kind === 'moon' ? 256 : 384,
+    // Close-orbit material detail is deliberately separate from the global map. The global
+    // map preserves large-scale identity while a small tileable normal/roughness map supplies
+    // local geological scale once the disk occupies enough of the camera.
+    closeDetailResolution: body?.kind === 'moon' ? 256 : 320,
+    microReliefStrength: gas ? 0 : ice > 0.48 ? 0.34 : oceanic ? 0.24 : desert ? 0.42 : 0.46,
+    microRoughnessStrength: gas ? 0 : ice > 0.48 ? 0.22 : oceanic ? 0.12 : 0.26,
+    visualReliefFraction: gas ? 0 : body?.kind === 'moon' ? (ice > 0.48 ? 0.0018 : 0.0032) : (ice > 0.48 ? 0.0009 : 0.0015),
     bandStrength: gas ? 0.72 : 0,
     hazeHint: clamp(Math.log10(1 + pressure) / 6, 0, 1),
     scientificBoundary: gas
@@ -63,15 +70,24 @@ export function planetaryMaterialProfile(body, environment = null) {
 export function nearOrbitDetailProfile(apparentRadiusRad = 0) {
   const angle = clamp(apparentRadiusRad, 0, Math.PI / 2);
   const resolved = smoothstep(0.010, 0.12, angle);
+  const micro = smoothstep(0.030, 0.20, angle);
   const close = smoothstep(0.08, 0.52, angle);
+  const extreme = smoothstep(0.24, 0.92, angle);
   const huge = smoothstep(0.42, 1.25, angle);
   return {
     apparentRadiusRad: angle,
     resolved,
+    micro,
     close,
+    extreme,
     huge,
     bumpMultiplier: 0.25 + 0.75 * resolved,
+    normalStrength: 0.10 + micro * 0.34 + extreme * 0.18,
+    detailRepeatU: 4 + micro * 10 + extreme * 10,
+    detailRepeatV: 2 + micro * 5 + extreme * 5,
+    roughnessDetail: micro * (0.55 + extreme * 0.35),
     contrastMultiplier: 0.72 + 0.28 * resolved,
+    exposureRelief: close * 0.08 + huge * 0.10,
     markerSuppression: smoothstep(0.18, 0.65, angle),
   };
 }

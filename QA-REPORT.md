@@ -1,3 +1,79 @@
+# v0.1.5.4.2 QA — Stellar Irradiance & Daylight Realism Polish
+
+## Baseline recovery
+
+- Authoritative input: `UniverseLab-v0.1.5.4.1-Planet-Moon-Realism-Polish-GitHub.zip`.
+- Baseline SHA-256: `d3ce475dafe4bc8de016635f5ef1b0afca541422d13ea05bdf093423a3d588b1`.
+- Input ZIP integrity: PASS.
+- Baseline clean-extract QA before edits: **289/289 PASS**.
+- Baseline identity: v0.1.5.4.1 / `PLANETREAL-1541` / save schema 1 / Three.js 0.185.0.
+
+## v0.1.5.4.2 worktree gate
+
+- Build identity: v0.1.5.4.2 / `IRRAD-1542`.
+- `npm run qa`: **296/296 PASS** after integration and release-identity updates.
+- New pure helper tests cover 1 L☉ / 1 AU reference flux, inverse-square physical ratios, luminosity scaling, HDR safety bounds, live body-star geometry, and reusable output records.
+- Renderer integration tests confirm orbital reflected-body and surface daylight paths consume the same read-only irradiance bridge.
+- 3,000 generated systems / **42,888 planet+moon** live-state samples: zero non-finite flux/ratio/display values; `S⊕` range about `1.068e-4` to `28.166`; display-gain range about `0.0103` to `5.0`; zero dim-floor clips and one bright-ceiling clip.
+- Protected simulation diff: **empty** for `src/core`, `src/data`, `src/physics`, `src/navigation`, `src/experiments`, `src/cosmic`, and `src/surface`.
+- Save schema remains **1**; Three.js remains **0.185.0**; forced-WebGL2 iPhone/iPad policy remains intact.
+- `.github/workflows/*`: **0 files**.
+
+## Release-candidate package verification
+
+- Repository-root archive layout: **PASS** (147 files, no enclosing project folder).
+- ZIP integrity test: **PASS**.
+- Clean-extract `npm run qa`: **296/296 PASS**.
+- Clean extracted tree matches the frozen release worktree byte-for-byte (excluding local `.git` metadata).
+- Local static HTTP smoke: **PASS** for `index.html`, `src/main.js?v=1542`, and `src/render/stellarIrradiance.js` (HTTP 200).
+- No `.github/workflows/*` files are present in the clean package.
+
+## Scientific / rendering boundary
+
+Physical stellar flux continues to use the existing canonical `stellarFluxWm2()` equation (`L / 4πr²`). `stellarIrradiance.js` exposes that exact physical flux plus `S⊕`; only the display gain uses `sqrt(S⊕)` with extreme safety bounds. Eclipse visibility, terminator geometry, atmosphere optics and authoritative body state are not replaced or mutated.
+
+Per-frame render paths reuse their irradiance output record so the new calculation does not create one result object per body per frame.
+
+## Physical release gate
+
+Automated tests cannot certify iPhone Safari/WebKit appearance. Physical acceptance should verify inner/Earth-flux/outer-world brightness ordering, retained close-orbit texture/terminator detail, eclipse darkening, landed daylight differences, cockpit readability, LAND/SAVE/LOAD/TAKEOFF, multi-touch release behavior and the `WebGL2 iOS` backend label.
+
+---
+
+# v0.1.5.4.1 QA — Planet & Moon Realism Polish
+
+## Final worktree gate
+
+- Baseline: physically tested v0.1.5.4 `CELESTREAL-154`.
+- `npm run qa`: **289/289 PASS**.
+- Static structure: **55 required files**; all JS/MJS syntax checks PASS.
+- Save schema remains **1**; Three.js remains **0.185.0**; iPhone/iPad WebKit forced-WebGL2 policy unchanged.
+- No `.github/workflows/*`.
+
+## Independent profile/state audit
+
+- 3,000 generated systems / **42,633 planet+moon profiles** checked across far/resolved/close/huge apparent-angle samples.
+- Zero invalid/non-finite close-detail profiles.
+- Maximum close-detail repeat: **24×** longitudinal; maximum normal-strength ramp **0.62**; maximum exposure-relief term **0.178955**. All are explicitly bounded presentation values.
+- Independent 1,000-seed baseline-vs-v0.1.5.4.1 universe comparison: **17,247 bodies, zero authoritative-state mismatches** across tested identity/kind, mass/radius, parent/orbit fields, Float64 position/velocity and rotation metadata.
+
+## Source protection audit
+
+- Baseline source modules: **63**.
+- **58/63 are byte-for-byte unchanged**.
+- Changed source allowlist only: `src/app/app.js`, `src/main.js`, `src/render/celestialFactory.js`, `src/render/celestialRealism.js`, `src/render/threeRenderer.js`.
+- `app.js` / `main.js` changes are build/cache/startup identity only. Functional changes are isolated to celestial rendering and render-texture disposal/exposure handling.
+- Core gravity/integrator, FRAME, collisions/impacts, atmosphere optics, planetary environment, surface generation/profiles/session/weather, landing/takeoff, saves, cockpit layout and backend policy remain unchanged.
+
+## Scientific/rendering boundary
+
+- The close planet/moon normal/roughness layer is a deterministic appearance proxy, not solved global topography/mineralogy.
+- It preserves the existing v0.1.5.4 global map and activates only at close apparent size; gas giants do not receive rocky/ice micro-relief.
+- Large-disk exposure adaptation changes camera presentation only, not canonical photometry/science.
+- Black-hole disk smoothing adds a continuous radial-temperature/Doppler-asymmetric visual layer; shadow/critical-curve/ISCO ratios remain GR-informed cues, but background rays are not geodesically traced and accretion is not GRMHD.
+
+---
+
 # v0.1.5.4 QA — Celestial Rendering & Relativistic Object Realism
 
 ## Final worktree gate

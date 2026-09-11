@@ -37,6 +37,11 @@ test('renderer keeps near-orbit maps lazy and canonical body rotation visual-onl
   const factory=await readFile(new URL('../src/render/celestialFactory.js',import.meta.url),'utf8');
   const renderer=await readFile(new URL('../src/render/threeRenderer.js',import.meta.url),'utf8');
   assert.match(factory,/apparentRadiusRad >= 0\.006/);
+  assert.match(factory,/apparentRadiusRad >= 0\.030/);
+  assert.match(factory,/makePlanetaryCloseDetailMaps/);
+  assert.match(factory,/closeOrbitDetailResident/);
+  assert.match(factory,/normalMap\.repeat\.set/);
+  assert.match(factory,/roughnessMap/);
   assert.match(factory,/planetaryTextureSource/);
   assert.match(factory,/rotationAxisInertial/);
   assert.match(factory,/rotationPeriodSeconds/);
@@ -48,9 +53,21 @@ test('renderer keeps near-orbit maps lazy and canonical body rotation visual-onl
 test('compact-object renderer uses GR-informed ratio cues but keeps explicit model limits', async () => {
   const factory=await readFile(new URL('../src/render/celestialFactory.js',import.meta.url),'utf8');
   const model=await readFile(new URL('../src/render/celestialRealism.js',import.meta.url),'utf8');
-  for (const token of ['black-hole-shadow-proxy','black-hole-critical-curve','black-hole-secondary-ring','black-hole-lensed-disk-cue','dipole-field-line','magnetar-reconnection-arc']) assert.match(factory,new RegExp(token));
+  for (const token of ['black-hole-shadow-proxy','black-hole-critical-curve','black-hole-secondary-ring','black-hole-lensed-disk-cue','black-hole-accretion-flow-continuum','dipole-field-line','magnetar-reconnection-arc']) assert.match(factory,new RegExp(token));
   assert.match(model,/3 \* Math\.sqrt\(3\) \/ 2/);
   assert.match(model,/iscoRadiusRs = 3/);
   assert.match(model,/not geodesically ray-traced/);
   assert.match(model,/plasma transport/);
+});
+
+test('close-orbit polish is rendering-only and preserves bounded perceptual ramps', async () => {
+  const model=await readFile(new URL('../src/render/celestialRealism.js',import.meta.url),'utf8');
+  const renderer=await readFile(new URL('../src/render/threeRenderer.js',import.meta.url),'utf8');
+  assert.match(model,/detailRepeatU/);
+  assert.match(model,/microReliefStrength/);
+  assert.match(model,/visualReliefFraction/);
+  assert.match(renderer,/exposureFloor/);
+  assert.match(renderer,/profile\.exposureRelief/);
+  assert.match(renderer,/disposeNormalMap/);
+  assert.match(renderer,/disposeRoughnessMap/);
 });

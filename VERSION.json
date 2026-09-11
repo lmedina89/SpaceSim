@@ -1,6 +1,6 @@
 {
-  "version": "0.1.5.4",
-  "name": "Celestial Rendering & Relativistic Object Realism",
+  "version": "0.1.5.4.2",
+  "name": "Stellar Irradiance & Daylight Realism Polish",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,7 @@
   "navigationNumerics": "adaptive ship strong-gravity substeps + adaptive massive-body pair encounter/crossing timestep ceiling + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "CELESTREAL-154",
+  "buildMarker": "IRRAD-1542",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric circular-CR3BP L1/L2/L3 numerical equilibrium roots at live separation + equilateral L4/L5 geometry + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples; overlays remain diagnostic approximations and do not alter gravity",
   "transitDrive": "explicitly fictional spacecraft-only FRAME translation with swept massive-body clearance; ordinary celestial integration remains authoritative; manual exit matches target inertial velocity and supported normal body arrivals use an exit-only circular-orbit insertion calculation",
@@ -133,10 +133,12 @@
   "orbitalAtmosphereLimb": "solid planets/moons with optically meaningful pressure may render a thin BackSide atmosphere shell whose thickness derives from hydrostatic scale height and whose opacity/color derive from a Rayleigh tangent-column proxy; trace/vacuum bodies do not receive a fake limb. The shell is presentation-only and does not alter physical body radius, collisions, landing or apparent-disk science.",
   "atmosphericOpticsBoundary": "This release does not solve atmospheric composition-specific refractivity, line absorption, multiple scattering, refraction, polarization, cloud microphysics, radiative-convective climate, greenhouse feedback, terrain shadows or full spherical radiative transfer. Radiative-equilibrium temperature and atmosphere pressure remain the canonical v1.5.0 model/proxies.",
   "surfaceHoldRelease": "iPhone/WebKit hold controls release through pointerup/pointercancel/lostpointercapture plus per-control targetTouches-aware touchend/touchcancel fallback; when all touches end or pagehide occurs, every held control is force-neutralized.",
-  "nearOrbitCelestialDetail": "resolved planets/moons lazily allocate deterministic equirectangular albedo + bump-detail maps only after apparent angular radius >= 0.006 rad; material family derives from canonical environment class/albedo/ice potential and body type. Distant bodies remain cheap and no external texture asset is required.",
+  "nearOrbitCelestialDetail": "resolved planets/moons preserve the v0.1.5.4 global albedo/bump path, then lazily add a compact repeating normal + roughness geological layer only after apparent angular radius >= 0.030 rad; rocky/moon detail emphasizes bounded crater relief, icy detail emphasizes fractured-ice relief, and distant/mid-range bodies remain unchanged and cheap.",
   "planetaryVisualRotation": "rendered planet/moon texture orientation uses canonical rotationAxisInertial, rotationPeriodSeconds, direction, epoch and phase metadata; this visual orientation does not modify authoritative body-fixed astronomy or dynamics.",
   "planetaryOblateness": "first-order bounded hydrostatic visual proxy f\u22480.72*omega^2 R^3/(GM), capped at 0.045 for solid worlds and 0.13 for gas giants; this is a presentation approximation, not an interior-structure solution.",
-  "blackHoleVisualModel": "enlarged-readability visual proxy with GR-informed Schwarzschild ratios: distant-observer shadow radius 3\u221a3/2 Rs, non-spinning ISCO 3 Rs, narrow critical/secondary ring cues, 3\u201312 Rs accretion flow, first-order Doppler brightness/color asymmetry, lensed-backside cue and optional jets. Background photons are not geodesically ray-traced and the flow is not GRMHD.",
+  "blackHoleVisualModel": "enlarged-readability visual proxy with GR-informed Schwarzschild ratios: distant-observer shadow radius 3\u221a3/2 Rs, non-spinning ISCO 3 Rs, narrow critical/secondary ring cues, a continuous radial-temperature/Doppler-asymmetric 3\u201312 Rs accretion-flow layer beneath turbulent particles, lensed-backside cue and optional jets. Background photons are not geodesically ray-traced and the flow is not GRMHD.",
   "neutronStarVisualModel": "physical mass/radius derive compactness, gravitational-redshift and light-cylinder diagnostics; visual magnetospheres use dipole-shaped field lines and pulsar/magnetar beam/reconnection cues scaled for readability. Spacetime lensing, plasma transport and radiation transfer are not solved.",
-  "celestialExposure": "existing close-star exposure adaptation is combined with a gentle apparent-size/albedo-based close-planet exposure response; HUD is unaffected and canonical photometric/scientific values are unchanged."
+  "celestialExposure": "close-star exposure adaptation remains active and close-planet exposure now adds stronger apparent-size/albedo headroom when a body dominates the camera, reducing pale-wall washout without changing canonical radiometry or HUD values.",
+  "planetMoonCloseMaterial": "close-only tileable normal/roughness material layer preserves existing global identity while adding mesoscale crater/fracture/roughness response; it is a deterministic geological appearance proxy and does not claim solved global topography or mineralogy.",
+  "stellarIrradiancePresentation": "read-only canonical stellar luminosity + live inverse-square distance flux bridge for orbital reflected-body lighting and landed direct/diffuse daylight; exact physical W/m\u00b2 and S\u2295 remain scientific values while display gain uses bounded sqrt(flux ratio) HDR compression; renderer reuses output records to avoid per-frame result allocation"
 }

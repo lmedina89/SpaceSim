@@ -11,13 +11,15 @@ import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPercep
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
 import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
-import { CockpitView } from './cockpitView.js?v=154';
+import { CockpitView } from './cockpitView.js?v=1542';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
     if (!material) return;
     if (material.userData?.disposeMap) material.map?.dispose?.();
     if (material.userData?.disposeBumpMap) material.bumpMap?.dispose?.();
+    if (material.userData?.disposeNormalMap) material.normalMap?.dispose?.();
+    if (material.userData?.disposeRoughnessMap) material.roughnessMap?.dispose?.();
     material.dispose?.();
   };
   root.traverse?.((node) => {
@@ -712,7 +714,12 @@ export class UniverseRenderer {
       if (!profile) continue;
       const albedo = Math.max(.02, Math.min(.92, Number(visual.userData?.planetaryMaterialProfile?.albedo) || .28));
       const brightnessWeight = .45 + albedo * .75;
-      exposureTarget = Math.min(exposureTarget, Math.max(.74, 1 - profile.close * .10 * brightnessWeight - profile.huge * .10 * brightnessWeight));
+      // Very large bright disks need more exposure headroom than the mid-range path or the
+      // global albedo map washes into a pale wall. This remains presentation-only and ramps
+      // smoothly with apparent size so medium-distance bodies keep the accepted v0.1.5.4 look.
+      const exposureFloor = Math.max(.60, .70 - albedo * .08);
+      const detailRelief = Number(profile.exposureRelief) || 0;
+      exposureTarget = Math.min(exposureTarget, Math.max(exposureFloor, 1 - (profile.close * .10 + profile.huge * .11 + detailRelief) * brightnessWeight));
     }
     this._planetaryExposure += (exposureTarget - this._planetaryExposure) * .10;
     this.renderer.toneMappingExposure = Math.min(this._stellarExposure, this._planetaryExposure);

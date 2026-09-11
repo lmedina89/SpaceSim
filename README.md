@@ -1,3 +1,33 @@
+# Universe Lab v0.1.5.4.2 — Stellar Irradiance & Daylight Realism Polish
+
+**Build marker:** `IRRAD-1542`  
+**Save schema:** `1`  
+**Three.js:** `0.185.0`
+
+This focused realism release closes a mismatch between the scientific environment model and the renderer. Universe Lab already derived stellar flux from modeled luminosity and live inverse-square distance, but orbital reflected-body brightness and surface daylight still behaved too much like a fixed-intensity scene light. v0.1.5.4.2 adds one read-only irradiance presentation bridge and feeds it into both paths.
+
+Planets and moons now preserve the existing MeshStandardMaterial star-facing terminator, phase/eclipsing geometry, close-orbit maps and exposure behavior while their reflected-light amplitude follows live stellar luminosity/distance. Landed worlds use the same irradiance bridge to scale direct stellar light and diffuse hemisphere daylight on top of the existing atmospheric transmission/scattering solution.
+
+The physical value remains the canonical `W/m²` / `S⊕` irradiance. Display gain is deliberately **square-root HDR-compressed** and bounded only at extreme values so mobile displays retain useful dynamic range; this tone curve is presentation, not changed physics. The renderer reuses irradiance result records instead of allocating new result objects every frame.
+
+No authoritative body state, gravity, integrator, FRAME behavior, albedo/environment science, phase/eclipsing geometry, landing/surface authority, save schema or iPhone/iPad WebKit backend policy is changed.
+
+---
+
+# Universe Lab v0.1.5.4.1 — Planet & Moon Realism Polish
+
+**Build marker:** `PLANETREAL-1541`  
+**Save schema:** `1`  
+**Three.js:** `0.185.0`
+
+This focused rendering update preserves the accepted v0.1.5.4 mid-range celestial look and strengthens the regime that still broke down when planets/moons filled the camera. Rocky and icy bodies lazily gain a compact repeating normal/roughness detail layer only at close apparent size, so crater/fracture/roughness lighting continues to resolve without allocating huge global textures. Large bright disks receive stronger bounded exposure headroom to reduce pale-wall washout.
+
+The black-hole renderer also gains a continuous radial-temperature/Doppler-asymmetric accretion-flow layer underneath the existing turbulent particle field. GR-informed shadow/critical-curve/ISCO ratios remain presentation cues only; background geodesic ray tracing and GRMHD are still not claimed.
+
+No authoritative body state, gravity, FRAME, atmosphere science, landing/surface logic, save schema or WebKit backend policy is changed.
+
+---
+
 # Universe Lab v0.1.5.4 — Celestial Rendering & Relativistic Object Realism
 
 **Build marker:** `CELESTREAL-154`  

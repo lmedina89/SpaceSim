@@ -3,6 +3,7 @@ import { BODY_KIND, SIMULATION } from '../core/constants.js';
 import { createRng } from '../util/prng.js';
 import { solveOrbitalAtmosphereLimb } from '../physics/atmosphericOptics.js';
 import { blackHoleAppearanceProfile, nearOrbitDetailProfile, neutronStarAppearanceProfile, planetaryMaterialProfile } from './celestialRealism.js';
+import { stellarIrradianceForBody } from './stellarIrradiance.js';
 
 function renderRadius(body) {
   const strictPhysicalDisk = body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ROGUE_PLANET;
@@ -165,6 +166,97 @@ function makePlanetarySurfaceMaps(body, profile) {
   return { map, bumpMap };
 }
 
+function makePlanetaryCloseDetailMaps(body, profile) {
+  if (!body || !profile || profile.gas) return null;
+  const width = Math.max(128, Math.min(384, Math.round(profile.closeDetailResolution || 256)));
+  const height = Math.max(64, Math.round(width / 2));
+  const count = width * height;
+  const heights = new Float32Array(count);
+  const roughness = new Float32Array(count);
+  const rng = createRng(`${body.id}:${body.name}:celestial-close-detail-v1`);
+  const phases = Array.from({ length: 10 }, () => rng.range(0, Math.PI * 2));
+  const ice = profile.id === 'ice-rock';
+  const desert = profile.id === 'dry-rock';
+  const volatile = profile.id === 'volatile-rock';
+  const craterCount = ice ? 10 : (body.kind === BODY_KIND.MOON ? 18 : 12);
+  const craters = Array.from({ length: craterCount }, () => ({
+    u: rng.random(), v: rng.random(), r: rng.range(0.022, body.kind === BODY_KIND.MOON ? 0.090 : 0.065), depth: rng.range(0.16, 0.42),
+  }));
+
+  for (let y = 0; y < height; y += 1) {
+    const v = y / height;
+    for (let x = 0; x < width; x += 1) {
+      const u = x / width;
+      let h = 0;
+      h += Math.sin(Math.PI * 2 * (u * 2 + v * 1 + phases[0])) * 0.24;
+      h += Math.sin(Math.PI * 2 * (u * 5 - v * 3 + phases[1])) * 0.14;
+      h += Math.sin(Math.PI * 2 * (u * 13 + v * 8 + phases[2])) * 0.075;
+      h += Math.sin(Math.PI * 2 * (u * 31 - v * 19 + phases[3])) * 0.038;
+      h += Math.sin(Math.PI * 2 * (u * 67 + v * 43 + phases[4])) * 0.016;
+
+      if (!volatile) {
+        for (const crater of craters) {
+          let du = Math.abs(u - crater.u); du = Math.min(du, 1 - du);
+          let dv = Math.abs(v - crater.v); dv = Math.min(dv, 1 - dv);
+          const d = Math.hypot(du, dv) / crater.r;
+          if (d < 1.18) {
+            const bowl = d < 1 ? -(1 - d * d) * crater.depth : 0;
+            const rim = Math.exp(-(((d - 0.93) / 0.085) ** 2)) * crater.depth * 0.72;
+            h += bowl + rim;
+          }
+        }
+      }
+
+      if (ice) {
+        // Narrow periodic grooves create fractured-ice relief without claiming solved tectonics.
+        const crackA = Math.pow(1 - Math.abs(Math.sin(Math.PI * 2 * (u * 3.0 + v * 1.35 + phases[5]))), 18);
+        const crackB = Math.pow(1 - Math.abs(Math.sin(Math.PI * 2 * (u * 1.4 - v * 4.2 + phases[6]))), 22);
+        h -= (crackA * 0.18 + crackB * 0.13);
+      }
+
+      if (desert) h += Math.sin(Math.PI * 2 * (u * 18 + v * 2.1 + phases[7])) * 0.028;
+      if (volatile) h *= 0.62;
+      const idx = y * width + x;
+      heights[idx] = h;
+      const localRough = profile.roughness + (Math.sin(Math.PI * 2 * (u * 11 + v * 7 + phases[8])) * 0.5 + h) * profile.microRoughnessStrength;
+      roughness[idx] = Math.max(0.30, Math.min(1, localRough));
+    }
+  }
+
+  const normalCanvas = document.createElement('canvas');
+  normalCanvas.width = width; normalCanvas.height = height;
+  const roughCanvas = document.createElement('canvas');
+  roughCanvas.width = width; roughCanvas.height = height;
+  const normalCtx = normalCanvas.getContext('2d');
+  const roughCtx = roughCanvas.getContext('2d');
+  const normalImage = normalCtx.createImageData(width, height);
+  const roughImage = roughCtx.createImageData(width, height);
+  const relief = Math.max(0.05, Number(profile.microReliefStrength) || 0.3) * 3.2;
+  const at = (x, y) => heights[((y + height) % height) * width + ((x + width) % width)];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const dx = (at(x + 1, y) - at(x - 1, y)) * relief;
+      const dy = (at(x, y + 1) - at(x, y - 1)) * relief;
+      const inv = 1 / Math.hypot(dx, dy, 1);
+      const nx = -dx * inv, ny = -dy * inv, nz = inv;
+      const k = (y * width + x) * 4;
+      normalImage.data[k] = Math.round((nx * 0.5 + 0.5) * 255);
+      normalImage.data[k + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+      normalImage.data[k + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+      normalImage.data[k + 3] = 255;
+      const rv = Math.round(roughness[y * width + x] * 255);
+      roughImage.data[k] = rv; roughImage.data[k + 1] = rv; roughImage.data[k + 2] = rv; roughImage.data[k + 3] = 255;
+    }
+  }
+  normalCtx.putImageData(normalImage, 0, 0);
+  roughCtx.putImageData(roughImage, 0, 0);
+  const normalMap = new THREE.CanvasTexture(normalCanvas);
+  normalMap.wrapS = THREE.RepeatWrapping; normalMap.wrapT = THREE.RepeatWrapping; normalMap.anisotropy = 4;
+  const roughnessMap = new THREE.CanvasTexture(roughCanvas);
+  roughnessMap.wrapS = THREE.RepeatWrapping; roughnessMap.wrapT = THREE.RepeatWrapping; roughnessMap.anisotropy = 2;
+  return { normalMap, roughnessMap };
+}
+
 function applyCanonicalBodyOrientation(visual, body, elapsedSimSeconds) {
   const axis = body?.rotationAxisInertial;
   const period = Math.abs(Number(body?.rotationPeriodSeconds) || 0);
@@ -219,9 +311,30 @@ export function applyPlanetaryPerceptualProfile(visual, apparentRadiusRad) {
     core.material.userData.disposeBumpMap = Boolean(core.material.bumpMap);
     visual.userData.nearOrbitTextureResident = true;
   }
+  // Local geological detail is a second lazy tier. It does not replace the global albedo map,
+  // so bodies that already look good at medium distance keep that identity. A compact repeating
+  // normal/roughness texture only becomes resident once the disk is large enough to reveal the
+  // limitations of the global map.
+  if (!core.material.normalMap && body && materialProfile && !materialProfile.gas && apparentRadiusRad >= 0.030) {
+    const detailMaps = makePlanetaryCloseDetailMaps(body, materialProfile);
+    if (detailMaps) {
+      core.material.normalMap = detailMaps.normalMap;
+      core.material.roughnessMap = detailMaps.roughnessMap;
+      core.material.userData.disposeNormalMap = true;
+      core.material.userData.disposeRoughnessMap = true;
+      visual.userData.closeOrbitDetailResident = true;
+      core.material.needsUpdate = true;
+    }
+  }
   const baseBump = Number(core.material.userData?.baseBumpScale) || 0;
   if (core.material.bumpMap) core.material.bumpScale = baseBump * profile.bumpMultiplier;
-  core.material.roughness = Math.max(.35, Math.min(1, Number(materialProfile?.roughness ?? .82) - profile.close*.08));
+  if (core.material.normalMap) {
+    core.material.normalMap.repeat.set(profile.detailRepeatU, profile.detailRepeatV);
+    core.material.roughnessMap?.repeat?.set?.(profile.detailRepeatU, profile.detailRepeatV);
+    const normalStrength = Math.max(0.04, Number(materialProfile?.microReliefStrength ?? .3) * profile.normalStrength);
+    core.material.normalScale.set(normalStrength, normalStrength);
+  }
+  core.material.roughness = Math.max(.32, Math.min(1, Number(materialProfile?.roughness ?? .82) - profile.close*.08 - profile.extreme*.035));
   visual.userData.nearOrbitDetailProfile = profile;
   return profile;
 }
@@ -438,6 +551,49 @@ export function applyStellarPerceptualProfile(visual, profile) {
   visual.userData.stellarPerceptualProfile = profile;
 }
 
+function makeAccretionContinuumTexture(body, profile) {
+  const size = 384;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(size, size);
+  const rng = createRng(`${body.id}:${body.name}:accretion-continuum-v1`);
+  const phase = rng.range(0, Math.PI * 2);
+  const inner = profile.iscoRadiusRs / profile.diskOuterRadiusRs;
+  for (let y = 0; y < size; y += 1) {
+    const py = ((y + 0.5) / size) * 2 - 1;
+    for (let x = 0; x < size; x += 1) {
+      const px = ((x + 0.5) / size) * 2 - 1;
+      const r = Math.hypot(px, py);
+      const k = (y * size + x) * 4;
+      if (r < inner || r > 1) { image.data[k + 3] = 0; continue; }
+      const q = (r - inner) / Math.max(1e-6, 1 - inner);
+      const heat = 1 - q;
+      const angle = Math.atan2(py, px);
+      const doppler = Math.max(0.48, 1 + profile.dopplerAsymmetry * Math.cos(angle - 0.42));
+      const filament = 0.82 + 0.18 * Math.sin(angle * 9 + q * 35 + phase) * Math.sin(angle * 4 - q * 18 + phase * 0.6);
+      const innerEdge = Math.min(1, (r - inner) / 0.035);
+      const outerEdge = Math.min(1, (1 - r) / 0.08);
+      const alpha = Math.max(0, Math.min(1, innerEdge * outerEdge * (0.28 + heat * 0.58) * filament));
+      const hot = Math.pow(heat, 1.8);
+      const cool = 1 - heat;
+      let rr = 0.42 + hot * 0.58 + heat * 0.25;
+      let gg = 0.34 + hot * 0.58 + heat * 0.12;
+      let bb = 0.52 + cool * 0.42 + hot * 0.30;
+      if (Math.cos(angle - 0.42) > 0) bb += 0.12 * heat;
+      rr *= doppler; gg *= doppler; bb *= Math.min(1.18, doppler);
+      image.data[k] = Math.round(clamp01(rr) * 255);
+      image.data[k + 1] = Math.round(clamp01(gg) * 255);
+      image.data[k + 2] = Math.round(clamp01(bb) * 255);
+      image.data[k + 3] = Math.round(alpha * 255);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function createBlackHoleVisual(group, body, radius) {
   const profile = blackHoleAppearanceProfile(body);
   group.userData.blackHoleAppearanceProfile = profile;
@@ -515,6 +671,19 @@ function createBlackHoleVisual(group, body, radius) {
   diskGroup.rotation.z = 0.24;
   diskGroup.rotation.x = 0.11;
   diskGroup.userData.role = 'accretion-disk';
+  const continuumTexture = makeAccretionContinuumTexture(body, profile);
+  const continuum = new THREE.Mesh(
+    new THREE.CircleGeometry(outer, 128),
+    addOpacityTaggedMaterial(new THREE.MeshBasicMaterial({
+      map: continuumTexture, transparent: true, opacity: 0.78, side: THREE.DoubleSide,
+      depthWrite: false, blending: THREE.AdditiveBlending,
+    }), 0.78),
+  );
+  continuum.rotation.x = Math.PI / 2;
+  continuum.userData.role = 'black-hole-accretion-flow-continuum';
+  continuum.material.userData.disposeMap = true;
+  diskGroup.add(continuum);
+  diskPoints.material.opacity = 0.56;
   diskGroup.add(diskPoints);
 
   // A faint lensed-backside cue bends the far-side disk visually over/under the shadow.
@@ -883,8 +1052,14 @@ export function updateCelestialVisual(visual, body, starBody, realDt = 0.016, el
     if (core?.material?.color) {
       const baseColor = Number(core.material.userData?.baseBodyColor ?? body.color ?? 0x888888);
       const stellarVisibility = Math.max(0, Math.min(1, Number(appearanceObservation?.stellarVisibilityAtBody ?? 1)));
-      if (core.material.map) core.material.color.setRGB(stellarVisibility, stellarVisibility, stellarVisibility);
-      else core.material.color.setHex(baseColor).multiplyScalar(stellarVisibility);
+      const irradiance = stellarIrradianceForBody(body, starBody, visual.userData.stellarIrradiance ?? {});
+      const reflectedLightGain = stellarVisibility * irradiance.displayGain;
+      // MeshStandardMaterial still provides the geometric star-facing terminator. This scalar
+      // changes only the incident-light amplitude, using the same inverse-square stellar flux
+      // already present in the scientific environment model. It never mutates albedo/body state.
+      if (core.material.map) core.material.color.setRGB(reflectedLightGain, reflectedLightGain, reflectedLightGain);
+      else core.material.color.setHex(baseColor).multiplyScalar(reflectedLightGain);
+      visual.userData.stellarIrradiance = irradiance;
     }
   }
   if (body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON) {

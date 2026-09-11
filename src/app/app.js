@@ -29,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=154';
-import { Hud } from '../ui/hud.js?v=154';
-import { SystemMapController } from '../ui/systemMap.js?v=154';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1542';
+import { Hud } from '../ui/hud.js?v=1542';
+import { SystemMapController } from '../ui/systemMap.js?v=1542';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -336,7 +336,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.4 online. Celestial Rendering & Relativistic Object Realism is active: resolved planets/moons can lazily gain deterministic near-orbit albedo/relief detail, rendered spin follows canonical body-axis/period metadata, stars gain darker photospheric spot structure, and compact objects use physically derived compactness/Schwarzschild diagnostics with explicitly bounded visual proxies. Black-hole shadow/critical-curve/ISCO proportions are GR-informed cues, not geodesic ray tracing or GRMHD. Atmospheric optics, surface exploration, FRAME, gravity, saves, and WebKit policy remain unchanged. Active backend: ${backend}. Build CELESTREAL-154.`);
+    this.hud.notify(`v0.1.5.4.2 online. Stellar Irradiance & Daylight Realism Polish is active: reflected planets/moons and landed daylight now consume live inverse-square stellar flux from modeled luminosity and distance, with a bounded square-root HDR display transform that preserves ordering without altering physical irradiance. Gravity, orbits, albedo, atmosphere science, landing, saves, and WebKit policy remain unchanged. Active backend: ${backend}. Build IRRAD-1542.`);
   }
 
   newSystem(seed) {

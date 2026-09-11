@@ -6,6 +6,7 @@ import { solveSurfaceAtmosphericOptics } from '../physics/atmosphericOptics.js';
 import { surfaceColorAt, surfaceHeightAt, surfaceZoneWeights, surfacePois } from '../surface/surfaceGenerator.js';
 import { surfaceEyePosition } from '../surface/surfaceSession.js';
 import { surfaceWeatherReading } from '../surface/surfaceWeather.js';
+import { stellarIrradiancePresentation } from './stellarIrradiance.js';
 
 function disposeMaterial(material) {
   if (!material) return;
@@ -820,6 +821,13 @@ export class SurfaceWorldVisual {
       aerosolOpticalDepth550: weatherAerosolOpticalDepth(weather),
       weatherTransmission: transmission,
     });
+    const irradiance = stellarIrradiancePresentation(
+      this.star?.luminositySolar,
+      starObservation?.rangeMeters,
+      this.lastStellarIrradiance ?? {},
+    );
+    const daylightGain = irradiance.displayGain;
+    this.lastStellarIrradiance = irradiance;
     const skyKey = [
       ...exposure.topSkyColorRgb, ...exposure.horizonSkyColorRgb,
     ].map((value) => Math.round(value * 255)).join(':');
@@ -828,11 +836,11 @@ export class SurfaceWorldVisual {
       this._lastSkyOpticsKey = skyKey;
     }
     if (this.sky?.material?.color) this.sky.material.color.setScalar(this.isAirless ? 0 : 1);
-    if (this.hemi) this.hemi.intensity = this.isAirless
+    if (this.hemi) this.hemi.intensity = (this.isAirless
       ? (this._profileHemiIntensity ?? 0.025)
       : (this._profileHemiIntensity != null
           ? this._profileHemiIntensity * (0.12 + exposure.diffuseSkyLight * 0.88)
-          : 0.04 + exposure.diffuseSkyLight * 1.48);
+          : 0.04 + exposure.diffuseSkyLight * 1.48)) * daylightGain;
     if (this.scene.background?.setRGB) this.scene.background.setRGB(...(this.isAirless ? [0, 0, 0] : exposure.topSkyColorRgb));
     if (this.scene.fog?.color?.setRGB) {
       const haze = exposure.horizonSkyColorRgb;
@@ -903,7 +911,7 @@ export class SurfaceWorldVisual {
           this.sun.visible = observed.visibleAboveHorizon;
           this.sun.color.setRGB(...exposure.starColorAtObserverRgb);
           this.sun.intensity = observed.visibleAboveHorizon
-            ? 3.2 * exposure.directStellarTransmission
+            ? 3.2 * daylightGain * exposure.directStellarTransmission
             : 0;
         }
       } else {
