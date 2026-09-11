@@ -1,4 +1,32 @@
-# Architecture — Universe Lab v0.1.4.8
+# Architecture — Universe Lab v0.1.4.8.2
+
+## v0.1.4.8.2 impact / numerical-hardening boundary
+
+The authoritative force law remains direct pairwise Newtonian gravity and the authoritative major-body integrator remains velocity-Verlet. This release hardens **event handling and timestep selection around that solver** rather than replacing it.
+
+`src/physics/collisionMonitor.js` owns finite-radius collision detection. `CollisionStateBuffer` stores previous positions/velocities in reusable flat typed arrays keyed to the current body topology. For each pair the scanner solves the first root of the relative linear-motion sphere intersection over the substep. A collision event can therefore carry interpolated first-contact position/velocity and `stepFraction` instead of only reporting that the bodies crossed somewhere during the step. The hot pair loop remains scalar and does not allocate arrays unless a real event is emitted.
+
+`src/physics/impactModel.js` classifies material response and computes bounded representative fragmentation. Generated gas-planet aliases normalize to a gas-envelope material and do not enter the rocky crater estimator. Representative ejecta is constructed around the collision center-of-mass velocity; target recoil closes the represented linear-momentum balance. A configurable fraction of the available COM impact energy bounds fragment/recoil kinetic energy. These fragments are representative simulation bodies, not a claim to resolve the full physical ejecta mass spectrum, shock physics, vaporization, or hydrodynamics.
+
+`src/physics/impactResolver.js` applies an interpolated contact state when available, resolves bounce/merge/absorb/fragment there, then drifts the resolved state over only the unconsumed remainder of that global substep. It does **not** perform a second force solve/re-integration across the remainder, so the remainder is explicitly a ballistic approximation. If either collider is a black hole, the black hole is the sink; accreted momentum is mass-weighted and its Schwarzschild radius is refreshed after mass growth.
+
+`src/physics/massivePairStepControl.js` provides a conservative major-body timestep ceiling from pair dynamical and crossing times. `SimulationClock` can accept a callback and re-evaluate that ceiling before every substep. The app combines it with the existing spacecraft/navigation step ceiling. Surface astronomy uses the same massive-pair ceiling while still excluding ordinary `ShipDynamics` from landed mode. This means close LAB compact pairs can reduce the 300 s ceiling as they approach without changing normal generated-system performance.
+
+`src/physics/testParticleField.js` uses an accumulated simulation-time cadence for fine calls and reusable start-state storage. `src/physics/trajectoryPredictor.js` is now explicitly one-way: cloned major sources evolve mutually under the existing direct solver/velocity-Verlet path while the probe is advanced from their field without being inserted into the massive-source solve. Prediction uses local probe and massive-pair timestep preferences but caps internal work; `accuracyLimited` is surfaced when the requested horizon/resolution cannot honor the preferred physical step under that CPU budget.
+
+`src/cosmic/scientificOverlays.js` now solves the three collinear circular restricted-three-body equilibrium roots numerically in the normalized barycentric rotating frame. This removes the small-secondary assumption from L1/L2/L3 display for comparable-mass LAB binaries. The calculation is still an instantaneous circular-CR3BP overlay at the live separation, not a general N-body equilibrium solution.
+
+## v0.1.4.8.1 scientific-consistency boundary
+
+The validated direct-Newtonian/velocity-Verlet engine remains authoritative and unchanged. This release changes **initial generated physical metadata/state geometry**, not the N-body force law. `systemGenerator.js` delegates gas bulk-property math to `planetaryProperties.js`; gas mass remains authoritative and radius/density are a coherent pair. The relation is intentionally a bounded population proxy rather than a detailed hydrostatic/equation-of-state solver.
+
+Fresh v2 rotation stores the **physical spin pole** in `rotationAxisInertial`. Planetary poles are generated around the parent-relative orbital angular-momentum direction (or its opposite for retrograde bodies). Therefore v2 `rotationDirection` is a PRO/RETRO classification and is not applied a second time as a phase sign. `planetaryRotation.js` retains the legacy v1 signed-phase convention when loading v1 models so existing body-fixed anchors remain continuous.
+
+`generatedBodyCompatibility.js` is the save-forward-compatibility gate. Serialized position/velocity/mass/radius and existing serialized rotation frames remain authoritative. Generator metadata only fills missing fields. Legacy gas density may be re-derived from its saved mass/radius because density is dependent; mass/radius themselves are not migrated.
+
+Fresh synchronous moons use the parent+moon two-body mean-motion period and initialize the body-fixed +X meridian toward the parent at epoch. Fresh rogues are generated with positive two-body specific orbital energy relative to the primary star.
+
+The v0.1.4.8 NAV hierarchy, FRAME route safety, circular osculating-orbit handoff, surface astronomy, landing/takeoff, and renderer backend boundaries are unchanged.
 
 ## v0.1.4.8 navigation / FRAME arrival boundary
 

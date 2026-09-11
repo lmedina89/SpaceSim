@@ -1,4 +1,25 @@
-# Scientific / Model Notes — Universe Lab v0.1.4.8
+# Scientific / Model Notes — Universe Lab v0.1.4.8.2
+
+
+**v0.1.4.8.2 note:** the audited direct Newtonian force law and velocity-Verlet major-body integrator are unchanged. Collision detection now solves the **first finite-radius contact** under linear relative motion over each substep. Position and velocity are interpolated to that contact before impact resolution. The short remaining part of the same substep is then drifted ballistically; this is intentionally not described as a full event-driven N-body collision integrator because gravity is not re-solved during that remainder.
+
+Impact fragmentation is a bounded representative-body model. It conserves represented mass and 3-D linear momentum through center-of-mass-frame fragment velocities plus target recoil, and limits represented fragment/recoil kinetic energy to an available COM impact-energy budget. It does **not** model shock propagation, equations of state, melt/vapor fractions, strength tensors, hydrodynamic ejecta, relativity, or a complete debris-size distribution. Gas giants are treated as gas envelopes for impact classification and do not receive rocky-crater estimates.
+
+Black-hole collision handling remains Newtonian outside the sink boundary. When contact is resolved with a black hole, the black hole absorbs the other represented body, mass-weighted linear momentum is conserved, and the Schwarzschild radius is recomputed from the updated mass. This is not a GR accretion or merger waveform model.
+
+The new massive-pair timestep ceiling is an error-control heuristic based on a fraction of `sqrt(r³ / G(M1+M2))` plus a relative crossing-time cap. It does not make close compact-object motion relativistically correct; it only prevents the ordinary 300 s ceiling from being grossly under-resolved in close LAB encounters. The existing Newtonian validity guards still apply.
+
+Trajectory prediction now treats the spacecraft/probe as massless for back-reaction purposes. Major sources evolve mutually; the probe samples their time-dependent Newtonian field. The predictor intentionally bounds CPU work. When `accuracyLimited` is true, the displayed path is a coarse bounded forecast and should not be interpreted as a precision ephemeris for that requested horizon.
+
+L1/L2/L3 overlay locations use numerical roots of the **circular restricted three-body** equilibrium equation at the instantaneous separation and masses. This is much better for comparable masses than the old small-secondary approximations, but it still assumes a circular rotating two-primary model and therefore is not a general equilibrium solution for eccentric or strongly perturbed N-body configurations.
+
+**v0.1.4.8.1 note:** gas-giant generation now enforces internal bulk-property consistency: `ρ = M / (4/3 π R³)` exactly for fresh generated gas worlds. The mass-dependent density/radius trend is a bounded population proxy for plausible 0.16–1.65 Jupiter-mass gas giants, not a detailed equation of state, thermal-contraction history, irradiation-inflation model, or atmospheric structure solver. Generated spin periods are bounded above the spherical Newtonian mass-shedding limit by a 15% safety margin.
+
+Fresh planetary PRO/RETRO semantics are now orbital-relative. The spin pole is compared with the actual parent-relative `r × v` orbital normal. Fresh synchronous moons use `G(Mparent+Mmoon)` and are oriented toward the parent at epoch. On eccentric moon orbits, constant synchronous angular rate versus nonuniform orbital true anomaly can produce physical optical libration; this is not an error.
+
+Save compatibility takes precedence over silently rewriting established worlds. A schema-1 save containing v1 rotation metadata keeps that exact axis/phase/sign convention because saved surface anchors are body-fixed in that frame. Fresh systems use v2. Legacy gas saves retain saved mass/radius/orbital state; only contradictory stored density is safely re-derived when the new property marker is absent.
+
+Fresh rogue planets are generated with positive two-body specific orbital energy relative to the primary star. This guarantees the `rogue` label is energetically unbound at generation time; it does not model the body's formation/scattering history or guarantee that later N-body encounters cannot alter its orbit.
 
 **v0.1.4.8 note:** the navigation catalog and map are views of the authoritative live N-body body registry, not a separate ephemeris. LOG SURVEY is intentionally non-linear and is labeled as such; TRUE SYSTEM and TRUE LOCAL are linear X/Z projections. Displayed surface gravity is `GM/R²`; displayed orbital period is the two-body Kepler estimate from stored semi-major axis and parent+body mass. Hill radius is a diagnostic approximation.
 

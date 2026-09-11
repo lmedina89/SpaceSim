@@ -12,7 +12,7 @@ test('FRAME drive isolates only ShipDynamics while world integration remains on 
   const block=app.slice(start,end);
   assert.match(block,/this\.integrator\.step\(sources, dt\);/);
   assert.match(block,/if \(this\.transitState\.active\) \{[\s\S]*this\.ship\.clearNavigationAcceleration\(\);[\s\S]*\} else \{[\s\S]*this\.ship\.step\(dt, sources\);/);
-  assert.match(block,/this\.minorField\?\.step\(dt, sources\);/);
+  assert.match(block,/this\.minorField\?\.advance\(dt, sources, previousState\);?/);
   assert.match(block,/this\.particleExperiments\.step\(dt, sources\);/);
   assert.match(block,/this\.spaceWeather\.step/);
 });

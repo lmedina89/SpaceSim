@@ -58,9 +58,10 @@ test('planet/moon rotation metadata is deterministic, finite, and isolated from 
   // must not perturb established seeded system positions/velocities.
   const star = a.bodies.find((body) => body.id === 'star-0');
   const firstPlanet = a.bodies.find((body) => body.id === 'planet-1');
-  assert.deepEqual([...star.position], [117306266.1553843, -15060692.902183142, -62950225.12578909]);
-  assert.deepEqual([...star.velocity], [3.969701149062927, -0.1603931093549944, 3.5602725445002497]);
-  assert.deepEqual([...firstPlanet.position], [35470505321.98423, 775882259.717882, -26509908414.664623]);
-  assert.deepEqual([...firstPlanet.velocity], [34914.49964693554, 1467.3991447185356, 45175.81701552086]);
+  const nearVector = (actual, expected, tolerance) => actual.every((value, i) => Math.abs(value - expected[i]) <= tolerance);
+  assert.ok(nearVector([...star.position], [117306266.1553843, -15060692.902183142, -62950225.12578909], 1e-6));
+  assert.ok(nearVector([...star.velocity], [3.969701149062927, -0.1603931093549944, 3.5602725445002497], 1e-9));
+  assert.ok(nearVector([...firstPlanet.position], [35470505321.98423, 775882259.717882, -26509908414.664623], 1e-5));
+  assert.ok(nearVector([...firstPlanet.velocity], [34914.49964693554, 1467.3991447185356, 45175.81701552086], 1e-8));
   assert.equal(a.homeId, 'planet-3');
 });

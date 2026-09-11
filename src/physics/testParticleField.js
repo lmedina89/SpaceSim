@@ -9,6 +9,9 @@ export class TestParticleField {
     this.position = null;
     this.velocity = null;
     this.renderPosition = null;
+    this._pendingDt = 0;
+    this._sourceIds = [];
+    this._sourceStartPositions = new Float64Array(0);
     this.setCount(count);
   }
 
@@ -18,6 +21,7 @@ export class TestParticleField {
     this.position = new Float64Array(count * 3);
     this.velocity = new Float64Array(count * 3);
     this.renderPosition = new Float32Array(count * 3);
+    this._pendingDt = 0;
     const rng = createRng(`${this.seed}:minor:${count}`);
     const center = this.centralBody.position;
     const m = this.centralBody.mass;
@@ -43,19 +47,74 @@ export class TestParticleField {
     }
   }
 
-  step(dt, gravitySources) {
+  _ensureSourceScratch(gravitySources) {
+    let rebuild = this._sourceIds.length !== gravitySources.length;
+    if (!rebuild) {
+      for (let i = 0; i < gravitySources.length; i += 1) {
+        if (this._sourceIds[i] !== gravitySources[i].id) { rebuild = true; break; }
+      }
+    }
+    if (rebuild) {
+      this._sourceIds = gravitySources.map((source) => source.id);
+      this._sourceStartPositions = new Float64Array(gravitySources.length * 3);
+      this._pendingDt = 0;
+    }
+  }
+
+  _captureSourceStart(gravitySources, previousState = null) {
+    this._ensureSourceScratch(gravitySources);
+    for (let s = 0; s < gravitySources.length; s += 1) {
+      const source = gravitySources[s];
+      const k = s * 3;
+      const offset = typeof previousState?.offsetFor === 'function' ? previousState.offsetFor(source.id) : -1;
+      if (offset >= 0 && previousState?.positions) {
+        this._sourceStartPositions[k] = previousState.positions[offset];
+        this._sourceStartPositions[k + 1] = previousState.positions[offset + 1];
+        this._sourceStartPositions[k + 2] = previousState.positions[offset + 2];
+      } else {
+        this._sourceStartPositions[k] = source.position[0];
+        this._sourceStartPositions[k + 1] = source.position[1];
+        this._sourceStartPositions[k + 2] = source.position[2];
+      }
+    }
+  }
+
+  /**
+   * Accumulate tiny real-time steps and update the visualization-tier test field at its declared
+   * cadence. Large/high-warp physics substeps still update immediately. The first KDK kick uses
+   * the major-source positions from the beginning of the accumulated interval; the second uses
+   * their authoritative current positions.
+   */
+  advance(dt, gravitySources, previousState = null, updateHz = SIMULATION.minorFieldUpdateHz) {
+    if (!(dt > 0) || this.count <= 0) return false;
+    const interval = 1 / Math.max(1, Number(updateHz) || 1);
+    if (this._pendingDt <= 0) this._captureSourceStart(gravitySources, previousState);
+    this._pendingDt += dt;
+    if (this._pendingDt + 1e-12 < interval) return false;
+    const accumulatedDt = this._pendingDt;
+    this._pendingDt = 0;
+    this.step(accumulatedDt, gravitySources, this._sourceStartPositions);
+    return true;
+  }
+
+  step(dt, gravitySources, sourceStartPositions = null) {
     const n = this.count;
     const p = this.position;
     const v = this.velocity;
     // Kick-drift-kick test-particle integration. Test particles feel gravity but do not source it.
+    // When supplied, sourceStartPositions represents the authoritative source state at interval start.
     for (let i = 0; i < n; i += 1) {
       const k = i * 3;
       let ax = 0, ay = 0, az = 0;
       for (let s = 0; s < gravitySources.length; s += 1) {
         const source = gravitySources[s];
-        const dx = source.position[0] - p[k];
-        const dy = source.position[1] - p[k + 1];
-        const dz = source.position[2] - p[k + 2];
+        const f = s * 3;
+        const sx = sourceStartPositions?.length === gravitySources.length * 3 ? sourceStartPositions[f] : source.position[0];
+        const sy = sourceStartPositions?.length === gravitySources.length * 3 ? sourceStartPositions[f + 1] : source.position[1];
+        const sz = sourceStartPositions?.length === gravitySources.length * 3 ? sourceStartPositions[f + 2] : source.position[2];
+        const dx = sx - p[k];
+        const dy = sy - p[k + 1];
+        const dz = sz - p[k + 2];
         const r2 = dx * dx + dy * dy + dz * dz + 1;
         const invR = 1 / Math.sqrt(r2);
         const scale = PHYSICS.G * source.mass * invR * invR * invR;

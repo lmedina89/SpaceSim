@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.1.4.8.2 — Impact & Numerical Hardening
+
+- Added reusable flat `CollisionStateBuffer` previous-state storage and first swept sphere-contact root detection, eliminating per-substep Map/per-body snapshot allocation and resolving collisions at interpolated first contact instead of penetrated step-end state.
+- Normalized generated gas-world impact typing so `planetType: gas` uses gas-envelope behavior and never receives a rocky crater estimate.
+- Reworked representative fragmentation in the center-of-mass frame with balancing target recoil; represented 3-D linear momentum is conserved and ejecta/recoil kinetic energy is capped to a fraction of available COM impact energy.
+- Made black holes mandatory collision sinks and recompute Schwarzschild radius after accretion while conserving represented mass/momentum.
+- Added `massivePairStepControl.js`; close/high-speed massive pairs dynamically reduce the 300 s major-body ceiling using Newtonian dynamical/crossing times, while ordinary generated systems remain at the existing ceiling.
+- `SimulationClock` can now re-evaluate a dynamic timestep ceiling before every substep.
+- Activated the bounded minor test-particle cadence for fine frame-sized calls and reused source-state scratch buffers.
+- Reworked trajectory prediction as a one-way test particle with adaptive local/pair step limits, reusable scratch storage, bounded internal work, and explicit `accuracyLimited` telemetry when the CPU budget prevents the preferred numerical step.
+- Replaced small-secondary L1/L2/L3 overlay approximations with numerical circular-CR3BP collinear equilibrium roots; L4/L5 remain equilateral CR3BP geometry.
+- Added impact/numerical hardening regression tests for gas material handling, 3-D momentum and energy budgets, black-hole accretion, first-contact timing, snapshot reuse, dynamic close-pair timesteps, minor-field cadence, one-way trajectory prediction, bounded prediction work, and comparable-mass Lagrange roots.
+- Updated Safari/GitHub Pages cache tags to `?v=1482`.
+
+## v0.1.4.8.1 — Scientific Consistency Hotfix
+
+- Added `src/physics/planetaryProperties.js` for coherent bulk-density derivation, bounded gas-giant generation, Newtonian breakup period, and two-body specific orbital energy.
+- Fresh gas giants no longer independently sample contradictory mass/radius/density values; density is exact for the generated mass/radius pair.
+- Added a 1.15× breakup-period safety floor for generated planetary spin.
+- Replaced global-axis spin initialization for fresh planets with parent-relative orbital-normal spin poles and physically meaningful PRO/RETRO classification.
+- Fresh synchronous moons now use `G(Mparent+Mmoon)` and face their parent at the rotation epoch.
+- Added `src/core/generatedBodyCompatibility.js`; saved v1 rotation frames are preserved and only missing metadata is backfilled, preventing body-fixed landing-anchor jumps across the generator revision.
+- Legacy gas saves preserve mass/radius/dynamics while dependent density is re-derived if no property-model marker exists.
+- Fresh rogue planets now have guaranteed positive star-relative two-body specific orbital energy.
+- Added broad generator property/regression tests and maintained all v0.1.4.8 NAV/FRAME/surface/cockpit behavior.
+- Updated Safari/GitHub Pages cache tags to `?v=1481`.
+
 ## v0.1.4.8 — Planetary System Navigation & Exploration Foundation
 
 - Added a live star → planet → moon BODY CATALOG to the System Map using the authoritative generated/N-body body registry.

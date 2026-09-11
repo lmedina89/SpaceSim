@@ -83,3 +83,14 @@ test('local solar time is noon at the substellar longitude and midnight opposite
   const midnight = localSolarTimeHours(body, observerAnchor, starAtMidnight, 17);
   assert.ok(midnight < 1e-10 || Math.abs(midnight - 24) < 1e-10, `expected midnight, got ${midnight}`);
 });
+
+test('legacy v1 retrograde saves retain signed phase progression while v2 uses its physical spin pole', () => {
+  const legacy = rotatingBody();
+  legacy.rotationModel = 'rigid-seeded-v1';
+  legacy.rotationDirection = -1;
+  const v2 = { ...legacy, rotationModel: 'rigid-orbital-v2' };
+  const legacyDelta = ((rotationAngleAt(legacy, 25) - rotationAngleAt(legacy, 0)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+  const v2Delta = ((rotationAngleAt(v2, 25) - rotationAngleAt(v2, 0)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+  near(legacyDelta, -Math.PI / 2, 1e-12);
+  near(v2Delta, Math.PI / 2, 1e-12);
+});

@@ -41,10 +41,20 @@ export function rotationAxis(body, target = new Float64Array(3)) {
   return normalize3(target, body?.rotationAxisInertial ?? [0, 1, 0], [0, 1, 0]);
 }
 
+function rotationPhaseDirection(body) {
+  // v2 stores the physical spin pole directly in rotationAxisInertial. Its PRO/RETRO field is
+  // therefore a scientific classification label, not another sign to apply to angular motion.
+  // Legacy v1 saves encoded retrograde motion by negating phase progression, so preserve that
+  // behavior exactly for body-fixed-anchor continuity.
+  const model = String(body?.rotationModel ?? '');
+  if (model.endsWith('-orbital-v2')) return 1;
+  return finite(body?.rotationDirection, 1) < 0 ? -1 : 1;
+}
+
 export function rotationAngleAt(body, simulationTimeSeconds = 0) {
   const period = Math.max(EPSILON, Math.abs(finite(body?.rotationPeriodSeconds, Infinity)));
   if (!Number.isFinite(period)) return finite(body?.rotationPhaseRad);
-  const direction = finite(body?.rotationDirection, 1) < 0 ? -1 : 1;
+  const direction = rotationPhaseDirection(body);
   const epoch = finite(body?.rotationEpochSeconds);
   const phase = finite(body?.rotationPhaseRad);
   const turns = direction * (finite(simulationTimeSeconds) - epoch) / period;

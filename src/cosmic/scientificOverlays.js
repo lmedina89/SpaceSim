@@ -37,6 +37,43 @@ export function gravityAccelerationAt(position, bodies) {
   return a;
 }
 
+
+function collinearCr3bpEquation(x, mu) {
+  const primaryX = -mu;
+  const secondaryX = 1 - mu;
+  const dx1 = x - primaryX;
+  const dx2 = x - secondaryX;
+  const r1 = Math.abs(dx1);
+  const r2 = Math.abs(dx2);
+  if (!(r1 > 0) || !(r2 > 0)) return NaN;
+  return x - (1 - mu) * dx1 / (r1 * r1 * r1) - mu * dx2 / (r2 * r2 * r2);
+}
+
+function bisectCr3bp(mu, lo, hi) {
+  let flo = collinearCr3bpEquation(lo, mu);
+  let fhi = collinearCr3bpEquation(hi, mu);
+  if (!Number.isFinite(flo) || !Number.isFinite(fhi) || flo * fhi > 0) return NaN;
+  for (let i = 0; i < 96; i += 1) {
+    const mid = (lo + hi) * 0.5;
+    const fm = collinearCr3bpEquation(mid, mu);
+    if (!Number.isFinite(fm)) return NaN;
+    if (Math.abs(fm) < 1e-14 || Math.abs(hi - lo) < 1e-14) return mid;
+    if (flo * fm <= 0) { hi = mid; fhi = fm; }
+    else { lo = mid; flo = fm; }
+  }
+  return (lo + hi) * 0.5;
+}
+
+function collinearLagrangeCoordinates(mu) {
+  const primaryX = -mu;
+  const secondaryX = 1 - mu;
+  const eps = 1e-9;
+  const l1 = bisectCr3bp(mu, primaryX + eps, secondaryX - eps);
+  const l2 = bisectCr3bp(mu, secondaryX + eps, secondaryX + 8);
+  const l3 = bisectCr3bp(mu, primaryX - 8, primaryX - eps);
+  return { l1, l2, l3 };
+}
+
 export function lagrangePointEstimates(primary, secondary) {
   if (!(primary?.mass > 0) || !(secondary?.mass > 0)) return [];
   const rVec=sub(secondary.position, primary.position), r=mag(rVec);
@@ -44,10 +81,15 @@ export function lagrangePointEstimates(primary, secondary) {
   const ex=unit(rVec);
   const total=primary.mass+secondary.mass;
   const mu=secondary.mass/total;
-  const near=r*Math.cbrt(Math.max(1e-16, secondary.mass/(3*primary.mass)));
-  const l1=add(secondary.position,scale(ex,-near));
-  const l2=add(secondary.position,scale(ex, near));
-  const l3=add(primary.position,scale(ex,-r*(1 + 5*mu/12)));
+  const barycenter=[
+    (primary.position[0]*primary.mass+secondary.position[0]*secondary.mass)/total,
+    (primary.position[1]*primary.mass+secondary.position[1]*secondary.mass)/total,
+    (primary.position[2]*primary.mass+secondary.position[2]*secondary.mass)/total,
+  ];
+  const roots=collinearLagrangeCoordinates(mu);
+  const l1=add(barycenter,scale(ex,roots.l1*r));
+  const l2=add(barycenter,scale(ex,roots.l2*r));
+  const l3=add(barycenter,scale(ex,roots.l3*r));
 
   const relV=sub(secondary.velocity, primary.velocity);
   let normal=cross(rVec,relV);
@@ -59,9 +101,9 @@ export function lagrangePointEstimates(primary, secondary) {
   const l4=add(mid,scale(ey,height));
   const l5=add(mid,scale(ey,-height));
   return [
-    {label:'L1',position:l1,approximation:'small-secondary circular restricted three-body estimate'},
-    {label:'L2',position:l2,approximation:'small-secondary circular restricted three-body estimate'},
-    {label:'L3',position:l3,approximation:'first-order circular restricted three-body estimate'},
+    {label:'L1',position:l1,approximation:'instantaneous circular restricted three-body collinear equilibrium root'},
+    {label:'L2',position:l2,approximation:'instantaneous circular restricted three-body collinear equilibrium root'},
+    {label:'L3',position:l3,approximation:'instantaneous circular restricted three-body collinear equilibrium root'},
     {label:'L4',position:l4,approximation:'instantaneous equilateral circular restricted three-body geometry'},
     {label:'L5',position:l5,approximation:'instantaneous equilateral circular restricted three-body geometry'},
   ];

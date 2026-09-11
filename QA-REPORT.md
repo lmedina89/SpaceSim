@@ -1,80 +1,59 @@
-# Universe Lab v0.1.4.8 — Planetary System Navigation & Exploration QA Report
+# Universe Lab v0.1.4.8.2 — Impact & Numerical Hardening QA Report
 
 ## Release identity
 
-- Version: **0.1.4.8**
-- Build marker: **NAVSYS-148**
-- Direct baseline: **physically accepted v0.1.4.7.1 — Surface Astronomy Diagnostics & Pause Control Hotfix**
-- Save schema: **1 unchanged**
-- Three.js: **0.185.0 unchanged**
-- Major-body physics: **direct Newtonian gravity + velocity-Verlet unchanged**
-- Surface astronomy / landing / takeoff: **accepted v0.1.4.7.1 behavior preserved**
-- iPhone/iPad WebKit policy: **forced WebGL2 backend retained**
+- Version: **0.1.4.8.2**
+- Build marker: **IMPNUM-1482**
+- Save schema: **1 (unchanged)**
+- Three.js: **0.185.0 (unchanged)**
+- Baseline: exact v0.1.4.8.1 `SCICONS-1481` release ZIP
 
-## Navigation / system-map scope verified
+## Scope
 
-- System Map now exposes the live generated **primary star → planets → moons** hierarchy from the authoritative body registry.
-- `ORIGIN-001` regression fixture contains **1 primary star, 7 planets and 9 moons**; all are discoverable from the body catalog even when true scale makes graphical selection impractical.
-- Added explicitly labeled **LOG SURVEY**, **TRUE SYSTEM**, and **TRUE LOCAL** projections. LOG SURVEY is a non-linear discovery aid; TRUE SYSTEM/LOCAL are linear X/Z projections of current N-body positions.
-- Added read-only body diagnostics for parent, ship/star range, body class, physical radius/mass, Newtonian surface gravity, Kepler-period estimate, eccentricity, rigid rotation, Hill-radius diagnostic, surface capability, atmosphere-model status and FRAME arrival profile.
-- Existing persistent `targetId` remains the single celestial NAV target. No duplicate target database or save-schema migration was introduced.
-- COSMOS/phenomenon range display uses the phenomenon's current resolved center relative to the spacecraft rather than a stale/static position field.
+This release addresses impact/collision correctness and numerical/performance hardening findings from the full v0.1.4.8 audit. The audited direct pairwise Newtonian gravity law and velocity-Verlet major-body integrator remain unchanged. v0.1.4.8.1 generator/rotation/save compatibility, v0.1.4.8 NAV/FRAME, surface astronomy/landing, and the iPhone/iPad forced-WebGL2 backend remain protected.
 
-## FRAME arrival / route scope verified
+Implemented hardening:
 
-- FRAME remains an explicitly fictional spacecraft-only translation layer. Celestial integration authority is unchanged.
-- Normal completed travel to supported planets, moons and rogue planets can hand back to ordinary Newtonian flight in an **instantaneous circular two-body osculating orbit** using `sqrt(GM/r)` relative speed plus the target's live inertial velocity.
-- Insertion radius is outside the physical body and screened to at most **47% of a conservative Hill estimate** when a parent orbit is available. The conservative estimate uses the smaller of live separation and stored-orbit pericenter estimates. This is a screening heuristic, not a long-term N-body stability guarantee.
-- All **16 ORIGIN-001 planet/moon targets** resolve a finite circular-insertion window in the automated fixture.
-- Manual FRAME disengage preserves the pre-existing target inertial-velocity match; unsupported normal arrivals retain the prior inertial-match fallback.
-- Direct FRAME travel remains protected by the existing per-step swept finite-radius guard.
-- Added deterministic live-body-anchored guard detours for direct routes blocked by another massive body. Candidate two-leg paths are checked against every existing massive-body guard; no guard radius is reduced and no celestial state is moved.
-- The known `ORIGIN-001` inner-moon case **Caelum-4361 b-A** reproduces the former direct collision at **99.918%** of the path against parent `Caelum-4361 b`; the new route selects a **1.18× guard-shell** parent-anchored bypass and both route legs test swept-clear.
+- reusable flat previous-state collision snapshots;
+- first swept finite-radius contact root with interpolated contact position/velocity;
+- gas-world material normalization and no rocky crater estimate for gas giants;
+- COM-frame representative fragmentation with target recoil, 3-D represented momentum conservation, and a bounded ejecta/recoil energy budget;
+- mandatory black-hole collision sink with mass/momentum accretion and Schwarzschild-radius refresh;
+- dynamically re-evaluated close massive-pair timestep ceiling;
+- bounded fine-step minor-field cadence and source scratch reuse;
+- one-way test-particle trajectory prediction with local/pair adaptive steps, reusable scratch, bounded work, and explicit `accuracyLimited` telemetry;
+- numerical circular-CR3BP roots for L1/L2/L3, including comparable-mass binaries.
 
-## Protected-source comparison
+## Independent numerical validation performed during development
 
-The following scientifically or physically accepted baseline modules are byte-for-byte unchanged from v0.1.4.7.1:
+A randomized 2,000-impact stress check of fragment-resolution cases found represented mass conservation to about **2.2e-16 relative**, 3-D linear momentum conservation to about **4.0e-16 normalized relative**, and no represented ejecta/recoil kinetic-energy budget overrun beyond floating-point roundoff (worst ratio about **1.0000000000000002**).
 
-- `src/core/constants.js`
-- `src/data/systemGenerator.js`
-- `src/physics/gravity/directGravitySolver.js`
-- `src/physics/integrators/velocityVerlet.js`
-- `src/physics/shipDynamics.js`
-- `src/physics/transitDrive.js`
-- `src/core/astronomicalObserver.js`
-- `src/core/planetaryRotation.js`
-- `src/render/surfaceWorld.js`
-- `src/surface/surfaceGenerator.js`
-- `src/surface/surfaceSession.js`
-- `src/surface/surfaceWeather.js`
-- `src/surface/landingTransition.js`
-- `src/core/saveSystem.js`
+A 500-generated-system timestep sweep left every ordinary generated system at the existing **300 s** major-body ceiling. A deliberately close pair of 1.55-solar-mass magnetars separated by 120,000 km reduced the pairwise ceiling to about **5.18 s**, demonstrating that the new limiter activates on pathological close LAB encounters without penalizing normal generated systems.
 
-The new navigation/FRAME logic derives from those authoritative states rather than replacing them.
+A server-side ORIGIN benchmark with roughly 4,000 minor test particles and 19 major sources over 120 calls at 1/60 simulation-second input measured an average of roughly **5.14 ms/call** on the old always-step path versus **1.77 ms/call** with the bounded 30 Hz fine-step cadence (60 actual particle updates). This is an environment-specific engineering benchmark, not an iPhone FPS guarantee.
 
-## Automated QA
+Analytic swept-contact spot checks and permanent automated tests verify the first root is used rather than closest approach. Comparable-mass CR3BP regression verifies equal-primary normalized roots `L1 = 0`, `L2 ≈ +1.19840614455492`, and `L3 ≈ -1.19840614455492`.
 
-Final worktree `npm run qa`:
+## Numerical-model boundaries
 
-- Static structure: **PASS — 46 required files**.
-- JS/MJS syntax: **PASS**.
-- Node tests: **187/187 PASS**.
-- Added coverage includes ORIGIN hierarchy/counts, navigation scientific derivations, conservative Hill screening, circular FRAME insertion invariants, target non-mutation, unsupported-target handling, FRAME manual-vs-normal exit policy, swept route safety, explicit `b-A` parent-bypass regression, and live-body waypoint anchoring.
+- Contact state is interpolated assuming linear relative motion inside one completed global substep. The post-contact remainder is drifted ballistically; it is **not** a full event-driven N-body re-integration.
+- Fragmentation is a bounded representative-body heuristic, not material hydrodynamics/strength/fracture/vaporization physics.
+- Black-hole absorption is a Newtonian sink treatment with Schwarzschild-radius bookkeeping, not general relativity.
+- Massive-pair adaptive stepping improves Newtonian resolution but does not make compact-object close encounters relativistically valid.
+- Trajectory prediction is deliberately CPU-bounded; `accuracyLimited` means the requested horizon cannot honor the preferred numerical step within its work budget.
+- Lagrange overlays remain instantaneous circular restricted-three-body diagnostics, not full N-body equilibrium solutions.
 
-## Physical release gate
+## Automated release gate
 
-Automated tests cannot validate iPhone Safari/WebKit touch ergonomics, Canvas/System Map readability, actual FRAME visual feel, renderer compositing, thermals, or a complete interactive trip. Physical iPhone testing remains required before v0.1.4.8 is accepted.
+Release-candidate verification from the frozen v0.1.4.8.2 worktree:
 
-See `MOBILE-GITHUB-PAGES.md` for the release sequence, including the explicit **Caelum-4361 b-A SAFE BYPASS** test, planet/moon orbit insertion, target save/load persistence, and regression of the already accepted surface astronomy + takeoff path.
+- `npm run qa`: **PASS** — static structure **49 required files**, all JS/MJS syntax valid, **206/206** Node tests passing;
+- ZIP integrity (`unzip -t`): **PASS**;
+- clean-unzip `npm run qa`: **PASS**, **206/206**;
+- local static HTTP smoke from the extracted archive: **14/14 HTTP 200** for the shell, versioned CSS/main/app/renderer/HUD/map/cockpit chain, collision/impact modules, new massive-pair step control, trajectory predictor, and `VERSION.json`;
+- `.github/workflows/*`: **absent**;
+- release archive is repo-root ready (no wrapper directory).
 
-## Package validation
+The final archive is rebuilt from this same frozen tree after recording this report, then the clean-unzip QA, HTTP smoke, archive integrity, workflow absence, and byte-for-byte tree comparison are repeated before handoff.
 
-A repo-root candidate archive was created and tested as deployed content:
-
-- ZIP integrity (`unzip -t`): **PASS**.
-- Repository-root layout: **PASS** — `index.html`, `package.json`, docs and `src/` are at archive root; no wrapper directory.
-- Clean-unzip `npm run qa`: **PASS — 187/187 tests**.
-- `.github/workflows/*`: **none present**.
-- Self-contained local HTTP smoke: **HTTP 200** for `/`, `styles.css?v=148`, `src/main.js?v=148`, `src/app/app.js?v=148`, `src/render/threeRenderer.js?v=148`, `src/render/cockpitView.js?v=148`, `src/ui/systemMap.js?v=148`, `src/navigation/systemNavigation.js`, `src/navigation/frameGuardRoute.js`, `src/physics/frameOrbitInsertion.js`, and `VERSION.json`.
-
-The final distributable is rebuilt from the same frozen worktree after this report is written, then rechecked before release.
+Physical iPhone Safari/WebKit remains the final presentation/performance gate.

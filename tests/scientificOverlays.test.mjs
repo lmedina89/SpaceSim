@@ -22,6 +22,20 @@ test('instantaneous L4/L5 estimates form near-equilateral geometry', () => {
   assert.ok(Math.abs(dSecondary-PHYSICS.AU)/PHYSICS.AU < 1e-10);
 });
 
+
+
+test('collinear L1/L2/L3 roots remain correct for comparable-mass circular binaries', () => {
+  const primary={mass:1,position:new Float64Array([-0.5,0,0]),velocity:new Float64Array([0,0,-0.5])};
+  const secondary={mass:1,position:new Float64Array([0.5,0,0]),velocity:new Float64Array([0,0,0.5])};
+  const pts=lagrangePointEstimates(primary,secondary);
+  const l1=pts.find((p)=>p.label==='L1').position[0];
+  const l2=pts.find((p)=>p.label==='L2').position[0];
+  const l3=pts.find((p)=>p.label==='L3').position[0];
+  assert.ok(Math.abs(l1)<1e-12,`L1=${l1}`);
+  assert.ok(Math.abs(l2-1.19840614455492)<1e-12,`L2=${l2}`);
+  assert.ok(Math.abs(l3+1.19840614455492)<1e-12,`L3=${l3}`);
+});
+
 test('gravity vector samples use live Newtonian sources', () => {
   const star = { kind: BODY_KIND.STAR, mass: PHYSICS.SOLAR_MASS, gravitySource: true, position: new Float64Array([0,0,0]) };
   const p = [PHYSICS.AU,0,0];

@@ -1,4 +1,33 @@
-# Universe Lab v0.1.4.8 — Planetary System Navigation / Exploration iPhone Gate
+# Universe Lab v0.1.4.8.2 — Impact & Numerical Hardening iPhone Gate
+
+Before accepting v0.1.4.8.2 on physical iPhone Safari/WebKit:
+
+1. Confirm **v0.1.4.8.2**, build marker **IMPNUM-1482**, and renderer **WebGL2 iOS** after a hard reload. If an older marker appears, do not test; cached files are mixed.
+2. Regress the normal `ORIGIN-001` path first: BODY CATALOG, LOG/TRUE maps, normal planet FRAME arrival, `Caelum-4361 b-A` SAFE BYPASS, manual FRAME exit, surface LAND, PAUSE/RESUME SKY, SAVE/LOAD, and TAKEOFF. This release must not disturb those accepted systems.
+3. In LAB, spawn two neutron-star/magnetar-class compact objects at a close but non-overlapping separation if the UI permits it. Let them evolve and watch **physics ms / FPS / runtime error**. The new massive-pair limiter should trade additional physics work for stability instead of allowing a huge 300 s close-encounter step. Do not interpret the motion near relativistic regimes as GR.
+4. Exercise an impact preset/asteroid collision. Verify the app records a finite impact and remains responsive; a swept fast impact must not visibly tunnel through and then resolve deep inside the target. The exact contact root is primarily automated-test validated because frame-rate presentation is not a precision measurement.
+5. If a generated gas planet is used as an impact target, verify no rocky crater diagnostic is reported. Gas-envelope impact behavior remains simplified and does not model atmospheric entry/hydrodynamics.
+6. Exercise any trajectory-prediction view available in the scanner/flight computer. Normal short predictions should remain responsive. A very long strong-gravity forecast may explicitly report **numerical step budget limited**; that warning is intentional and preferable to silently claiming false precision.
+7. Run several minutes with the normal minor particle/debris field visible and watch FPS/thermals. The fine-step path should create less per-frame CPU/GC pressure; high-warp large substeps still update immediately, so do not expect a fixed 30 real-time-Hz rate at every warp.
+8. Re-test one save/load cycle after impacts/LAB use and one fresh-system reset. No schema migration was introduced.
+
+The distributable must unzip directly into repository root and contain no `.github/workflows/*`. Automated Node QA cannot prove iPhone WebKit presentation, thermal behavior, or touch ergonomics; physical Safari remains the release gate.
+
+---
+
+
+## Historical v0.1.4.8.1 scientific-consistency gate
+
+Before accepting v0.1.4.8.1 on physical iPhone Safari/WebKit:
+
+1. Confirm **v0.1.4.8.1**, build marker **SCICONS-1481**, and renderer **WebGL2 iOS**.
+2. Load the existing v0.1.4.8/1.4.7.1 save and verify the landed surface remains at the same location/orientation, rotation diagnostics remain finite, save/load works, and takeoff remains clean. This specifically validates preservation of saved v1 rotation frames.
+3. Start a fresh `ORIGIN-001` system and verify NAV still exposes the same star/7-planet/9-moon hierarchy and FRAME targeting/bypass behavior remains usable. Fresh body rotation values may differ because the corrected v2 spin model is intentional.
+4. On a fresh system, inspect gas worlds in NAV for finite positive mass/radius/surface-gravity diagnostics and no UI regressions. Gas worlds remain non-landable.
+5. Verify PAUSE SKY/RESUME SKY, surface astronomy time, landing/takeoff, cockpit MFDs, BODY CATALOG, LOG/TRUE map modes, normal planet/moon FRAME insertion, and the `b-A` SAFE BYPASS regression case still work.
+6. Run several minutes in ship and surface views and watch FPS/thermals for regressions.
+
+The distributable must unzip directly into repository root and contain no `.github/workflows/*`. If an older marker appears, Safari/GitHub Pages is serving stale files.
 
 Before accepting v0.1.4.8 on physical iPhone Safari/WebKit:
 

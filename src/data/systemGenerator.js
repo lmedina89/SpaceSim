@@ -3,6 +3,7 @@ import { createRng, hashSeed } from '../util/prng.js';
 import { vec3 } from '../physics/vector.js';
 import { generateCosmicPhenomena } from '../cosmic/phenomenonGenerator.js';
 import { generateAnomalies } from '../cosmic/anomalyGenerator.js';
+import { breakupPeriodSeconds, bulkDensityKgM3, gasGiantPropertiesFromSamples } from '../physics/planetaryProperties.js';
 
 const STAR_NAMES = ['Aster', 'Vesper', 'Orison', 'Nadir', 'Eidra', 'Khepri', 'Ilyon', 'Morrow', 'Sable', 'Caelum'];
 const PLANET_TYPES = [
@@ -17,44 +18,108 @@ function massFromRadiusDensity(radius, density) {
   return (4 / 3) * Math.PI * radius ** 3 * density;
 }
 
-function rotationAxisFromObliquity(obliquityRad, azimuthRad) {
-  const s = Math.sin(obliquityRad);
+function dot3(a, b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+function cross3(a, b) {
   return [
-    s * Math.cos(azimuthRad),
-    Math.cos(obliquityRad),
-    s * Math.sin(azimuthRad),
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
   ];
 }
 
-function planetRotationMetadata(rng, planetType) {
-  const gas = planetType === 'gas';
-  const extremeTilt = rng.random() < 0.09;
-  const obliquityRad = extremeTilt
-    ? rng.range(0.90, 1.52)
-    : rng.range(0, gas ? 0.48 : 0.72);
-  const rotationPeriodSeconds = PHYSICS.DAY * (gas ? rng.range(0.29, 0.82) : rng.range(0.38, 3.2));
+function normalized3(source, fallback = [0, 1, 0]) {
+  const magnitude = Math.hypot(Number(source?.[0]) || 0, Number(source?.[1]) || 0, Number(source?.[2]) || 0);
+  if (!(magnitude > 1e-12)) return [...fallback];
+  return [source[0] / magnitude, source[1] / magnitude, source[2] / magnitude];
+}
+
+function parentRelativeState(body, parent) {
   return {
-    rotationPeriodSeconds,
-    rotationDirection: rng.random() < 0.08 ? -1 : 1,
-    rotationAxisInertial: rotationAxisFromObliquity(obliquityRad, rng.range(0, Math.PI * 2)),
-    rotationPhaseRad: rng.range(0, Math.PI * 2),
-    rotationEpochSeconds: 0,
-    axialTiltRad: obliquityRad,
-    rotationModel: 'rigid-seeded-v1',
+    position: [
+      body.position[0] - parent.position[0],
+      body.position[1] - parent.position[1],
+      body.position[2] - parent.position[2],
+    ],
+    velocity: [
+      body.velocity[0] - parent.velocity[0],
+      body.velocity[1] - parent.velocity[1],
+      body.velocity[2] - parent.velocity[2],
+    ],
   };
 }
 
-function moonRotationMetadata(rng, planet, orbitMeters) {
-  const orbitalPeriodSeconds = 2 * Math.PI * Math.sqrt((orbitMeters ** 3) / (PHYSICS.G * Math.max(1, planet.mass)));
-  const obliquityRad = rng.range(0, 0.14);
+function orbitalNormal(body, parent) {
+  if (!body?.position || !body?.velocity || !parent?.position || !parent?.velocity) return [0, -1, 0];
+  const relative = parentRelativeState(body, parent);
+  return normalized3(cross3(relative.position, relative.velocity), [0, -1, 0]);
+}
+
+function tiltedAxis(referenceAxis, tiltRad, azimuthRad) {
+  const axis = normalized3(referenceAxis);
+  const reference = Math.abs(axis[1]) < 0.94 ? [0, 1, 0] : [0, 0, 1];
+  const tangentX = normalized3(cross3(reference, axis), [1, 0, 0]);
+  const tangentZ = normalized3(cross3(axis, tangentX), [0, 0, 1]);
+  const s = Math.sin(tiltRad);
+  const c = Math.cos(tiltRad);
+  return normalized3([
+    axis[0] * c + s * (tangentX[0] * Math.cos(azimuthRad) + tangentZ[0] * Math.sin(azimuthRad)),
+    axis[1] * c + s * (tangentX[1] * Math.cos(azimuthRad) + tangentZ[1] * Math.sin(azimuthRad)),
+    axis[2] * c + s * (tangentX[2] * Math.cos(azimuthRad) + tangentZ[2] * Math.sin(azimuthRad)),
+  ], axis);
+}
+
+function zeroMeridianBasis(axis) {
+  const reference = Math.abs(axis[1]) < 0.94 ? [0, 1, 0] : [0, 0, 1];
+  const zeroX = normalized3(cross3(reference, axis), [1, 0, 0]);
+  const zeroZ = normalized3(cross3(axis, zeroX), [0, 0, 1]);
+  return { zeroX, zeroZ };
+}
+
+function planetRotationMetadata(rng, planet, parent) {
+  const gas = planet.planetType === 'gas';
+  const extremeTilt = rng.random() < 0.09;
+  const poleTiltRad = extremeTilt
+    ? rng.range(0.90, 1.52)
+    : rng.range(0, gas ? 0.48 : 0.72);
+  const direction = rng.random() < 0.08 ? -1 : 1;
+  const progradeNormal = orbitalNormal(planet, parent);
+  const referencePole = direction > 0 ? progradeNormal : progradeNormal.map((value) => -value);
+  const spinAxis = tiltedAxis(referencePole, poleTiltRad, rng.range(0, Math.PI * 2));
+  const sampledPeriodSeconds = PHYSICS.DAY * (gas ? rng.range(0.29, 0.82) : rng.range(0.38, 3.2));
+  const breakupFloor = (breakupPeriodSeconds(planet.mass, planet.radius) ?? 0) * 1.15;
+  const rotationPeriodSeconds = Math.max(sampledPeriodSeconds, breakupFloor);
+  const physicalObliquityRad = Math.acos(Math.max(-1, Math.min(1, dot3(spinAxis, progradeNormal))));
+  return {
+    rotationPeriodSeconds,
+    rotationDirection: direction,
+    rotationAxisInertial: spinAxis,
+    rotationPhaseRad: rng.range(0, Math.PI * 2),
+    rotationEpochSeconds: 0,
+    axialTiltRad: physicalObliquityRad,
+    rotationModel: 'rigid-orbital-v2',
+  };
+}
+
+function moonRotationMetadata(planet, moon) {
+  const relative = parentRelativeState(moon, planet);
+  const spinAxis = normalized3(cross3(relative.position, relative.velocity), [0, -1, 0]);
+  const orbitalPeriodSeconds = 2 * Math.PI * Math.sqrt(
+    (moon.semiMajorAxis ** 3) / (PHYSICS.G * Math.max(1, planet.mass + moon.mass)),
+  );
+  const parentDirection = normalized3(relative.position.map((value) => -value), [1, 0, 0]);
+  const { zeroX, zeroZ } = zeroMeridianBasis(spinAxis);
+  const rotationPhaseRad = Math.atan2(dot3(parentDirection, zeroZ), dot3(parentDirection, zeroX));
   return {
     rotationPeriodSeconds: orbitalPeriodSeconds,
     rotationDirection: 1,
-    rotationAxisInertial: rotationAxisFromObliquity(obliquityRad, rng.range(0, Math.PI * 2)),
-    rotationPhaseRad: rng.range(0, Math.PI * 2),
+    rotationAxisInertial: spinAxis,
+    rotationPhaseRad,
     rotationEpochSeconds: 0,
-    axialTiltRad: obliquityRad,
-    rotationModel: 'synchronous-seeded-v1',
+    axialTiltRad: 0,
+    rotationModel: 'synchronous-orbital-v2',
   };
 }
 
@@ -132,6 +197,7 @@ function moonDefinitions(rng, starMass, planet, basePosition, baseVelocity, plan
       mass,
       radius,
       densityKgM3: density,
+      physicalPropertyModel: 'bulk-density-v1',
       semiMajorAxis: orbit,
       eccentricity: e,
       color: planet.planetType === 'ice' ? 0xb9ddea : 0x9d9990,
@@ -204,6 +270,7 @@ function cometDefinitions(rng, starMass, starName, count = 2) {
       mass,
       radius,
       densityKgM3: density,
+      physicalPropertyModel: 'bulk-density-v1',
       semiMajorAxis,
       eccentricity,
       inclinationRad: inclination,
@@ -219,7 +286,7 @@ function cometDefinitions(rng, starMass, starName, count = 2) {
   return comets;
 }
 
-function roguePlanetDefinition(rng, starName) {
+function roguePlanetDefinition(rng, starName, starMass) {
   const mass = PHYSICS.EARTH_MASS * rng.range(0.35, 4.5);
   const density = rng.range(3800, 7200);
   const radius = Math.cbrt((3 * mass) / (4 * Math.PI * density));
@@ -227,7 +294,9 @@ function roguePlanetDefinition(rng, starName) {
   const a = rng.range(0, Math.PI * 2);
   const y = rng.range(-0.18, 0.18) * distance;
   const planar = Math.sqrt(Math.max(0, distance * distance - y * y));
-  const speed = rng.range(9_000, 32_000);
+  const sampledSpeed = rng.range(9_000, 32_000);
+  const escapeSpeed = Math.sqrt(2 * PHYSICS.G * (starMass + mass) / distance);
+  const speed = Math.max(sampledSpeed, escapeSpeed * 1.08);
   const tangent = [-Math.sin(a), rng.range(-0.18, 0.18), Math.cos(a)];
   const tm = Math.hypot(...tangent) || 1;
   return {
@@ -243,7 +312,9 @@ function roguePlanetDefinition(rng, starName) {
     generated: true,
     landable: false,
     surfaceProfile: 'orbital-only',
-    scientificWarning: 'Seeded interstellar/rogue body with live Newtonian mass and velocity. Thermal history and capture origin are not modeled.',
+    physicalPropertyModel: 'bulk-density-v1',
+    rogueOrbitModel: 'positive-energy-v2',
+    scientificWarning: 'Seeded unbound interstellar/rogue body with live Newtonian mass and positive two-body orbital energy relative to the primary star. Thermal history and scattering/capture origin are not modeled.',
     position: vec3(Math.cos(a) * planar, y, Math.sin(a) * planar),
     velocity: vec3(tangent[0] / tm * speed, tangent[1] / tm * speed, tangent[2] / tm * speed),
   };
@@ -251,12 +322,13 @@ function roguePlanetDefinition(rng, starName) {
 
 function assignRotationMetadata(seed, bodies) {
   const byId = new Map(bodies.map((body) => [body.id, body]));
+  const star = bodies.find((body) => body.kind === BODY_KIND.STAR) ?? null;
   for (const body of bodies) {
-    if (body.kind === BODY_KIND.PLANET) {
-      Object.assign(body, planetRotationMetadata(createRng(`${seed}:rotation:${body.id}:v1`), body.planetType));
+    if (body.kind === BODY_KIND.PLANET && star) {
+      Object.assign(body, planetRotationMetadata(createRng(`${seed}:rotation:${body.id}:v2`), body, star));
     } else if (body.kind === BODY_KIND.MOON) {
       const parent = byId.get(body.parentId);
-      if (parent) Object.assign(body, moonRotationMetadata(createRng(`${seed}:rotation:${body.id}:v1`), parent, body.semiMajorAxis));
+      if (parent) Object.assign(body, moonRotationMetadata(parent, body));
     }
   }
 }
@@ -314,13 +386,27 @@ export function generateSystem(seedText = 'ORIGIN-001') {
   for (let i = 0; i < planetCount; i += 1) {
     if (i > 0) semiMajor *= rng.range(1.52, 1.92);
     const type = selectPlanetType(rng, semiMajor, snowLine);
-    const radius = type.id === 'gas'
-      ? PHYSICS.JUPITER_RADIUS * rng.range(0.42, 1.18)
-      : PHYSICS.EARTH_RADIUS * rng.range(0.42, 1.78);
-    const density = type.density * rng.range(0.86, 1.13);
-    const mass = type.id === 'gas'
-      ? PHYSICS.JUPITER_MASS * rng.range(0.16, 1.65)
-      : massFromRadiusDensity(radius, density);
+    // Preserve the legacy RNG call sequence while making gas-giant mass/radius/density coherent.
+    const radiusSample = type.id === 'gas' ? rng.range(0.42, 1.18) : rng.range(0.42, 1.78);
+    const densitySample = rng.range(0.86, 1.13);
+    const gasMassSample = type.id === 'gas' ? rng.range(0.16, 1.65) : null;
+    let radius;
+    let density;
+    let mass;
+    let physicalPropertyModel;
+    if (type.id === 'gas') {
+      const structure01 = (radiusSample - 0.42) / (1.18 - 0.42);
+      const density01 = (densitySample - 0.86) / (1.13 - 0.86);
+      const properties = gasGiantPropertiesFromSamples(PHYSICS.JUPITER_MASS * gasMassSample, structure01, density01);
+      ({ radius, densityKgM3: density, mass } = properties);
+      physicalPropertyModel = properties.model;
+    } else {
+      radius = PHYSICS.EARTH_RADIUS * radiusSample;
+      density = type.density * densitySample;
+      mass = massFromRadiusDensity(radius, density);
+      density = bulkDensityKgM3(mass, radius);
+      physicalPropertyModel = 'bulk-density-v1';
+    }
     const eccentricity = rng.range(0.002, 0.075);
     const anomaly = rng.range(0, Math.PI * 2);
     const inclination = rng.range(-0.045, 0.045);
@@ -335,6 +421,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       mass,
       radius,
       densityKgM3: density,
+      physicalPropertyModel,
       semiMajorAxis: semiMajor,
       eccentricity,
       inclinationRad: inclination,
@@ -371,7 +458,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
 
   const cometCount = rng.random() < 0.42 ? 1 : 2;
   bodies.push(...cometDefinitions(rng, starMass, starName, cometCount));
-  if (rng.random() < 0.62) bodies.push(roguePlanetDefinition(rng, starName));
+  if (rng.random() < 0.62) bodies.push(roguePlanetDefinition(rng, starName, starMass));
 
   shiftToBarycentricFrame(bodies);
   assignRotationMetadata(seed, bodies);
@@ -399,7 +486,10 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       phenomenonCount: phenomena.length,
       anomalyCount: phenomena.filter((entry) => entry.anomaly).length,
       landablePlanetCount: bodies.filter((body) => body.kind === BODY_KIND.PLANET && body.landable).length,
-      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, deterministic rigid-body planetary rotation metadata, synchronous seeded moon rotation proxies, high-eccentricity physical comet nuclei, optional physical rogue planets, and separately labeled visual population phenomena plus an explicitly labeled speculative/fictional anomaly layer',
+      physicalPropertyModel: 'coherent-gas-envelope-v2',
+      rotationModel: 'orbital-relative-v2',
+      roguePopulationModel: 'positive-energy-v2',
+      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, coherent gas-giant bulk mass/radius/density generation, orbital-relative rigid-body planetary spin axes, synchronous moon rotation aligned to the parent direction at epoch, high-eccentricity physical comet nuclei, optional positive-energy unbound rogue planets, and separately labeled visual population phenomena plus an explicitly labeled speculative/fictional anomaly layer',
     },
   };
 }

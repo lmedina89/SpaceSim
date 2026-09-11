@@ -1,4 +1,4 @@
-import { UniverseLabApp } from './app/app.js?v=148';
+import { UniverseLabApp } from './app/app.js?v=1482';
 
 function syncVisualViewportHeight() {
   const vv = window.visualViewport;

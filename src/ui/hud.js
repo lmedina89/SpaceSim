@@ -160,14 +160,15 @@ export class Hud {
     this.targetApoapsis.textContent = Number.isFinite(metrics.apoapsisAltitudeMeters) ? distance(metrics.apoapsisAltitudeMeters) : 'unbound';
     this.targetOrbitState.textContent = metrics.boundTwoBody ? 'bound (two-body osculating)' : 'unbound / escape-like';
     this.targetImpactCount.textContent = String(body.damageRecords?.length ?? 0);
+    const predictionLimit = prediction?.accuracyLimited ? ' · numerical step budget limited' : '';
     if (prediction?.impact) {
-      this.predictedApproach.textContent = `Impact: ${prediction.impact.bodyName} in ${fmt(prediction.impact.timeSeconds / 3600, 2)} h at ${speed(prediction.impact.relativeSpeedMps)}`;
+      this.predictedApproach.textContent = `Impact: ${prediction.impact.bodyName} in ${fmt(prediction.impact.timeSeconds / 3600, 2)} h at ${speed(prediction.impact.relativeSpeedMps)}${predictionLimit}`;
     } else if (prediction?.targetClosest) {
-      this.predictedApproach.textContent = `Predicted closest surface separation: ${distance(prediction.targetClosest.separationMeters)} in ${fmt(prediction.targetClosest.timeSeconds / 3600, 2)} h`;
+      this.predictedApproach.textContent = `Predicted closest surface separation: ${distance(prediction.targetClosest.separationMeters)} in ${fmt(prediction.targetClosest.timeSeconds / 3600, 2)} h${predictionLimit}`;
     } else if (prediction?.closest) {
-      this.predictedApproach.textContent = `Closest sampled surface separation: ${distance(prediction.closest.separationMeters)} near ${prediction.closest.bodyName}`;
+      this.predictedApproach.textContent = `Closest sampled surface separation: ${distance(prediction.closest.separationMeters)} near ${prediction.closest.bodyName}${predictionLimit}`;
     } else {
-      this.predictedApproach.textContent = 'Prediction not active.';
+      this.predictedApproach.textContent = prediction?.accuracyLimited ? 'Prediction numerical step budget limited.' : 'Prediction not active.';
     }
   }
 

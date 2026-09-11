@@ -17,8 +17,9 @@ export class SimulationClock {
     const realDt = Math.min(Math.max(realDeltaSeconds, 0), SIMULATION.maxFrameDeltaSeconds);
     let remaining = realDt * this.timeScale;
     let steps = 0;
-    const substepLimit = Math.max(1e-4, Math.min(SIMULATION.maxPhysicsSubstepSeconds, Number(maxSubstepSeconds) || SIMULATION.maxPhysicsSubstepSeconds));
     while (remaining > 0) {
+      const requestedLimit = typeof maxSubstepSeconds === 'function' ? maxSubstepSeconds() : maxSubstepSeconds;
+      const substepLimit = Math.max(1e-4, Math.min(SIMULATION.maxPhysicsSubstepSeconds, Number(requestedLimit) || SIMULATION.maxPhysicsSubstepSeconds));
       const dt = Math.min(remaining, substepLimit);
       const keepGoing = stepFn(dt);
       this.elapsedSimSeconds += dt;

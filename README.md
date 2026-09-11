@@ -1,4 +1,38 @@
-# Universe Lab v0.1.4.8 — Planetary System Navigation & Exploration Foundation
+# Universe Lab v0.1.4.8.2 — Impact & Numerical Hardening
+
+**Build marker:** `IMPNUM-1482`  
+**Save schema:** 1 (unchanged)  
+**Three.js:** 0.185.0 (unchanged)
+
+## v0.1.4.8.2 impact & numerical hardening
+
+This release addresses the impact/collision and numerical-efficiency findings from the full v0.1.4.8 physics audit while preserving the validated direct Newtonian gravity law, velocity-Verlet major-body integrator, v0.1.4.8.1 generated-system consistency model, NAV/FRAME behavior, rotating-surface astronomy, landing lifecycle, and iPhone WebGL2 backend policy.
+
+- Swept finite-radius collisions now resolve the **first relative sphere-contact root** inside the physics substep. The contact position/velocity is interpolated from a reusable previous-state buffer, impact resolution occurs at that contact state, and only the remaining fraction of the substep is drifted ballistically before normal N-body integration resumes. This is more physical than resolving from an already-penetrated end-of-step state, but it is still not a full event-driven N-body re-integration.
+- Gas-world impact typing now recognizes the generated `planetType: "gas"` value and uses the gas-envelope response. Gas giants no longer receive rocky-crater estimates.
+- Representative fragmentation is generated in the collision center-of-mass frame. Target recoil balances fragment momentum, so the represented bodies conserve 3-D linear momentum; fragment + recoil kinetic energy is capped to a configured fraction of the available COM impact energy. The fragment model remains a bounded heuristic, not hydrodynamics or a material fracture solver.
+- Black holes are mandatory collision sinks. Absorbed mass and momentum are accumulated into the black hole and its Schwarzschild radius is recomputed from the new mass.
+- Major-body timestep control now includes a dynamically re-evaluated **pair encounter/crossing ceiling**. Ordinary generated systems continue using the existing 300 s ceiling, while very close/high-speed LAB compact-object pairs automatically force smaller substeps.
+- The minor test-particle field now actually uses its existing 30 Hz simulation-time cadence for fine frame-sized steps and reuses source-state scratch storage; large/high-warp substeps still update immediately.
+- Trajectory prediction now treats the spacecraft probe as a true **one-way test particle**: major sources gravitate mutually, the probe feels them, and the probe never back-reacts on them. Strong-gravity prediction uses adaptive local/pair step limits under a bounded CPU budget and reports when that budget limits numerical resolution.
+- L1/L2/L3 overlay positions now use numerical roots of the circular restricted three-body equilibrium equation at the live separation instead of small-secondary first-order formulas. L4/L5 retain the exact equilateral circular-CR3BP geometry. These overlays remain diagnostics and never alter gravity.
+- Collision previous-state storage is now reusable flat typed-array state rather than a fresh `Map` plus per-body typed arrays every physics substep; the pair scanner also avoids per-pair temporary arrays.
+
+The v0.1.4.8.1 scientific-consistency and v0.1.4.8 navigation/exploration feature sets remain intact below.
+
+## v0.1.4.8.1 scientific consistency
+
+This hotfix corrects generator/rotation consistency findings from the full v0.1.4.8 physics audit without rewriting the validated Newtonian gravity engine, velocity-Verlet integrator, NAV/FRAME foundation, landing lifecycle, or iPhone WebGL2 backend policy.
+
+- Fresh gas giants now use a coherent bounded bulk mass-density-radius proxy. Mass is authoritative, radius follows the proxy, and `densityKgM3` is re-derived from the same mass/radius pair. A conservative 1.15× Newtonian mass-shedding-period floor prevents generated spin below breakup. This is a bulk generation proxy, **not** a detailed planetary equation-of-state/interior-evolution model.
+- Fresh planetary spin poles are derived from each body's actual parent-relative orbital angular momentum. `PRO`/`RETRO` now describes the physical spin pole relative to the orbit instead of a global-axis convention.
+- Fresh moons use the synchronous two-body period `2π√(a³/G(Mparent+Mmoon))`, align their spin pole with the moon's orbital normal, and face the parent at the rotation epoch. Eccentric-orbit optical libration remains a natural consequence of constant synchronous spin versus nonuniform true anomaly.
+- Existing schema-1 saves preserve serialized rotation period/direction/axis/phase/model when present. This is required because existing body-fixed landing anchors were captured in that saved frame. Only genuinely missing legacy rotation fields are backfilled.
+- Legacy saved gas planets preserve their saved mass/radius/orbital geometry but re-derive contradictory stored bulk density when the new property-model marker is absent. Fresh systems receive the fully coherent v2 relation.
+- Fresh `rogue` planets are forced above the local two-body stellar escape-energy threshold; saved legacy rogue velocities remain authoritative and are not silently rewritten.
+- New permanent property tests cover gas coherence, breakup floor, orbital-relative spin direction, synchronous-moon period/facing, positive rogue energy, and save compatibility.
+
+The v0.1.4.8 navigation/exploration feature set remains intact below.
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 

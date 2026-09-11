@@ -9,7 +9,7 @@ test('surface frame advances celestial time through a spacecraft-isolated world 
   const method = source.match(/surfaceAstronomyStep\(dt\) \{([\s\S]*?)\n  \}\n\n  frameSurface/);
   assert.ok(method, 'surface astronomy method should remain directly inspectable');
   assert.match(method[1], /this\.integrator\.step\(sources, dt\)/);
-  assert.match(method[1], /this\.minorField\?\.step\(dt, sources\)/);
+  assert.match(method[1], /this\.minorField\?\.advance\(dt, sources, previousState\)/);
   assert.doesNotMatch(method[1], /this\.ship\.step\(/, 'parked spacecraft must not be integrated by ShipDynamics');
   assert.doesNotMatch(method[1], /updateNavigation\(/, 'surface celestial stepping must not own navigation');
 });
@@ -23,7 +23,7 @@ test('surface entry captures a body-fixed anchor and preserves pause state inste
 
 test('old schema-1 saves backfill deterministic rotation metadata without replacing saved position or velocity', async () => {
   const source = await readFile(new URL('../src/app/app.js', import.meta.url), 'utf8');
-  assert.match(source, /Rotation metadata is deterministic/);
-  assert.match(source, /generated\.rotationAxisInertial/);
+  assert.match(source, /applyGeneratedBodyCompatibility\(restored, generated\)/);
+  assert.match(source, /serialized dynamics and any/);
   assert.match(source, /const restored = restoreBody\(raw\)/);
 });

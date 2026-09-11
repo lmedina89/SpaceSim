@@ -4,11 +4,12 @@ import { FloatingReferenceFrame } from '../core/referenceFrame.js';
 import { ASTRONOMICAL_OBSERVER_MODE, AstronomicalObserverModel } from '../core/astronomicalObserver.js';
 import { captureBodyFixedSurfaceAnchor, hasPhysicalRotationModel, inertialDirectionToBodyFixed, localSolarTimeHours, rotationAngleAt, surfaceLatitudeLongitude } from '../core/planetaryRotation.js';
 import { SaveSystem } from '../core/saveSystem.js';
+import { applyGeneratedBodyCompatibility } from '../core/generatedBodyCompatibility.js';
 import { PHYSICS, SIMULATION, BODY_KIND } from '../core/constants.js';
 import { generateSystem } from '../data/systemGenerator.js';
 import { DirectGravitySolver } from '../physics/gravity/directGravitySolver.js';
 import { VelocityVerletIntegrator } from '../physics/integrators/velocityVerlet.js';
-import { CollisionMonitor } from '../physics/collisionMonitor.js';
+import { CollisionMonitor, CollisionStateBuffer } from '../physics/collisionMonitor.js';
 import { TestParticleField } from '../physics/testParticleField.js';
 import { ShipDynamics } from '../physics/shipDynamics.js';
 import { computeApproachAcceleration, computeMatchVelocityAcceleration, computeTurnAndBurnAcceleration, computeAbsoluteBrakeAcceleration, recommendedWarpCap, targetRelativeState, navigationPhysicsStepLimitSeconds, newtonianModelLimit } from '../physics/flightComputer.js';
@@ -16,6 +17,7 @@ import { formatEnergy } from '../physics/impactModel.js';
 import { resolveImpact } from '../physics/impactResolver.js';
 import { osculatingMetrics, angularAlignment } from '../physics/orbitalMetrics.js';
 import { TrajectoryPredictor } from '../physics/trajectoryPredictor.js';
+import { massivePairPhysicsStepLimitSeconds } from '../physics/massivePairStepControl.js';
 import { ExperimentRegistry } from '../experiments/experimentRegistry.js';
 import { registerLabExperiments, MATERIALS, asteroidDefinitionFromParams, sphereRadiusFromMassDensity } from '../experiments/labSpawner.js';
 import { ParticleExperimentManager, PARTICLE_MODES } from '../experiments/particles/particleExperimentManager.js';
@@ -25,9 +27,9 @@ import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition, matchFrameExitVelocity } from '../physics/transitDrive.js';
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=148';
-import { Hud } from '../ui/hud.js?v=148';
-import { SystemMapController } from '../ui/systemMap.js?v=148';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1482';
+import { Hud } from '../ui/hud.js?v=1482';
+import { SystemMapController } from '../ui/systemMap.js?v=1482';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -87,6 +89,8 @@ function serializeBody(body) {
     planetType: body.planetType,
     parentId: body.parentId,
     densityKgM3: body.densityKgM3,
+    physicalPropertyModel: body.physicalPropertyModel,
+    rogueOrbitModel: body.rogueOrbitModel,
     materialId: body.materialId,
     visualVersion: body.visualVersion,
     damageRecords: body.damageRecords,
@@ -143,6 +147,7 @@ export class UniverseLabApp {
     this.gravitySolver = new DirectGravitySolver();
     this.integrator = new VelocityVerletIntegrator(this.gravitySolver);
     this.collisionMonitor = new CollisionMonitor();
+    this.collisionSnapshot = new CollisionStateBuffer();
     this.ship = new ShipDynamics();
     this.trajectoryPredictor = new TrajectoryPredictor();
     this.experiments = new ExperimentRegistry();
@@ -283,7 +288,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.8 online. NAV now exposes the live star → planets → moons hierarchy with true/log map modes and planet/moon FRAME orbit insertion. The physically accepted surface astronomy, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build NAVSYS-148.`);
+    this.hud.notify(`v0.1.4.8.2 online. Impact resolution now uses first swept contact state, conservation-bounded representative fragmentation, black-hole sink accretion, adaptive close-pair major-body timesteps, and bounded one-way trajectory prediction. Core Newtonian gravity, generated-system consistency, NAV/FRAME, surface astronomy, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build IMPNUM-1482.`);
   }
 
   newSystem(seed) {
@@ -2171,8 +2176,15 @@ export class UniverseLabApp {
     return true;
   }
 
+  currentMassivePairStepLimit() {
+    return massivePairPhysicsStepLimitSeconds(this.massiveBodies, SIMULATION.maxPhysicsSubstepSeconds);
+  }
+
   currentPhysicsSubstepLimit() {
-    return navigationPhysicsStepLimitSeconds(this.ship, this.massiveBodies, SIMULATION.maxPhysicsSubstepSeconds);
+    return Math.min(
+      navigationPhysicsStepLimitSeconds(this.ship, this.massiveBodies, SIMULATION.maxPhysicsSubstepSeconds),
+      this.currentMassivePairStepLimit(),
+    );
   }
 
   particleFieldParams() {
@@ -2277,7 +2289,7 @@ export class UniverseLabApp {
 
   physicsStep(dt) {
     const sources = this.massiveBodies;
-    const previousPositions = new Map(sources.map((body) => [body.id, new Float64Array(body.position)]));
+    const previousState = this.collisionSnapshot.capture(sources);
     this.integrator.step(sources, dt);
     if (this.transitState.active) {
       // FRAME DRIVE is a spacecraft-only fictional boundary. Major bodies, particles, weather and
@@ -2289,7 +2301,7 @@ export class UniverseLabApp {
       this.ship.step(dt, sources);
       if (this.checkNewtonianModelLimit()) return false;
     }
-    this.minorField?.step(dt, sources);
+    this.minorField?.advance(dt, sources, previousState);
     const experimentStart = performance.now();
     this.particleExperiments.step(dt, sources);
     this.experimentMs += performance.now() - experimentStart;
@@ -2300,10 +2312,17 @@ export class UniverseLabApp {
       if (notice.type === 'ship-hit') this.hud.notify(`SPACE WEATHER CROSSING: ${notice.event.label} reached the spacecraft at ${(notice.distanceMeters / PHYSICS.AU).toFixed(3)} AU. This records geometric front arrival only; radiation/plasma damage is not simulated yet.`, 7600);
     }
 
-    const collisions = this.collisionMonitor.scan(sources, previousPositions, this.clock.elapsedSimSeconds + dt);
+    const collisions = this.collisionMonitor.scan(sources, previousState, this.clock.elapsedSimSeconds + dt)
+      .sort((left, right) => (left.stepFraction ?? 1) - (right.stepFraction ?? 1));
+    const consumedCollisionBodies = new Set();
     for (const event of collisions) {
-      event.timeSeconds = this.clock.elapsedSimSeconds + dt * (event.stepFraction ?? 1);
+      if (consumedCollisionBodies.has(event.a.id) || consumedCollisionBodies.has(event.b.id)) continue;
+      const fraction = Math.max(0, Math.min(1, Number(event.stepFraction) || 0));
+      event.timeSeconds = this.clock.elapsedSimSeconds + dt * fraction;
+      event.postContactSeconds = dt * (1 - fraction);
       this.applyImpactResolution(event);
+      consumedCollisionBodies.add(event.a.id);
+      consumedCollisionBodies.add(event.b.id);
     }
 
     let currentContact = null;
@@ -2326,9 +2345,9 @@ export class UniverseLabApp {
 
   surfaceAstronomyStep(dt) {
     const sources = this.massiveBodies;
-    const previousPositions = new Map(sources.map((body) => [body.id, new Float64Array(body.position)]));
+    const previousState = this.collisionSnapshot.capture(sources);
     this.integrator.step(sources, dt);
-    this.minorField?.step(dt, sources);
+    this.minorField?.advance(dt, sources, previousState);
 
     // Surface sessions cannot contain live particle experiments, but the major-body universe and
     // seeded kinematic space-weather timeline must continue while the spacecraft is parked.
@@ -2338,10 +2357,17 @@ export class UniverseLabApp {
       if (notice.type === 'start') this.hud.notify(`STELLAR EVENT: ${notice.event.label} launched automatically while surface operations continue. COSMOS → SPACE WEATHER tracks the front.`);
     }
 
-    const collisions = this.collisionMonitor.scan(sources, previousPositions, this.clock.elapsedSimSeconds + dt);
+    const collisions = this.collisionMonitor.scan(sources, previousState, this.clock.elapsedSimSeconds + dt)
+      .sort((left, right) => (left.stepFraction ?? 1) - (right.stepFraction ?? 1));
+    const consumedCollisionBodies = new Set();
     for (const event of collisions) {
-      event.timeSeconds = this.clock.elapsedSimSeconds + dt * (event.stepFraction ?? 1);
+      if (consumedCollisionBodies.has(event.a.id) || consumedCollisionBodies.has(event.b.id)) continue;
+      const fraction = Math.max(0, Math.min(1, Number(event.stepFraction) || 0));
+      event.timeSeconds = this.clock.elapsedSimSeconds + dt * fraction;
+      event.postContactSeconds = dt * (1 - fraction);
       this.applyImpactResolution(event);
+      consumedCollisionBodies.add(event.a.id);
+      consumedCollisionBodies.add(event.b.id);
     }
     return true;
   }
@@ -2349,7 +2375,7 @@ export class UniverseLabApp {
   frameSurface(now, realDt) {
     const physicsStart = performance.now();
     this.experimentMs = 0;
-    if (this.running) this.clock.advance(realDt, (dt) => this.surfaceAstronomyStep(dt), SIMULATION.maxPhysicsSubstepSeconds);
+    if (this.running) this.clock.advance(realDt, (dt) => this.surfaceAstronomyStep(dt), () => this.currentMassivePairStepLimit());
     this.physicsMs = performance.now() - physicsStart;
     this.updateSurface(realDt);
 
@@ -2415,7 +2441,7 @@ export class UniverseLabApp {
     if (this.transitState.active) this.updateTransit(orbitalRealDt);
     this.enforceNavigationWarpSafety();
     this.enforceParticleWarpSafety();
-    if (this.running) this.clock.advance(orbitalRealDt, (dt) => this.physicsStep(dt), this.currentPhysicsSubstepLimit());
+    if (this.running) this.clock.advance(orbitalRealDt, (dt) => this.physicsStep(dt), () => this.currentPhysicsSubstepLimit());
     this.physicsMs = performance.now() - physicsStart;
     if (this._rollDirection) { this.ship.rotateRoll(this._rollDirection * orbitalRealDt * 1.4); this.invalidatePredictions(); }
 
@@ -2513,14 +2539,10 @@ export class UniverseLabApp {
     for (const raw of payload.bodies) {
       const restored = restoreBody(raw);
       const generated = generatedBodyById.get(restored.id);
-      // Rotation metadata is deterministic and lives outside the saved dynamical position/velocity.
-      // Backfill it for older schema-1 saves without changing their authoritative physical state.
-      if (generated) {
-        for (const key of ['rotationPeriodSeconds','rotationDirection','rotationPhaseRad','rotationEpochSeconds','axialTiltRad','rotationModel']) {
-          if (generated[key] !== undefined) restored[key] = generated[key];
-        }
-        if (Array.isArray(generated.rotationAxisInertial)) restored.rotationAxisInertial = [...generated.rotationAxisInertial];
-      }
+      // Generator upgrades may add deterministic metadata, but serialized dynamics and any
+      // already-saved rotation basis remain authoritative. This preserves legacy body-fixed
+      // landing anchors while still backfilling fields absent from older schema-1 saves.
+      if (generated) applyGeneratedBodyCompatibility(restored, generated);
       // Schema-1 saves from before the landing foundation did not know the new surface profile.
       // Refresh only surface-capability metadata from deterministic generation; physical state remains saved state.
       if (generated?.landable) {

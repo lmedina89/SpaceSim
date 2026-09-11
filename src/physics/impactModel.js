@@ -25,7 +25,7 @@ export function materialProfile(body) {
   if (body.kind === BODY_KIND.BLACK_HOLE) return MATERIAL_RESPONSE.blackHole;
   if (body.kind === BODY_KIND.STAR) return MATERIAL_RESPONSE.star;
   if (body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ROGUE_PLANET) {
-    if (body.planetType === 'gas giant') return MATERIAL_RESPONSE.gasGiant;
+    if (isGasPlanet(body)) return MATERIAL_RESPONSE.gasGiant;
     if (body.planetType === 'ice' || body.planetType === 'frozen') return MATERIAL_RESPONSE.planetIce;
     return MATERIAL_RESPONSE.planetRock;
   }
@@ -67,23 +67,53 @@ function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
 }
 
+function isGasPlanet(body) {
+  const type = String(body?.planetType ?? '').toLowerCase();
+  return type === 'gas' || type === 'gas giant' || type === 'gas-giant';
+}
+
 function chooseTargetImpactor(a, b) {
+  const aBlackHole = a.kind === BODY_KIND.BLACK_HOLE;
+  const bBlackHole = b.kind === BODY_KIND.BLACK_HOLE;
+  if (aBlackHole || bBlackHole) {
+    if (aBlackHole && bBlackHole) return a.mass >= b.mass ? { target: a, impactor: b } : { target: b, impactor: a };
+    return aBlackHole ? { target: a, impactor: b } : { target: b, impactor: a };
+  }
   return a.mass >= b.mass ? { target: a, impactor: b } : { target: b, impactor: a };
+}
+
+function eventVectorForBody(event, body, keyA, keyB, fallback) {
+  if (body === event.a && event[keyA]?.length >= 3) return event[keyA];
+  if (body === event.b && event[keyB]?.length >= 3) return event[keyB];
+  return fallback;
 }
 
 export function analyzeImpactEvent(event) {
   const { a, b } = event;
-  const relativeVelocity = event.relativeVelocity ?? [b.velocity[0] - a.velocity[0], b.velocity[1] - a.velocity[1], b.velocity[2] - a.velocity[2]];
+  const aVelocity = eventVectorForBody(event, a, 'contactVelocityA', 'contactVelocityB', a.velocity);
+  const bVelocity = eventVectorForBody(event, b, 'contactVelocityA', 'contactVelocityB', b.velocity);
+  const aPosition = eventVectorForBody(event, a, 'contactPositionA', 'contactPositionB', a.position);
+  const bPosition = eventVectorForBody(event, b, 'contactPositionA', 'contactPositionB', b.position);
+  const relativeVelocity = event.relativeVelocity ?? [bVelocity[0] - aVelocity[0], bVelocity[1] - aVelocity[1], bVelocity[2] - aVelocity[2]];
   const relativeSpeed = event.relativeSpeed ?? Math.hypot(...relativeVelocity);
-  const eventNormal = unit(event.contactNormal ?? [b.position[0] - a.position[0], b.position[1] - a.position[1], b.position[2] - a.position[2]]);
+  const eventNormal = unit(event.contactNormal ?? [bPosition[0] - aPosition[0], bPosition[1] - aPosition[1], bPosition[2] - aPosition[2]]);
   const { target, impactor } = chooseTargetImpactor(a, b);
+  const targetVelocity = target === a ? aVelocity : bVelocity;
+  const impactorVelocity = impactor === a ? aVelocity : bVelocity;
+  const targetPosition = target === a ? aPosition : bPosition;
+  const impactorPosition = impactor === a ? aPosition : bPosition;
   const normal = target === a ? eventNormal : [-eventNormal[0], -eventNormal[1], -eventNormal[2]];
-  const impactorRelativeVelocity = [impactor.velocity[0] - target.velocity[0], impactor.velocity[1] - target.velocity[1], impactor.velocity[2] - target.velocity[2]];
+  const impactorRelativeVelocity = [impactorVelocity[0] - targetVelocity[0], impactorVelocity[1] - targetVelocity[1], impactorVelocity[2] - targetVelocity[2]];
   const velocityDirection = unit(impactorRelativeVelocity);
   const cosNormal = clamp(Math.abs(dot(normal, velocityDirection)), 0, 1);
   const impactAngleDegrees = Math.asin(cosNormal) * (180 / Math.PI); // 90 = straight in, 0 = grazing
   const report = impactReport(a, b, relativeSpeed);
   const mutualEscape = mutualEscapeSpeedMps(a, b);
+  const contactPoint = [
+    targetPosition[0] + normal[0] * target.radius,
+    targetPosition[1] + normal[1] * target.radius,
+    targetPosition[2] + normal[2] * target.radius,
+  ];
   return {
     ...report,
     a,
@@ -94,6 +124,11 @@ export function analyzeImpactEvent(event) {
     relativeVelocity: impactorRelativeVelocity,
     relativeSpeedMps: relativeSpeed,
     contactNormal: normal,
+    contactPoint,
+    targetPosition,
+    impactorPosition,
+    targetVelocity,
+    impactorVelocity,
     impactAngleDegrees,
     mutualEscapeSpeedMps: mutualEscape,
     targetDensityKgM3: bodyDensityKgM3(target),
@@ -131,7 +166,7 @@ export function classifyImpact(analysis) {
 
 export function estimateCrater(analysis) {
   const { target, impactor } = analysis;
-  if (!([BODY_KIND.PLANET, BODY_KIND.MOON, BODY_KIND.ROGUE_PLANET].includes(target.kind)) || target.planetType === 'gas giant') return null;
+  if (!([BODY_KIND.PLANET, BODY_KIND.MOON, BODY_KIND.ROGUE_PLANET].includes(target.kind)) || isGasPlanet(target)) return null;
   const g = (PHYSICS.G * target.mass) / (target.radius * target.radius);
   const Dp = Math.max(1, impactor.radius * 2);
   const rhoRatio = Math.max(0.15, Math.min(8, analysis.impactorDensityKgM3 / Math.max(1, analysis.targetDensityKgM3)));
@@ -180,31 +215,42 @@ function pseudoRandom(seed) {
 
 export function generateFragments(analysis, options = {}) {
   const { target, impactor, contactNormal } = analysis;
-  const crater = options.crater ?? null;
   const fragmentCount = Math.max(0, Math.min(2, Number.isFinite(options.maxFragments) ? options.maxFragments : 2));
   const sourceMass = impactor.mass;
   // Only a small fraction of impactor mass is promoted to expensive, mutually gravitating fragments.
-  // Most ejecta is intentionally represented by the cheaper visual debris field / target accretion.
+  // The remaining represented mass is accreted into the target; visual dust/ejecta carries no hidden mass.
   const largeMassShare = [BODY_KIND.PLANET, BODY_KIND.MOON, BODY_KIND.ROGUE_PLANET].includes(target.kind) ? 0.08 : 0.14;
   const gravitationalFragmentBudget = fragmentCount;
-  const totalRenderDebrisMass = Math.max(0, sourceMass * (1 - largeMassShare));
   const largeMass = gravitationalFragmentBudget > 0 ? sourceMass * largeMassShare : 0;
   const masses = [];
-  let remaining = largeMass;
-  for (let i = 0; i < gravitationalFragmentBudget; i += 1) {
-    const weight = 1 / (i + 1.35);
-    masses.push(weight);
-  }
+  for (let i = 0; i < gravitationalFragmentBudget; i += 1) masses.push(1 / (i + 1.35));
   const sum = masses.reduce((acc, value) => acc + value, 0);
-  for (let i = 0; i < masses.length; i += 1) masses[i] = (masses[i] / sum) * remaining;
-  const { tangent, bitangent } = tangentBasis(contactNormal);
-  const ejectaSpeed = Math.max(analysis.relativeSpeedMps * 0.18, Math.sqrt(Math.max(1, analysis.centerOfMassEnergyJ / Math.max(sourceMass, 1))));
-  const origin = [
-    target.position[0] + contactNormal[0] * target.radius,
-    target.position[1] + contactNormal[1] * target.radius,
-    target.position[2] + contactNormal[2] * target.radius,
+  for (let i = 0; i < masses.length; i += 1) masses[i] = sum > 0 ? (masses[i] / sum) * largeMass : 0;
+
+  const fragmentMass = masses.reduce((acc, value) => acc + value, 0);
+  const unresolvedAccretedMassKg = Math.max(0, sourceMass - fragmentMass);
+  const finalTargetMass = target.mass + unresolvedAccretedMassKg;
+  const totalMass = target.mass + impactor.mass;
+  const targetVelocity = analysis.targetVelocity ?? target.velocity;
+  const impactorVelocity = analysis.impactorVelocity ?? impactor.velocity;
+  const centerOfMassVelocity = [
+    (targetVelocity[0] * target.mass + impactorVelocity[0] * impactor.mass) / totalMass,
+    (targetVelocity[1] * target.mass + impactorVelocity[1] * impactor.mass) / totalMass,
+    (targetVelocity[2] * target.mass + impactorVelocity[2] * impactor.mass) / totalMass,
   ];
-  const fragments = masses.map((mass, index) => {
+
+  const { tangent, bitangent } = tangentBasis(contactNormal);
+  const nominalEjectaSpeed = Math.max(
+    analysis.relativeSpeedMps * 0.18,
+    Math.sqrt(Math.max(1, analysis.centerOfMassEnergyJ / Math.max(sourceMass, 1))),
+  );
+  const origin = analysis.contactPoint ?? [
+    (analysis.targetPosition ?? target.position)[0] + contactNormal[0] * target.radius,
+    (analysis.targetPosition ?? target.position)[1] + contactNormal[1] * target.radius,
+    (analysis.targetPosition ?? target.position)[2] + contactNormal[2] * target.radius,
+  ];
+
+  const templates = masses.map((mass, index) => {
     const radius = Math.cbrt((3 * mass) / (4 * Math.PI * analysis.impactorDensityKgM3));
     const r1 = pseudoRandom(analysis.centerOfMassEnergyJ * 1e-21 + index * 12.9898);
     const r2 = pseudoRandom(analysis.centerOfMassEnergyJ * 3e-21 + index * 78.233);
@@ -216,13 +262,44 @@ export function generateFragments(analysis, options = {}) {
       contactNormal[1] * 1.2 + tangent[1] * spreadA + bitangent[1] * spreadB,
       contactNormal[2] * 1.2 + tangent[2] * spreadA + bitangent[2] * spreadB,
     ]);
-    const speed = ejectaSpeed * localScale * (index === 0 ? 1.3 : 0.55 + r2 * 0.85);
+    const speed = nominalEjectaSpeed * localScale * (index === 0 ? 1.3 : 0.55 + r2 * 0.85);
+    return { mass, radius, dir, rawOffset: [dir[0] * speed, dir[1] * speed, dir[2] * speed] };
+  });
+
+  // Resolve ejecta in the collision COM frame. Target recoil exactly balances the represented
+  // fragment momentum, and the ejecta kinetic energy is capped to a fraction of the available
+  // center-of-mass impact energy so the heuristic debris model cannot create kinetic energy.
+  let rawPx = 0, rawPy = 0, rawPz = 0;
+  let rawFragmentEnergy = 0;
+  for (const item of templates) {
+    rawPx += item.mass * item.rawOffset[0];
+    rawPy += item.mass * item.rawOffset[1];
+    rawPz += item.mass * item.rawOffset[2];
+    rawFragmentEnergy += 0.5 * item.mass * (item.rawOffset[0] ** 2 + item.rawOffset[1] ** 2 + item.rawOffset[2] ** 2);
+  }
+  const rawTargetRecoil = finalTargetMass > 0 ? [-rawPx / finalTargetMass, -rawPy / finalTargetMass, -rawPz / finalTargetMass] : [0, 0, 0];
+  const rawTargetEnergy = 0.5 * finalTargetMass * (rawTargetRecoil[0] ** 2 + rawTargetRecoil[1] ** 2 + rawTargetRecoil[2] ** 2);
+  const rawEjectaEnergy = rawFragmentEnergy + rawTargetEnergy;
+  const requestedEnergyFraction = clamp(Number(options.ejectaEnergyFraction) || 0.25, 0, 0.5);
+  const ejectaEnergyBudgetJ = Math.max(0, analysis.centerOfMassEnergyJ * requestedEnergyFraction);
+  const energyScale = rawEjectaEnergy > ejectaEnergyBudgetJ && rawEjectaEnergy > 0
+    ? Math.sqrt(ejectaEnergyBudgetJ / rawEjectaEnergy)
+    : 1;
+
+  let px = 0, py = 0, pz = 0;
+  let fragmentEnergy = 0;
+  const fragments = templates.map((item, index) => {
+    const ux = item.rawOffset[0] * energyScale;
+    const uy = item.rawOffset[1] * energyScale;
+    const uz = item.rawOffset[2] * energyScale;
+    px += item.mass * ux; py += item.mass * uy; pz += item.mass * uz;
+    fragmentEnergy += 0.5 * item.mass * (ux * ux + uy * uy + uz * uz);
     return {
       name: `Fragment ${index + 1}`,
       isImpactFragment: true,
       fragmentGenerationDepth: (impactor.fragmentGenerationDepth ?? 0) + 1,
-      mass,
-      radius,
+      mass: item.mass,
+      radius: item.radius,
       densityKgM3: analysis.impactorDensityKgM3,
       materialId: impactor.materialId ?? 'basalt',
       color: impactor.color ?? 0x9a816b,
@@ -230,22 +307,38 @@ export function generateFragments(analysis, options = {}) {
       generated: false,
       kind: BODY_KIND.ASTEROID,
       position: [
-        origin[0] + dir[0] * (radius * 2.4),
-        origin[1] + dir[1] * (radius * 2.4),
-        origin[2] + dir[2] * (radius * 2.4),
+        origin[0] + item.dir[0] * (item.radius * 2.4),
+        origin[1] + item.dir[1] * (item.radius * 2.4),
+        origin[2] + item.dir[2] * (item.radius * 2.4),
       ],
       velocity: [
-        target.velocity[0] + dir[0] * speed,
-        target.velocity[1] + dir[1] * speed,
-        target.velocity[2] + dir[2] * speed,
+        centerOfMassVelocity[0] + ux,
+        centerOfMassVelocity[1] + uy,
+        centerOfMassVelocity[2] + uz,
       ],
     };
   });
+  const targetRecoil = finalTargetMass > 0 ? [-px / finalTargetMass, -py / finalTargetMass, -pz / finalTargetMass] : [0, 0, 0];
+  const targetVelocityAfter = [
+    centerOfMassVelocity[0] + targetRecoil[0],
+    centerOfMassVelocity[1] + targetRecoil[1],
+    centerOfMassVelocity[2] + targetRecoil[2],
+  ];
+  const targetRecoilEnergy = 0.5 * finalTargetMass * (targetRecoil[0] ** 2 + targetRecoil[1] ** 2 + targetRecoil[2] ** 2);
+  const representedEjectaKineticEnergyJ = fragmentEnergy + targetRecoilEnergy;
+  const characteristicEjectaSpeed = templates.length
+    ? Math.max(...templates.map((item) => Math.hypot(...item.rawOffset) * energyScale))
+    : 0;
+
   return {
     fragments,
+    targetVelocityAfter,
+    centerOfMassVelocity,
     largestFragmentMassKg: masses.length ? Math.max(...masses) : 0,
-    unresolvedAccretedMassKg: totalRenderDebrisMass,
-    estimatedEscapingFraction: Math.min(0.95, Math.max(0.08, ejectaSpeed / Math.max(1, Math.sqrt((2 * PHYSICS.G * target.mass) / target.radius)) * 0.18)),
+    unresolvedAccretedMassKg,
+    representedEjectaKineticEnergyJ,
+    ejectaEnergyBudgetJ,
+    estimatedEscapingFraction: Math.min(0.95, Math.max(0.08, characteristicEjectaSpeed / Math.max(1, Math.sqrt((2 * PHYSICS.G * target.mass) / target.radius)) * 0.18)),
   };
 }
 
