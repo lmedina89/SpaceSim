@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.9</title>
-  <link rel="stylesheet" href="./styles.css?v=149">
+  <title>Universe Lab v0.1.4.9.1</title>
+  <link rel="stylesheet" href="./styles.css?v=1491">
   <script type="importmap">
   {
     "imports": {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.9</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.9.1</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -111,6 +111,7 @@
         <div class="surface-action-grid surface-detail-actions">
           <button id="surfaceSaveButton" type="button">SAVE</button>
           <button id="surfaceTakeoffButton" class="void" type="button">BOARD / TAKEOFF</button>
+          <button id="surfacePlannerButton" class="surface-sky-toggle" type="button">PLAN SKY EVENTS</button>
           <button id="surfaceAstronomyPause" class="surface-sky-toggle" type="button" aria-pressed="false">PAUSE SKY</button>
         </div>
         <small class="surface-model-note">BODY-FIXED SURFACE OBSERVER · apparent disks/phases/occultations derive from authoritative body geometry · LAT/LON uses the procedural body-fixed zero-meridian · SOLAR time uses primary-star hour angle · PAUSE SKY holds celestial N-body time only</small>
@@ -147,7 +148,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and manual FRAME disengage matches the locked target inertial velocity; completed planet/moon travel uses a calculated circular osculating-orbit handoff when a resolved stability window exists. Surface sky directions use a rotating body-fixed observer while the same celestial N-body universe continues at 1×; physical apparent disks, phases and finite-disk stellar occultations now derive from the same authoritative geometry. FRAME remains isolated from celestial gravity. Build marker: <b>CELEST-149</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and manual FRAME disengage matches the locked target inertial velocity; completed planet/moon travel uses a calculated circular osculating-orbit handoff when a resolved stability window exists. Surface sky directions use a rotating body-fixed observer while the same celestial N-body universe continues at 1×; physical apparent disks, phases and finite-disk stellar occultations derive from the same authoritative geometry; NAV observation planning propagates only a cloned ephemeris and never advances live bodies. FRAME remains isolated from celestial gravity. Build marker: <b>OBSPLAN-1491</b>.</p>
     </aside>
 
     <aside id="engineeringPanel" class="drawer engineering-panel" hidden>
@@ -173,7 +174,7 @@
           <b>MODEL BOUNDARY</b>
           <span>These values mirror existing runtime telemetry only. This panel does not change gravity, integration, FRAME behavior, navigation, save state, or renderer-backend policy.</span>
         </div>
-        <p class="engineering-build">BUILD <b>CELEST-149</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
+        <p class="engineering-build">BUILD <b>OBSPLAN-1491</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
       </div>
     </aside>
 
@@ -217,9 +218,29 @@
           <button id="mapTransitAction" class="void" type="button">FRAME TO TARGET</button>
           <button id="mapScanAction" type="button">SCAN SIGNAL</button>
           <button id="mapCosmosAction" type="button">OPEN SCIENCE / COSMOS</button>
+          <button id="mapEventsAction" class="void" type="button">PLAN OBSERVATIONS</button>
           <button id="mapLandAction" class="surface-accent" type="button" disabled>LAND / DESCEND</button>
         </div>
         <p class="warning"><strong>MAP SCIENCE BOUNDARY:</strong> TRUE views are linear projections of the live inertial X/Z state. LOG SURVEY compresses radius only and is labeled non-linear. The map never moves a body or creates a second orbit model. Atmosphere physics is explicitly reported as unmodeled rather than inferred from artwork.</p>
+      </div>
+    </aside>
+
+    <aside id="eventsPanel" class="drawer event-planner-panel" hidden>
+      <header><div><b>OBSERVATION PLANNER</b><small>Read-only cloned N-body ephemeris · stellar alignments</small></div><button id="eventsClose" type="button" aria-label="Close observation planner">×</button></header>
+      <div class="science-copy event-planner-copy">
+        <p class="help">Select a planet or moon in NAV first. The planner searches forward from the current simulation epoch using a temporary copy of the same gravity-source bodies. It never advances, teleports or edits the live universe.</p>
+        <div class="scan-grid">
+          <span>Reference observer</span><b id="eventObserverName">—</b>
+          <span>Reference model</span><b id="eventObserverModel">—</b>
+          <span>Search starts</span><b id="eventStartTime">—</b>
+          <span>Geometry</span><b>PRIMARY-STAR DISK · ≤5° ALIGNMENTS</b>
+        </div>
+        <label class="event-horizon-label">Search horizon<select id="eventHorizon"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="180">180 days</option></select></label>
+        <div class="observation-grid event-actions"><button id="eventSearch" class="void" type="button">SEARCH ALIGNMENTS</button><button id="eventCancel" type="button" hidden>CANCEL SEARCH</button></div>
+        <div class="event-progress" aria-label="Observation search progress"><div id="eventProgressFill"></div><b id="eventProgressText">READY</b></div>
+        <p id="eventStatus" class="prediction">Search forward from the current simulation epoch. The planner propagates a temporary copy of the N-body system and never moves live bodies.</p>
+        <div id="eventResults" class="event-results"><p class="event-empty">No search has been run for this reference observer yet.</p></div>
+        <p class="warning"><strong>PLANNER BOUNDARY:</strong> BODY CENTER is a geocentric/selenocentric approximation and does not include a local horizon. If you are landed on the selected reference body, CURRENT LANDED SITE instead follows that exact body-fixed location and reports whether the star is above the horizon. The search does not predict future pilot motion or replay future collision/fragmentation events. Numerical work is bounded and reported rather than hidden.</p>
       </div>
     </aside>
 
@@ -413,6 +434,6 @@
       </div>
     </aside>
   </main>
-  <script type="module" src="./src/main.js?v=149"></script>
+  <script type="module" src="./src/main.js?v=1491"></script>
 </body>
 </html>

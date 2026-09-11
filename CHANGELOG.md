@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.4.9.1 — Observation Planning & Astronomy Validation
+
+- Added `src/navigation/observationPlanner.js`, a read-only forward ephemeris search using cloned gravity-source body state, the existing direct Newtonian gravity solver, velocity-Verlet integration, close-pair timestep ceiling and canonical finite-disk occultation math.
+- Added NAV **PLAN OBSERVATIONS** and surface **PLAN SKY EVENTS** entry points.
+- Selected planet/moon is the reference observer; active landed sessions on that same body use the exact saved body-fixed site and future planetary rotation, while non-landed planning is explicitly body-center.
+- Added 7/30/90/180-day horizons, 300 s coarse sampling, 10 s local refinement, 5° close-alignment listing threshold, event progress/cancel UI, eclipse coverage and surface horizon diagnostics.
+- Planner state is isolated from authoritative bodies/ship/clock/save state. Searches are animation-frame chunked and have a hard numerical work budget; stiff systems report BUDGET LIMITED instead of hiding reduced precision.
+- Added live-epoch staleness warning when the authoritative simulation advances materially beyond the planner's snapshot epoch.
+- Save schema remains 1; no planner state is serialized.
+
+
 ## v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry
 
 - Added pure `core/celestialAppearance.js` geometry for apparent angular radius, phase angle, illuminated fraction, finite-disk overlap, observer stellar occultation and body-centered stellar shadow.

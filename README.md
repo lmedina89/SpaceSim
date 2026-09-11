@@ -1,3 +1,23 @@
+# Universe Lab v0.1.4.9.1 — Observation Planning & Astronomy Validation
+
+**Build marker:** `OBSPLAN-1491`  
+**Save schema:** 1 (unchanged)  
+**Three.js:** 0.185.0 (unchanged)
+
+## v0.1.4.9.1 observation planning
+
+This hotfix closes the loop on the v0.1.4.9 finite-disk phase/eclipsing geometry by making future stellar alignments intentionally observable instead of requiring the player to stumble across them. The planner is read-only: it clones the current gravity-source body state, propagates that clone with the existing direct Newtonian solver and velocity-Verlet integrator, and reuses the canonical `celestialAppearance` finite-disk geometry. It never advances or edits the live universe.
+
+- NAV / SYSTEM MAP adds **PLAN OBSERVATIONS** for a selected planet or moon.
+- Surface DETAILS adds **PLAN SKY EVENTS**; when the selected reference is the active landed body, the search uses the current body-fixed landing site and reports whether the primary star is above or below the local horizon at each predicted event.
+- Non-landed searches use the selected body's center and label that reference explicitly as **BODY CENTER** rather than pretending a surface location is known.
+- Searches cover 7, 30, 90 or 180 simulation days. N-body propagation is sampled at a 300 s ceiling, then angular-separation minima are locally re-integrated at a 10 s ceiling before finite-disk overlap is classified.
+- Results list stellar conjunctions within 5° plus finite-disk partial/total/annular-transit cases, event T+, angular separation, apparent star/occulter diameters, stellar coverage and—at an exact landed site—star altitude/horizon visibility.
+- Search work is chunked across animation frames so long searches do not intentionally monopolize the iPhone UI thread. Dynamically stiff compact-object systems retain the v0.1.4.8.2 close-pair timestep guard; if the bounded planner work budget is exhausted, the result is explicitly **BUDGET LIMITED** instead of silently lowering numerical accuracy.
+- The planner does not predict future pilot motion and does not replay future impact/fragmentation resolution. If the live simulation epoch advances materially during/after a search, the UI warns that the timing should be refreshed.
+
+The v0.1.4.9 appearance/phase/eclipse implementation remains the rendering/scientific source of truth below.
+
 # Universe Lab v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry
 
 **Build marker:** `CELEST-149`  

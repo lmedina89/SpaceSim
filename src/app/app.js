@@ -27,9 +27,10 @@ import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition, matchFrameExitVelocity } from '../physics/transitDrive.js';
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=149';
-import { Hud } from '../ui/hud.js?v=149';
-import { SystemMapController } from '../ui/systemMap.js?v=149';
+import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1491';
+import { Hud } from '../ui/hud.js?v=1491';
+import { SystemMapController } from '../ui/systemMap.js?v=1491';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -87,6 +88,24 @@ function eclipseLabel(record) {
       : 'PARTIAL';
   const occulter = record?.observerStarEclipseOcculterName ? ` · ${record.observerStarEclipseOcculterName}` : '';
   return `${state} · ${(fraction * 100).toFixed(2)}%${occulter}`;
+}
+
+
+function formatPlannerDuration(seconds) {
+  const value = Math.max(0, Number(seconds) || 0);
+  if (value >= 86400) return `${(value / 86400).toFixed(value >= 864000 ? 1 : 2)} d`;
+  if (value >= 3600) return `${(value / 3600).toFixed(2)} h`;
+  if (value >= 60) return `${(value / 60).toFixed(1)} min`;
+  return `${value.toFixed(0)} s`;
+}
+
+function formatPlannerSeparation(radians) {
+  const value = Math.max(0, Number(radians) || 0);
+  const degreesValue = value * 180 / Math.PI;
+  if (degreesValue >= 1) return `${degreesValue.toFixed(3)}°`;
+  const arcMinutes = degreesValue * 60;
+  if (arcMinutes >= 1) return `${arcMinutes.toFixed(2)}′`;
+  return `${(arcMinutes * 60).toFixed(2)}″`;
 }
 
 function serializeBody(body) {
@@ -243,6 +262,9 @@ export class UniverseLabApp {
     this._surfacePreviousTimeScale = 1;
     this.selectedSurfaceRegionId = 'shatterfall-basin';
     this.cockpitEnabled = true;
+    this._observationPlannerSearch = null;
+    this._observationPlannerRunToken = 0;
+    this._observationPlannerResult = null;
     this.rendererBackend = 'INIT';
   }
 
@@ -309,10 +331,11 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.9 online. Celestial appearance now derives physical angular size, phase, illumination and finite-disk eclipse geometry from the authoritative observer/body state. Space planet/moon terminators keep live star-direction lighting while physical reflectors no longer self-emit; surface sky bodies use angularly correct phase disks and stellar occultation dims direct light. Core Newtonian gravity, impact hardening, NAV/FRAME, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build CELEST-149.`);
+    this.hud.notify(`v0.1.4.9.1 online. NAV now includes a read-only observation planner that forward-propagates a cloned N-body ephemeris to find stellar conjunctions/transits/eclipses without moving the live universe. Landed searches can use the exact current body-fixed site; body-center searches are explicitly labeled approximations. Core gravity, celestial appearance, impacts, NAV/FRAME, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build OBSPLAN-1491.`);
   }
 
   newSystem(seed) {
+    this.cancelObservationPlanner();
     this.selectedSurfaceRegionId = 'shatterfall-basin';
     this._surfaceOrbitHandoffPending = null;
     if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false, preserveRunning: true });
@@ -2552,6 +2575,7 @@ export class UniverseLabApp {
   }
 
   loadSave() {
+    this.cancelObservationPlanner();
     if (this.surfaceSession?.active) this.exitSurface({ returnToOrbit: false, notify: false, preserveRunning: true });
     setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
     if (this.transitState.active) this.disengageTransit({ notify: false, restoreWarp: false, matchTarget: false });
@@ -2654,6 +2678,180 @@ export class UniverseLabApp {
       : `Save restored. Major-body/ship state, discovery records and ${weatherRestored ? 'space-weather timeline' : 'a newly scheduled space-weather timeline'} are active. Session-local particle experiments were cleared.`);
   }
 
+  observationPlannerReferenceBody() {
+    const marker = this.systemMap.currentMarker();
+    if (marker?.type === 'body' && marker.body?.kind !== BODY_KIND.STAR && marker.body?.gravitySource !== false) return marker.body;
+    return null;
+  }
+
+  cancelObservationPlanner({ notify = false } = {}) {
+    this._observationPlannerRunToken += 1;
+    const wasRunning = Boolean(this._observationPlannerSearch && !this._observationPlannerSearch.done);
+    this._observationPlannerSearch = null;
+    const cancel = this.root.querySelector('#eventCancel');
+    if (cancel) cancel.hidden = true;
+    if (notify && wasRunning) this.hud.notify('Observation-planner search cancelled. The live universe was never modified.');
+  }
+
+  updateObservationPlannerReference() {
+    const body = this.observationPlannerReferenceBody();
+    const observerName = this.root.querySelector('#eventObserverName');
+    const observerModel = this.root.querySelector('#eventObserverModel');
+    const start = this.root.querySelector('#eventStartTime');
+    if (observerName) observerName.textContent = body?.name ?? 'SELECT A PLANET / MOON';
+    const exactSurface = Boolean(body && this.surfaceSession?.active && this.surfaceSession.bodyId === body.id);
+    if (observerModel) observerModel.textContent = exactSurface ? 'CURRENT LANDED SITE' : body ? 'BODY CENTER' : '—';
+    if (start) start.textContent = `T = ${Math.floor(this.clock.elapsedSimSeconds).toLocaleString()} s`;
+    const searchButton = this.root.querySelector('#eventSearch');
+    if (searchButton) searchButton.disabled = !body;
+    return { body, exactSurface };
+  }
+
+  openObservationPlanner() {
+    const reference = this.updateObservationPlannerReference();
+    if (!reference.body) {
+      this.hud.notify('OBSERVATION PLANNER: select a planet or moon in the BODY CATALOG first. The primary star cannot be used as the observer reference.');
+      return false;
+    }
+    this.cancelObservationPlanner();
+    this.hud.toggleMap(false);
+    this.hud.toggleEvents(true);
+    this.renderObservationPlannerIdle();
+    return true;
+  }
+
+  openSurfaceObservationPlanner() {
+    if (!this.surfaceSession?.active) {
+      this.hud.notify('PLAN SKY EVENTS requires an active landed surface session.');
+      return false;
+    }
+    const body = this.registry.get(this.surfaceSession.bodyId);
+    if (!body) return false;
+    this.systemMap.selectBodyById(body.id);
+    return this.openObservationPlanner();
+  }
+
+  renderObservationPlannerIdle() {
+    const status = this.root.querySelector('#eventStatus');
+    const progress = this.root.querySelector('#eventProgressFill');
+    const progressText = this.root.querySelector('#eventProgressText');
+    const results = this.root.querySelector('#eventResults');
+    if (progress) progress.style.width = '0%';
+    if (progressText) progressText.textContent = 'READY';
+    if (status) status.textContent = 'Search forward from the current simulation epoch. The planner propagates a temporary copy of the N-body system and never moves live bodies.';
+    if (results) {
+      results.replaceChildren();
+      const placeholder = document.createElement('p');
+      placeholder.className = 'event-empty';
+      placeholder.textContent = 'No search has been run for this reference observer yet.';
+      results.appendChild(placeholder);
+    }
+  }
+
+  renderObservationPlannerProgress(progress) {
+    const fill = this.root.querySelector('#eventProgressFill');
+    const text = this.root.querySelector('#eventProgressText');
+    const status = this.root.querySelector('#eventStatus');
+    const percentage = Math.max(0, Math.min(100, (progress?.fraction ?? 0) * 100));
+    if (fill) fill.style.width = `${percentage.toFixed(1)}%`;
+    if (text) text.textContent = `${percentage.toFixed(0)}% · ${Number(progress?.internalSteps ?? 0).toLocaleString()} PROPAGATION STEPS`;
+    if (status) status.textContent = `Searching cloned ephemeris… ${progress?.eventCount ?? 0} candidate alignment${progress?.eventCount === 1 ? '' : 's'} recorded so far.`;
+  }
+
+  renderObservationPlannerResult(result) {
+    this._observationPlannerResult = result;
+    const fill = this.root.querySelector('#eventProgressFill');
+    const text = this.root.querySelector('#eventProgressText');
+    const status = this.root.querySelector('#eventStatus');
+    const results = this.root.querySelector('#eventResults');
+    const cancel = this.root.querySelector('#eventCancel');
+    if (cancel) cancel.hidden = true;
+    const reachedFraction = result?.horizonSeconds > 0 ? Math.max(0, Math.min(1, (result.reachedTimeSeconds - result.startTimeSeconds) / result.horizonSeconds)) : 0;
+    if (fill) fill.style.width = `${(reachedFraction * 100).toFixed(1)}%`;
+    if (text) text.textContent = result?.status === 'budget-limited'
+      ? `NUMERICAL BUDGET · ${(reachedFraction * 100).toFixed(0)}% REACHED`
+      : `${result?.events?.length ?? 0} EVENT${result?.events?.length === 1 ? '' : 'S'} · COMPLETE`;
+    if (status) {
+      status.textContent = result?.error
+        ? `Planner error: ${result.error}`
+        : result?.status === 'budget-limited'
+          ? `Search stopped at T+${formatPlannerDuration(result.reachedTimeSeconds - result.startTimeSeconds)} because the close-pair numerical work budget was reached. Shorten the horizon; no live state was changed.`
+          : `Search complete from ${result.reference.bodyName} · ${result.reference.model}. Coarse propagation ${result.coarseStepSeconds.toFixed(0)} s; local alignment refinement ${result.refinementStepSeconds.toFixed(0)} s.`;
+    }
+    const liveEpochAdvance = Math.max(0, this.clock.elapsedSimSeconds - (result?.startTimeSeconds ?? this.clock.elapsedSimSeconds));
+    if (status && liveEpochAdvance > Math.max(60, Number(result?.coarseStepSeconds) || 300)) {
+      status.textContent += ` LIVE EPOCH ADVANCED ${formatPlannerDuration(liveEpochAdvance)} DURING/AFTER THIS SEARCH; rerun before relying on the timing.`;
+    }
+    if (!results) return;
+    results.replaceChildren();
+    if (!result?.events?.length) {
+      const empty = document.createElement('p');
+      empty.className = 'event-empty';
+      empty.textContent = `No stellar-disk conjunction within ${(result.alignmentThresholdRad * 180 / Math.PI).toFixed(1)}° was found inside the searched interval.`;
+      results.appendChild(empty);
+      return;
+    }
+    for (const event of result.events) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = `event-result-card${event.eclipseFraction > 0 ? ' eclipse' : ''}`;
+      card.dataset.bodyId = event.bodyId;
+      const heading = document.createElement('b');
+      heading.textContent = `${event.label} · ${event.bodyName}`;
+      const timing = document.createElement('span');
+      timing.textContent = `${event.current ? 'NOW' : `T+${formatPlannerDuration(event.secondsFromStart)}`} · separation ${formatPlannerSeparation(event.separationRad)}`;
+      const geometry = document.createElement('small');
+      const coverage = event.eclipseFraction > 0 ? ` · stellar coverage ${(event.eclipseFraction * 100).toFixed(3)}%` : '';
+      const horizon = event.aboveHorizon === null ? '' : event.aboveHorizon ? ` · star alt ${(event.starAltitudeRad * 180 / Math.PI).toFixed(2)}°` : ` · BELOW HORIZON (${(event.starAltitudeRad * 180 / Math.PI).toFixed(2)}°)`;
+      geometry.textContent = `Star ${formatAngularDiameter(event.starAngularRadiusRad * 2)} · ${event.bodyName} ${formatAngularDiameter(event.bodyAngularRadiusRad * 2)}${coverage}${horizon}`;
+      card.append(heading, timing, geometry);
+      results.appendChild(card);
+    }
+  }
+
+  startObservationPlanner() {
+    const { body, exactSurface } = this.updateObservationPlannerReference();
+    if (!body) {
+      this.hud.notify('OBSERVATION PLANNER requires a selected planet or moon reference body.');
+      return false;
+    }
+    this.cancelObservationPlanner();
+    const horizonDays = Math.max(1, Number(this.root.querySelector('#eventHorizon')?.value) || 30);
+    const terrainHeightMeters = exactSurface && this.surfaceRegion
+      ? surfaceHeightAt(this.surfaceRegion, this.surfaceSession.x, this.surfaceSession.z)
+      : 0;
+    const search = new ObservationPlannerSearch({
+      bodies: this.massiveBodies,
+      startTimeSeconds: this.clock.elapsedSimSeconds,
+      observerBodyId: body.id,
+      surfaceSession: exactSurface ? this.surfaceSession : null,
+      terrainHeightMeters,
+      horizonSeconds: horizonDays * 86400,
+    });
+    this._observationPlannerSearch = search;
+    const token = ++this._observationPlannerRunToken;
+    const cancel = this.root.querySelector('#eventCancel');
+    if (cancel) cancel.hidden = search.done;
+    if (search.done) {
+      this.renderObservationPlannerResult(search.result());
+      return !search.error;
+    }
+    this.renderObservationPlannerProgress(search.progress());
+    const tick = () => {
+      if (token !== this._observationPlannerRunToken || this._observationPlannerSearch !== search) return;
+      const progress = search.stepChunk(180);
+      this.renderObservationPlannerProgress(progress);
+      if (search.done) {
+        this._observationPlannerSearch = null;
+        this.renderObservationPlannerResult(search.result());
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return true;
+  }
+
   bindUi() {
     const $ = (selector) => this.root.querySelector(selector);
     const updateWarpButton = () => { $('#warpQuick').textContent = `WARP ${this.clock.timeScale.toLocaleString()}×`; };
@@ -2691,6 +2889,17 @@ export class UniverseLabApp {
     $('#mapScanAction').addEventListener('click', () => { if (!this.systemMap.scanCurrent()) this.hud.notify('SCAN SIGNAL applies to a cosmic/anomaly marker. Tap one of those map markers first.'); });
     $('#mapTransitAction').addEventListener('click', () => { if (!this.systemMap.transitCurrent()) this.hud.notify('Choose a body or cosmic marker before opening FRAME DRIVE.'); });
     $('#mapLandAction').addEventListener('click', () => { if (!this.systemMap.landCurrent()) this.hud.notify('LAND / DESCEND requires the current landable world inside its near-orbital descent envelope.'); });
+    $('#mapEventsAction').addEventListener('click', () => this.openObservationPlanner());
+    $('#eventsClose').addEventListener('click', () => { this.cancelObservationPlanner(); this.hud.toggleEvents(false); });
+    $('#eventSearch').addEventListener('click', () => this.startObservationPlanner());
+    $('#eventCancel').addEventListener('click', () => this.cancelObservationPlanner({ notify: true }));
+    $('#eventResults').addEventListener('click', (event) => {
+      const card = event.target.closest('[data-body-id]');
+      if (!card?.dataset?.bodyId || !this.registry.has(card.dataset.bodyId)) return;
+      this.selectTarget(card.dataset.bodyId);
+      this.systemMap.selectBodyById(card.dataset.bodyId);
+      this.hud.notify(`Observation event body selected: ${this.registry.get(card.dataset.bodyId)?.name ?? card.dataset.bodyId}.`);
+    });
     $('#mapCosmosAction').addEventListener('click', () => {
       const marker = this.systemMap.currentMarker();
       if (!marker) { this.hud.notify('Tap a map marker first.'); return; }
@@ -2715,6 +2924,7 @@ export class UniverseLabApp {
     $('#landTarget').addEventListener('click', () => { this.hud.toggleScanner(false); this.enterSurface(this.targetId); });
     $('#surfaceLandButton').addEventListener('click', () => { this.hud.toggleMore(false); this.enterSurface(this.targetId); });
     $('#surfaceHudToggle').addEventListener('click', () => this.toggleSurfaceHud());
+    $('#surfacePlannerButton').addEventListener('click', () => this.openSurfaceObservationPlanner());
     $('#phenomenonSelect').addEventListener('change', (event) => this.selectPhenomenon(event.target.value, false));
     $('#scanPhenomenon').addEventListener('click', () => this.scanPhenomenon());
     $('#observePhenomenon').addEventListener('click', () => this.enterCosmicObservation('frame'));

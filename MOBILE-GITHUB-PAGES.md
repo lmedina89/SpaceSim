@@ -1,3 +1,20 @@
+# Universe Lab v0.1.4.9.1 — Observation Planner iPhone Gate
+
+Before physically accepting `OBSPLAN-1491` on iPhone Safari/WebKit:
+
+1. Hard reload and confirm **v0.1.4.9.1**, build **OBSPLAN-1491**, and **WebGL2 iOS**.
+2. Open NAV, select a planet or moon, tap **PLAN OBSERVATIONS**, run the default 30-day search, and confirm the progress UI remains responsive rather than freezing touch/rendering.
+3. Verify the planner says **BODY CENTER** in orbit and returns finite T+, angular separation, apparent-disk and coverage values. Tapping an event card should select that event body as the normal NAV target without moving anything.
+4. Land on the detailed home world, open DETAILS → **PLAN SKY EVENTS**. The reference must switch to **CURRENT LANDED SITE** and event cards should include primary-star altitude / below-horizon status where applicable.
+5. Run PAUSE SKY before a landed search if you want a stable start epoch; resume afterwards and confirm normal astronomy continues. If the live epoch advances substantially while results remain open, the planner should warn that timing is stale.
+6. Try a 90/180-day search and cancel it once. Cancellation must leave live position/time/NAV/FRAME/surface state untouched.
+7. Regress v0.1.4.9 appearance: phase/angular-size fields, dark planetary night side, surface finite star/body disks, no progressive fog darkening.
+8. Regress FRAME including `Caelum-4361 b-A` SAFE BYPASS, save/load, and takeoff.
+
+The planner is a predictive read-only numerical tool, not an automation that moves the ship to an event. Physical iPhone responsiveness/thermal behavior remains the release gate.
+
+---
+
 # Universe Lab v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry iPhone Gate
 
 Before accepting v0.1.4.9 on physical iPhone Safari/WebKit:

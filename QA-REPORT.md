@@ -1,3 +1,42 @@
+# Universe Lab v0.1.4.9.1 — Observation Planning & Astronomy Validation QA Report
+
+## Release identity
+
+- Version: **0.1.4.9.1**
+- Build marker: **OBSPLAN-1491**
+- Save schema: **1 (unchanged)**
+- Three.js: **0.185.0 (unchanged)**
+- Baseline: exact v0.1.4.9 `CELEST-149` release ZIP
+
+## Scope and authority boundary
+
+This release adds a read-only forward astronomy event planner. The planner clones the current gravity-source ephemeris and advances only that private copy with the same direct Newtonian solver and velocity-Verlet integrator used by the live simulation. It does not advance or mutate authoritative bodies, the ship, SimulationClock, save state, NAV target, FRAME state, or surface session.
+
+The selected planet/moon BODY CENTER is the default observation reference. When planning from the currently landed body, the planner can instead follow the exact saved body-fixed surface anchor and planetary rotation model, allowing predicted primary-star altitude/horizon status at the player's current site.
+
+The search uses a **300 s coarse sample ceiling** and locally re-integrates candidate angular-separation minima to about **10 s** resolution. Stellar transit/eclipse coverage reuses the same finite apparent-disk geometry as `celestialAppearance.js`. Search work is chunked across animation frames on the UI path and has an explicit numerical-work budget: physically stiff close-pair systems report **BUDGET LIMITED** instead of silently reducing requested numerical resolution.
+
+Important limits: the planner predicts from the current epoch and does not predict future pilot maneuvers; it does not replay future collision/fragmentation resolution in the cloned ephemeris; and event timing becomes stale if the live simulation advances materially after the search, in which case the UI warns that the search should be rerun.
+
+## Observation-planner validation
+
+- Dedicated planner unit/static tests cover cloned-state isolation, finite stellar-transit detection, incremental progress, exact landed-site reference/horizon metadata, explicit numerical-budget limiting, NAV/surface UI wiring and scientific limitation copy.
+- Independent **40-seed × 7-day** generated-system sweep: zero planner errors, zero non-finite event geometry, zero out-of-range eclipse fractions, and byte-identical authoritative position/velocity arrays before vs after every search. **238** reportable stellar alignments were found; slowest search in this server environment was ~**94.3 ms**.
+- Fresh `ORIGIN-001` **180-day** body-center search: COMPLETE, **51,840** coarse propagation steps + **14,880** refinement steps, **12** retained events, ~**1.37 s** in this server environment. This is not an iPhone benchmark; mobile execution is animation-frame chunked.
+- The planner's event cards can promote the event body to the existing NAV target, but this is ordinary UI target selection only; no body or spacecraft is moved.
+
+## Protected-source comparison
+
+A SHA-256 comparison against the exact v0.1.4.9 baseline found **0 mismatches across all 54 pre-existing source files outside the intentionally changed app/UI/cache/planner surface**. Protected code includes direct gravity, velocity-Verlet, system generation, planetary properties/rotation/save compatibility, celestial appearance/observer math, ShipDynamics, FRAME arrival/routing, impact hardening, system navigation/map math, surface world/session/weather, landing transition and backend policy.
+
+## Automated worktree gate
+
+Frozen-worktree `npm run qa`: **PASS** — static structure **51 required files**, all JS/MJS syntax valid, **226/226** Node tests passing.
+
+Release-candidate archive verification: ZIP integrity **PASS**; clean-unzip `npm run qa` **226/226 PASS**; direct repo-root layout **PASS**; local static HTTP smoke **14/14 HTTP 200** across the shell, versioned CSS/main/app/renderer/cockpit/HUD/map chain, observation planner, celestial appearance/observer, system generator, direct gravity module, and `VERSION.json`; `.github/workflows/*` absent; extracted archive **byte-for-byte matches** the frozen 129-file worktree.
+
+The final archive is rebuilt from this same frozen tree after recording these results, then archive integrity, clean-unzip QA, HTTP smoke and tree identity are repeated before handoff.
+
 # Universe Lab v0.1.4.9 — Celestial Appearance, Phases & Eclipse Geometry QA Report
 
 ## Release identity

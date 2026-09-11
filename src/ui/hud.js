@@ -73,6 +73,7 @@ export class Hud {
     this.overlays = root.querySelector('#overlayPanel');
     this.transit = root.querySelector('#transitPanel');
     this.map = root.querySelector('#mapPanel');
+    this.events = root.querySelector('#eventsPanel');
     this.engineering = root.querySelector('#engineeringPanel');
     this.engineeringRenderer = root.querySelector('#engineeringRenderer');
     this.engineeringFps = root.querySelector('#engineeringFps');
@@ -137,6 +138,7 @@ export class Hud {
   toggleOverlays(force) { this.overlays.hidden = typeof force === 'boolean' ? !force : !this.overlays.hidden; }
   toggleTransit(force) { if (this.transit) this.transit.hidden = typeof force === 'boolean' ? !force : !this.transit.hidden; }
   toggleMap(force) { if (this.map) this.map.hidden = typeof force === 'boolean' ? !force : !this.map.hidden; }
+  toggleEvents(force) { if (this.events) this.events.hidden = typeof force === 'boolean' ? !force : !this.events.hidden; }
   toggleEngineering(force) { if (this.engineering) this.engineering.hidden = typeof force === 'boolean' ? !force : !this.engineering.hidden; }
   notify(text, holdMs = 4400) {
     this.message.hidden = false;

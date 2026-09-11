@@ -1,3 +1,13 @@
+# Universe Lab Architecture — v0.1.4.9.1
+
+## Observation-planner authority boundary
+
+`src/navigation/observationPlanner.js` is deliberately outside simulation authority. A search creates a compact clone of the current gravity-source bodies (including position, velocity, mass, radius and rotation metadata), propagates only that clone with `DirectGravitySolver` + `VelocityVerletIntegrator`, and evaluates alignments with the same `celestialAppearance` apparent-disk functions used by the live observer/rendering path. No planner function receives mutable authoritative body arrays as its integration state.
+
+The reference observer is either (a) the center of the selected planet/moon or (b) the exact current landed site if that selected body owns the active surface session. Surface-site prediction keeps the local x/z/body-fixed anchor fixed while body rotation and N-body translation evolve. Future walking, future piloted spacecraft motion, space-weather presentation and impact/fragmentation state transitions are intentionally outside the planner model.
+
+Long searches are incremental: `ObservationPlannerSearch.stepChunk()` consumes a bounded number of integrator substeps and yields back to the app between animation frames. The same `massivePairPhysicsStepLimitSeconds()` guard can force smaller steps for close compact-object pairs. A total work ceiling terminates with an explicit budget-limited result rather than silently changing physics resolution.
+
 # Architecture — Universe Lab v0.1.4.9
 
 ## v0.1.4.9 celestial-appearance boundary

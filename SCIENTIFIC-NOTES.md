@@ -1,3 +1,13 @@
+# Scientific Notes — v0.1.4.9.1 Observation Planning
+
+The observation planner predicts **geometric stellar alignments**, not scripted events. It begins from a snapshot of the current authoritative N-body state, then advances a temporary clone with the same Newtonian force law and velocity-Verlet update used by the live major bodies. Ordinary search samples are no farther apart than 300 s; candidate local minima in apparent star-body angular separation are re-integrated over the surrounding window at a 10 s ceiling before the canonical finite apparent-disk overlap calculation is evaluated.
+
+A listed conjunction is a local minimum in apparent separation within the planner's 5° reporting window; this UI label is an observing aid rather than a formal ecliptic-longitude definition of astronomical conjunction. An eclipse/transit requires the candidate to be geometrically foreground of the primary star and for the finite apparent disks to overlap. Classification reuses v0.1.4.9's `diskOccultation()` states.
+
+**Reference geometry:** BODY CENTER is useful for system-scale planning but ignores surface parallax/horizon. CURRENT LANDED SITE uses the exact saved body-fixed anchor plus local x/z offset and rigid body rotation; star altitude at the predicted event is therefore meaningful for that fixed site. The planner assumes the user remains at that site.
+
+**Known limits:** predicted ephemerides do not execute future collision/fragmentation resolution, do not anticipate future user thrust/FRAME maneuvers, and are not relativistic. Close massive pairs use the existing adaptive Newtonian timestep ceiling and may exhaust the planner's bounded mobile work budget. Results beyond an actual future collision require a fresh plan from the post-collision live state.
+
 # Scientific / Model Notes — Universe Lab v0.1.4.9
 
 
