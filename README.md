@@ -1,14 +1,38 @@
-# Universe Lab v0.1.4.7 — Planetary Rotation & Continuous Surface Astronomy Foundation
+# Universe Lab v0.1.4.8 — Planetary System Navigation & Exploration Foundation
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `ROTASTRO-147`
+**Build marker:** `NAVSYS-148`
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)
 **Three.js:** 0.185.0 (unchanged)
 **Deployment:** GitHub Pages → `main` → `/(root)`
 **Release gate:** physical iPhone Safari
 
 
+
+## v0.1.4.8 planetary system navigation & exploration
+
+v0.1.4.8 makes the already-simulated planetary system directly discoverable and navigable without changing authoritative celestial mechanics. The System Map now exposes the live generated hierarchy as **primary star → planets → moons** in a body catalog, so a world remains selectable even when realistic scale makes its rendered disk or map marker too small to tap.
+
+The map has three explicitly labeled projections. **LOG SURVEY** is a non-linear star-centered discovery view for whole-system usability; it never claims screen spacing is physical distance. **TRUE SYSTEM** is a linear current inertial X/Z projection of the system. **TRUE LOCAL** is a linear planet-centered view of the selected planet and its moons so satellite systems are inspectable without enlarging their physical orbits. All positions come from the current N-body state.
+
+Selecting a physical body exposes live derived navigation data: ship range, star-relative range, parent body, class, physical radius/mass, Newtonian surface gravity, Keplerian period from the stored semi-major axis and parent mass, eccentricity, rigid rotation period/direction, instantaneous Hill radius, surface capability, and explicit atmosphere-model status. The interface deliberately reports atmosphere physics as **unmodeled** rather than inventing pressure/composition from planet artwork. Only the existing detailed home-world surface is currently landable; other solid worlds are identified as orbital-only and gas planets as having no solid surface.
+
+NAV selection now feeds the existing authoritative target ID directly into FRAME. FRAME remains explicitly fictional spacecraft-only coordinate translation. On a normally completed planet/moon/rogue-planet trip, however, the handoff now establishes a physically interpretable **instantaneous circular osculating orbit** around the live target: position is placed outside the physical radius at a conservative minimum altitude, velocity becomes the target's live inertial velocity plus a tangential `sqrt(GM/r)` orbital component, and the insertion radius is constrained to 47% of a conservative Hill estimate when a parent orbit is known. The conservative Hill estimate uses the smaller of the live-separation estimate and the stored-orbit pericenter estimate. This does not guarantee long-term N-body stability, but it avoids the previous zero-relative-velocity planetary arrival. Manual FRAME disengage and unsupported targets retain the explicitly fictional inertial-frame match.
+
+FRAME route safety also remains finite-body aware. If the direct swept segment to a selected target would cross another massive body's existing FRAME clearance guard—as occurs for the tight inner `ORIGIN-001` moon `Caelum-4361 b-A` behind its parent from the normal start—the planner searches a deterministic two-leg bypass. The waypoint is stored relative to the live blocking body so it follows ordinary N-body motion; both legs are checked against every massive-body guard. Guard radii are never reduced and celestial bodies are never moved to manufacture a route. If no clear bypass exists, FRAME refuses the trip rather than clipping through the obstruction.
+
+Save schema remains `1`; the existing target ID was already persisted. Direct Newtonian gravity, velocity-Verlet major-body integration, system generation, the canonical astronomical observer, accepted rotating-surface astronomy, landing/takeoff, and the iPhone/iPad forced-WebGL2 backend remain protected.
+
+## v0.1.4.7.1 surface astronomy diagnostics & pause control
+
+v0.1.4.7.1 is a deliberately surgical follow-up to the physically accepted v0.1.4.7 rotating-surface foundation. It adds no new celestial force, integrator, renderer backend, spacecraft flight behavior, save schema, or star catalog.
+
+Surface **DETAILS** now exposes read-only body-fixed latitude/longitude, current rigid-body rotation phase, primary-star altitude/azimuth, and geometric local solar time. ALT/AZ comes from the same canonical `AstronomicalObserverModel` solution passed to the surface renderer. Local solar time is computed from the body-fixed observer longitude and the primary star's substellar longitude; the longitude zero-meridian is procedural and is not a claim about a real named planetary prime meridian.
+
+A new landed-only **PAUSE SKY / RESUME SKY** control exposes the pause path that already existed underneath v0.1.4.7. It toggles the same simulation-running flag used by the main pause control. While paused, celestial N-body time is held, while local walking and deterministic surface weather remain responsive. The control is disabled during descent/ascent so it cannot complicate the accepted landing handoff lifecycle.
+
+The surface HUD refresh now consumes the same already-solved astronomy frame used for rendering, avoiding a duplicate observer solution in the normal render loop. Save schema remains `1`; Three.js remains `0.185.0`; iPhone/iPad WebKit remains forced to WebGL2; FRAME, ordinary ShipDynamics, direct Newtonian gravity, velocity-Verlet, surface save/load, and the accepted takeoff recovery path are unchanged.
 
 ## v0.1.4.7 planetary rotation & continuous surface astronomy
 

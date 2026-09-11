@@ -1,4 +1,28 @@
-# Architecture — Universe Lab v0.1.4.7
+# Architecture — Universe Lab v0.1.4.8
+
+## v0.1.4.8 navigation / FRAME arrival boundary
+
+`src/navigation/systemNavigation.js` is a read-only derivation layer over the existing body registry. It does not own bodies, orbital state, target persistence, or simulation time. It builds the star → planet → moon hierarchy and derives display quantities from authoritative SI state. `src/ui/systemMap.js` consumes those records and provides three map projections: a clearly labeled logarithmic survey, a linear inertial X/Z whole-system view, and a linear selected-planet/moon-family view. Changing map mode or body selection never mutates celestial physics.
+
+The existing `targetId` remains the single celestial NAV target and is already part of schema-1 save state. Selecting a body from the catalog calls the same target path used elsewhere; **FRAME TO TARGET** only chooses that live body as the input to the existing fictional FRAME layer. There is no duplicate navigation body database.
+
+`src/physics/frameOrbitInsertion.js` owns only the **FRAME exit-state calculation** for supported planets, moons and rogue planets. It never integrates a target or changes target mass/position/velocity. Normal completed travel chooses an exterior insertion radius, constrains it to a conservative prograde Hill window when a parent orbit is available, constructs a tangent plane from current target/parent geometry, and applies:
+
+`v_ship = v_target + t_hat * sqrt(G * M_target / r)`
+
+The resulting state is an instantaneous circular **two-body osculating** orbit at handoff. Ordinary direct-Newtonian N-body gravity and `ShipDynamics` own every subsequent step, so perturbations may move it away from circular. The Hill rule is a conservative screening estimate, not a stability proof: the code uses the smaller of the current-separation Hill estimate and the stored-orbit pericenter estimate, then limits prograde insertion radius to 47% of that value. Manual FRAME disengage retains the previous inertial target-velocity match.
+
+`src/navigation/frameGuardRoute.js` sits strictly inside that fictional travel layer. Before engagement it runs the existing swept finite-radius guard test from the ship to the live target. A clear route stays direct. If another massive body blocks the segment, the planner searches deterministic exterior waypoints, validates both legs against **all** existing massive-body guards, and stores the winning waypoint as an offset from the blocking body's live position. Runtime resolution therefore follows ordinary N-body motion instead of chasing a stale inertial coordinate. No guard radius is weakened, no celestial state is mutated, and a route with no validated bypass is rejected. The actual per-frame FRAME step still runs the pre-existing swept guard, so the detour planner never becomes collision authority.
+
+This boundary preserves the realism rule: FRAME itself remains speculative/fictional, while the state returned to the physical simulation is explicit and dynamically meaningful.
+
+## v0.1.4.7.1 surface diagnostic/control boundary
+
+The v0.1.4.7.1 surface diagnostics are a **read-only projection of existing authoritative state**. `frameSurface()` solves `AstronomicalObserverModel` once after the current surface movement/weather update, passes that same solution to `updateSurfaceHud(astronomy)`, then passes it to `renderer.renderSurface(...)`. Primary-star ALT/AZ therefore describes the exact observer frame rendered on screen; no parallel astronomy state is maintained.
+
+Body-fixed latitude/longitude is derived from the canonical observer's current inertial surface position transformed back into the existing rotation basis, so local walking offsets are represented rather than mislabeled as the touchdown anchor. Rotation phase comes from `rotationAngleAt()`. Geometric local solar time is derived from the difference between observer body-fixed longitude and primary-star substellar longitude. The body-fixed zero-meridian is procedural; this is an internal coordinate frame, not a real-cartography claim.
+
+`PAUSE SKY / RESUME SKY` toggles the existing `UniverseLabApp.running` gate only while `SURFACE_PHASE.LANDED`. Because `frameSurface()` already gates `SimulationClock.advance()` on that flag while `updateSurface(realDt)` continues independently, pausing holds celestial N-body time without stopping local walking/weather. Descent/ascent keep the control disabled, leaving the accepted lifecycle and forced-live takeoff handoff unchanged.
 
 ## v0.1.4.7 continuous landed astronomy
 

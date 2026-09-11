@@ -4,6 +4,7 @@ import {
   bodyFixedDirectionToInertial,
   captureBodyFixedSurfaceAnchor,
   inertialDirectionToBodyFixed,
+  localSolarTimeHours,
   rotationAngleAt,
   surfaceLatitudeLongitude,
 } from '../src/core/planetaryRotation.js';
@@ -70,4 +71,15 @@ test('rotation angle and body-fixed latitude/longitude remain finite and periodi
   const coordinates = surfaceLatitudeLongitude([1, 0, 0]);
   near(coordinates.latitudeRad, 0);
   near(coordinates.longitudeRad, 0);
+});
+
+
+test('local solar time is noon at the substellar longitude and midnight opposite it', () => {
+  const body = rotatingBody();
+  const observerAnchor = [0.8, 0.2, 0.4];
+  const starAtNoon = bodyFixedDirectionToInertial(body, observerAnchor, 17);
+  near(localSolarTimeHours(body, observerAnchor, starAtNoon, 17), 12, 1e-10);
+  const starAtMidnight = [-starAtNoon[0], -starAtNoon[1], -starAtNoon[2]];
+  const midnight = localSolarTimeHours(body, observerAnchor, starAtMidnight, 17);
+  assert.ok(midnight < 1e-10 || Math.abs(midnight - 24) < 1e-10, `expected midnight, got ${midnight}`);
 });

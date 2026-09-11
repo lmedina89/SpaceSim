@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.7</title>
-  <link rel="stylesheet" href="./styles.css?v=147">
+  <title>Universe Lab v0.1.4.8</title>
+  <link rel="stylesheet" href="./styles.css?v=148">
   <script type="importmap">
   {
     "imports": {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.7</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.8</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -101,14 +101,17 @@
           <span>Wind</span><b id="surfaceWind">—</b><span>Ship</span><b id="surfaceShipDistance">—</b>
           <span>Local weather</span><b id="surfaceClock">0 s</b><span>Mode</span><b id="surfacePhase">LANDED</b>
           <span>Astronomy time</span><b id="surfaceSkyClock">0 s</b><span>Body rotation</span><b id="surfaceRotation">—</b>
+          <span>Body-fixed lat/lon</span><b id="surfaceLatLon">—</b><span>Rotation phase</span><b id="surfaceRotationPhase">—</b>
+          <span>Primary star alt/az</span><b id="surfaceStarAltAz">—</b><span>Local solar time</span><b id="surfaceSolarTime">—</b>
         </div>
         <p id="surfaceWeatherStatus" class="surface-weather-status">Local weather monitor initializing.</p>
         <p id="surfaceScanStatus" class="surface-scan-status">Surface scanner ready.</p>
         <div class="surface-action-grid surface-detail-actions">
           <button id="surfaceSaveButton" type="button">SAVE</button>
           <button id="surfaceTakeoffButton" class="void" type="button">BOARD / TAKEOFF</button>
+          <button id="surfaceAstronomyPause" class="surface-sky-toggle" type="button" aria-pressed="false">PAUSE SKY</button>
         </div>
-        <small class="surface-model-note">BODY-FIXED SURFACE OBSERVER · celestial N-body time continues at 1× · anomalies/weather remain presentation/discovery layers</small>
+        <small class="surface-model-note">BODY-FIXED SURFACE OBSERVER · LAT/LON uses the procedural body-fixed zero-meridian · SOLAR time uses primary-star hour angle · PAUSE SKY holds celestial N-body time only</small>
       </div>
     </section>
 
@@ -142,7 +145,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and it matches the locked target inertial velocity when the pilot exits normally. Surface sky directions now use a rotating body-fixed observer while the same celestial N-body universe continues at 1×; FRAME remains isolated from celestial gravity. Build marker: <b>ROTASTRO-147</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and manual FRAME disengage matches the locked target inertial velocity; completed planet/moon travel uses a calculated circular osculating-orbit handoff when a resolved stability window exists. Surface sky directions now use a rotating body-fixed observer while the same celestial N-body universe continues at 1×; FRAME remains isolated from celestial gravity. Build marker: <b>NAVSYS-148</b>.</p>
     </aside>
 
     <aside id="engineeringPanel" class="drawer engineering-panel" hidden>
@@ -168,30 +171,50 @@
           <b>MODEL BOUNDARY</b>
           <span>These values mirror existing runtime telemetry only. This panel does not change gravity, integration, FRAME behavior, navigation, save state, or renderer-backend policy.</span>
         </div>
-        <p class="engineering-build">BUILD <b>ROTASTRO-147</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
+        <p class="engineering-build">BUILD <b>NAVSYS-148</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
       </div>
     </aside>
 
     <aside id="mapPanel" class="drawer system-map-panel" hidden>
-      <header><div><b>SYSTEM MAP</b><small>Logarithmic tactical astronomy · bodies · signals · anomalies</small></div><button id="mapClose" type="button" aria-label="Close system map">×</button></header>
+      <header><div><b>NAVIGATION · SYSTEM MAP</b><small>Live N-body hierarchy · true geometry + logarithmic survey</small></div><button id="mapClose" type="button" aria-label="Close system map">×</button></header>
       <div class="map-copy">
-        <p class="help">Tap a marker. Physical bodies are solid circles, the spacecraft is a triangle, known cosmic sources are outlined markers, and unidentified signals show ?. Anomalies are diamonds. Distances are logarithmically compressed so the whole generated system remains usable on iPhone.</p>
-        <canvas id="systemMapCanvas" class="system-map-canvas" width="760" height="500" aria-label="Interactive logarithmic map of the generated star system"></canvas>
+        <p class="help">Choose any generated star, planet or moon from the BODY CATALOG even when astronomical scale makes it too small to tap. LOG SURVEY is explicitly non-linear for discovery; TRUE SYSTEM and TRUE LOCAL preserve linear X/Z geometry.</p>
+        <div class="map-catalog-grid">
+          <label>Body catalog<select id="mapBodySelect" aria-label="Star planet and moon navigation catalog"><option value="">Loading bodies…</option></select></label>
+          <label>Map model<select id="mapViewMode"><option value="survey" selected>LOG SURVEY · whole system</option><option value="true-system">TRUE SYSTEM · linear X/Z</option><option value="true-local">TRUE LOCAL · selected planet + moons</option></select></label>
+        </div>
+        <canvas id="systemMapCanvas" class="system-map-canvas" width="760" height="500" aria-label="Interactive live map of the generated star system"></canvas>
         <div class="map-toolbar">
-          <label>Map zoom<select id="mapZoom"><option value="0.7">Wide</option><option value="1" selected>System</option><option value="1.6">Inner system</option><option value="2.5">Close</option></select></label>
+          <label>Map zoom<select id="mapZoom"><option value="0.7">Wide</option><option value="1" selected>Nominal</option><option value="1.6">Closer</option><option value="2.5">Close</option></select></label>
           <label class="inline-check"><input id="mapUnknownToggle" type="checkbox" checked><span>SHOW UNIDENTIFIED SIGNALS</span></label>
         </div>
-        <div class="scanner-title"><b id="mapSelectionName">Tap a map marker</b><small id="mapSelectionKind">—</small></div>
-        <div class="scan-grid"><span>Star-relative distance</span><b id="mapSelectionDistance">—</b><span>Map model</span><b>LOG X/Z PROJECTION</b></div>
-        <p id="mapSelectionStatus" class="prediction">Bodies are physical targets. Cosmic markers may be known phenomena or unidentified anomaly signatures.</p>
-        <div class="observation-grid">
-          <button id="mapSelectAction" type="button">SELECT / TARGET</button>
+        <div class="scanner-title"><b id="mapSelectionName">Choose a body or tap a marker</b><small id="mapSelectionKind">—</small></div>
+        <div class="scan-grid map-science-grid">
+          <span>Ship range</span><b id="mapSelectionDistance">—</b>
+          <span>Star-relative range</span><b id="mapSelectionStarRange">—</b>
+          <span>Parent</span><b id="mapSelectionParent">—</b>
+          <span>Physical class</span><b id="mapSelectionClass">—</b>
+          <span>Physical radius</span><b id="mapSelectionRadius">—</b>
+          <span>Mass</span><b id="mapSelectionMass">—</b>
+          <span>Surface gravity</span><b id="mapSelectionGravity">—</b>
+          <span>Kepler period</span><b id="mapSelectionOrbit">—</b>
+          <span>Eccentricity</span><b id="mapSelectionEccentricity">—</b>
+          <span>Body rotation</span><b id="mapSelectionRotation">—</b>
+          <span>Instantaneous Hill radius</span><b id="mapSelectionHill">—</b>
+          <span>Surface capability</span><b id="mapSelectionSurface">—</b>
+          <span>Atmosphere model</span><b id="mapSelectionAtmosphere">—</b>
+          <span>FRAME normal arrival</span><b id="mapSelectionFrameArrival">—</b>
+          <span>Map projection</span><b id="mapProjectionModel">LOG SURVEY · NON-LINEAR RANGE</b>
+        </div>
+        <p id="mapSelectionStatus" class="prediction">The BODY CATALOG exposes the star → planets → moons hierarchy directly from the authoritative generated body registry.</p>
+        <div class="observation-grid map-actions">
+          <button id="mapSelectAction" type="button">SET NAV TARGET</button>
+          <button id="mapTransitAction" class="void" type="button">FRAME TO TARGET</button>
           <button id="mapScanAction" type="button">SCAN SIGNAL</button>
-          <button id="mapTransitAction" class="void" type="button">OPEN FRAME</button>
-          <button id="mapCosmosAction" type="button">OPEN COSMOS</button>
+          <button id="mapCosmosAction" type="button">OPEN SCIENCE / COSMOS</button>
           <button id="mapLandAction" class="surface-accent" type="button" disabled>LAND / DESCEND</button>
         </div>
-        <p class="warning">The map is an interface projection, not a second physics simulation. It reads the live spacecraft/body state and the seeded cosmic registry. Fictional anomalies remain explicitly labeled after discovery and do not secretly alter Newtonian gravity or causality.</p>
+        <p class="warning"><strong>MAP SCIENCE BOUNDARY:</strong> TRUE views are linear projections of the live inertial X/Z state. LOG SURVEY compresses radius only and is labeled non-linear. The map never moves a body or creates a second orbit model. Atmosphere physics is explicitly reported as unmodeled rather than inferred from artwork.</p>
       </div>
     </aside>
 
@@ -200,10 +223,10 @@
       <div class="science-copy">
         <label>Frame target<select id="transitTargetSource"><option value="body" selected>Current celestial TARGET</option><option value="cosmic">Selected COSMOS source</option></select></label>
         <label>Maximum frame rate<select id="transitTier"><option value="1">1 c</option><option value="10">10 c</option><option value="100" selected>100 c</option><option value="500">500 c</option><option value="1000">1,000 c</option></select></label>
-        <div class="frame-rule"><b>EXIT RULE</b><span>Normal FRAME exit matches the locked target inertial velocity. Celestial bodies, gravity and the N-body integrator are never rewritten by FRAME.</span></div>
-        <div class="scan-grid"><span>Target</span><b id="transitTargetName">—</b><span>Distance</span><b id="transitDistance">—</b><span>Local relative velocity</span><b id="transitLocalVelocity">—</b><span>Effective frame rate</span><b id="transitEffectiveSpeed">—</b><span>ETA</span><b id="transitEta">—</b></div>
+        <div class="frame-rule"><b>ARRIVAL RULE</b><span>Planet/moon normal arrivals hand back to Newtonian flight in an instantaneous circular osculating orbit when a resolved Hill-stable window exists. Other targets and manual disengage retain inertial-frame matching. Celestial bodies, gravity and the N-body integrator are never rewritten by FRAME.</span></div>
+        <div class="scan-grid"><span>Target</span><b id="transitTargetName">—</b><span>Distance</span><b id="transitDistance">—</b><span>Local relative velocity</span><b id="transitLocalVelocity">—</b><span>Normal arrival</span><b id="transitArrivalProfile">—</b><span>Route</span><b id="transitRouteProfile">AUTO · SWEPT-GUARD</b><span>Effective frame rate</span><b id="transitEffectiveSpeed">—</b><span>ETA</span><b id="transitEta">—</b></div>
         <button id="transitEngage" class="void" type="button">ENGAGE FRAME</button>
-        <p class="warning"><strong>FICTIONAL / SPECULATIVE:</strong> FRAME translates only the spacecraft position toward the selected destination over real time. While FRAME is active, the ship is isolated from local Newtonian acceleration; the rest of the universe continues through the existing simulation unchanged. A normal exit matches the selected target's inertial velocity, then ordinary gravity and ShipDynamics resume immediately.</p>
+        <p class="warning"><strong>FICTIONAL / SPECULATIVE:</strong> FRAME translates only the spacecraft position toward the selected destination over real time and automatically uses a live-body-anchored detour when the direct swept path would cross another massive-body clearance guard. While FRAME is active, the ship is isolated from local Newtonian acceleration; the rest of the universe continues through the existing simulation unchanged. For planets/moons, a normal completed arrival inserts the spacecraft into a calculated circular osculating orbit; manual disengage still matches target inertial velocity. Ordinary gravity and ShipDynamics resume immediately after the fictional handoff.</p>
       </div>
     </aside>
 
@@ -372,7 +395,7 @@
         <p><strong>Minor field:</strong> 1k–20k typed-array background test particles feel major gravity but intentionally contribute no gravity.</p>
         <p><strong>Particle experiments:</strong> Gravity Cloud uses SI Float64 test particles under all major Newtonian gravity sources. Particle Life and Species Forces use a uniform spatial hash so local neighbor searches avoid all-pairs O(N²) work; their life/attraction rules are explicitly artificial. Experiment fields remain session-local and cap warp at 60× only while live particles remain; completed fields preserve a final frame and release the cap automatically. Observation cameras are non-physical viewpoints; they do not alter particle or spacecraft state.</p>
         <p><strong>Ship:</strong> FLIGHT thrust is 20 m/s²; CRUISE thrust is 120 m/s²; BOOST is an explicitly speculative 5,000 m/s² propulsion mode for rapid local velocity-vector changes. BRAKE applies bounded thrust opposite inertial velocity. APPROACH uses a propulsion-safe stand-off and persistent HOLD; STOP RELATIVE matches target velocity; TURN &amp; BURN cancels lateral velocity toward the captured nose direction. PROGRADE/RETROGRADE change attitude only.</p>
-        <p><strong>Frame drive:</strong> explicitly fictional spacecraft-only reference-frame travel for convenient exploration. FRAME translates ship position separately from Newtonian body integration, isolates the ship from local acceleration only while active, steps down near the destination, and matches the locked target inertial velocity on a normal exit. Celestial gravity and body trajectories are not modified. It is blocked around unsafe local conditions and live fine-step particle experiments and is not an Alcubierre/GR simulation.</p>
+        <p><strong>Frame drive:</strong> explicitly fictional spacecraft-only reference-frame travel for convenient exploration. FRAME translates ship position separately from Newtonian body integration, isolates the ship from local acceleration only while active, and steps down near the destination. A manually commanded disengage matches the locked target inertial velocity. A normally completed planet/moon arrival instead applies a calculated instantaneous circular osculating state inside a conservative prograde Hill-stability estimate, then ordinary Newtonian ShipDynamics resumes. Celestial gravity and body trajectories are never rewritten by FRAME. This is not an Alcubierre/GR simulation.</p>
         <p><strong>Impacts:</strong> finite-radius contact and momentum/energy telemetry are physical. Low-energy collisions bounce/merge using simplified material restitution; energetic impacts use documented crater scaling and heuristic fragment partitioning. Large fragments remain real gravity sources; dense ejecta/fire is visual-only. This is not a hydrocode.</p>
         <p><strong>Cosmic phenomena:</strong> physical comet nuclei are live Newtonian gravity sources on high-eccentricity orbits. Asteroid/debris belts and planetary rings use seeded GPU-friendly point-population proxies tied to physical anchor bodies; their individual visible points do not source gravity or collide. Distant colored nebular haze is explicitly visual background.</p>
         <p><strong>Space weather:</strong> CME fronts use seeded directional cones with explicit propagation speeds and geometric arrival/crossing detection. They are kinematic fronts, not magnetohydrodynamic or radiation-transport simulations.</p>
@@ -382,6 +405,6 @@
       </div>
     </aside>
   </main>
-  <script type="module" src="./src/main.js?v=147"></script>
+  <script type="module" src="./src/main.js?v=148"></script>
 </body>
 </html>

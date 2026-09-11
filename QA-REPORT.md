@@ -1,80 +1,80 @@
-# Universe Lab v0.1.4.7 — Planetary Rotation & Continuous Surface Astronomy Foundation QA Report
+# Universe Lab v0.1.4.8 — Planetary System Navigation & Exploration QA Report
 
 ## Release identity
 
-- Version: **0.1.4.7**
-- Build marker: **ROTASTRO-147**
-- Direct baseline: **v0.1.4.6.1.3.1 — Cockpit MFD Transparency & Engineering Diagnostics Polish**
+- Version: **0.1.4.8**
+- Build marker: **NAVSYS-148**
+- Direct baseline: **physically accepted v0.1.4.7.1 — Surface Astronomy Diagnostics & Pause Control Hotfix**
 - Save schema: **1 unchanged**
 - Three.js: **0.185.0 unchanged**
-- Major-body physics: **direct Newtonian gravity + velocity-Verlet retained**
+- Major-body physics: **direct Newtonian gravity + velocity-Verlet unchanged**
+- Surface astronomy / landing / takeoff: **accepted v0.1.4.7.1 behavior preserved**
 - iPhone/iPad WebKit policy: **forced WebGL2 backend retained**
 
-## Scope verified
+## Navigation / system-map scope verified
 
-### Deterministic planetary rotation
+- System Map now exposes the live generated **primary star → planets → moons** hierarchy from the authoritative body registry.
+- `ORIGIN-001` regression fixture contains **1 primary star, 7 planets and 9 moons**; all are discoverable from the body catalog even when true scale makes graphical selection impractical.
+- Added explicitly labeled **LOG SURVEY**, **TRUE SYSTEM**, and **TRUE LOCAL** projections. LOG SURVEY is a non-linear discovery aid; TRUE SYSTEM/LOCAL are linear X/Z projections of current N-body positions.
+- Added read-only body diagnostics for parent, ship/star range, body class, physical radius/mass, Newtonian surface gravity, Kepler-period estimate, eccentricity, rigid rotation, Hill-radius diagnostic, surface capability, atmosphere-model status and FRAME arrival profile.
+- Existing persistent `targetId` remains the single celestial NAV target. No duplicate target database or save-schema migration was introduced.
+- COSMOS/phenomenon range display uses the phenomenon's current resolved center relative to the spacecraft rather than a stale/static position field.
 
-- Added `src/core/planetaryRotation.js` for rigid body-fixed/inertial transforms, finite spin phase, tangent-basis construction and landing-anchor capture.
-- Generated planets and moons receive finite deterministic rotation metadata.
-- Rotation uses an **independent per-body seeded RNG stream** and does not consume the legacy orbital system-generation RNG.
-- A locked pre-v0.1.4.7 `ORIGIN-001` orbital signature verifies existing body positions/velocities are not perturbed by the new metadata.
+## FRAME arrival / route scope verified
 
-### Body-fixed surface observer
+- FRAME remains an explicitly fictional spacecraft-only translation layer. Celestial integration authority is unchanged.
+- Normal completed travel to supported planets, moons and rogue planets can hand back to ordinary Newtonian flight in an **instantaneous circular two-body osculating orbit** using `sqrt(GM/r)` relative speed plus the target's live inertial velocity.
+- Insertion radius is outside the physical body and screened to at most **47% of a conservative Hill estimate** when a parent orbit is available. The conservative estimate uses the smaller of live separation and stored-orbit pericenter estimates. This is a screening heuristic, not a long-term N-body stability guarantee.
+- All **16 ORIGIN-001 planet/moon targets** resolve a finite circular-insertion window in the automated fixture.
+- Manual FRAME disengage preserves the pre-existing target inertial-velocity match; unsupported normal arrivals retain the prior inertial-match fallback.
+- Direct FRAME travel remains protected by the existing per-step swept finite-radius guard.
+- Added deterministic live-body-anchored guard detours for direct routes blocked by another massive body. Candidate two-leg paths are checked against every existing massive-body guard; no guard radius is reduced and no celestial state is moved.
+- The known `ORIGIN-001` inner-moon case **Caelum-4361 b-A** reproduces the former direct collision at **99.918%** of the path against parent `Caelum-4361 b`; the new route selects a **1.18× guard-shell** parent-anchored bypass and both route legs test swept-clear.
 
-- Touchdown captures a normalized body-fixed surface direction plus capture-time/model metadata.
-- `solveSurfaceObserver()` converts that anchor into the current inertial local-up direction and derives the tangent east/north frame from the parent body's spin axis.
-- Older schema-1 sessions without the new anchor retain the legacy inertial-position fallback rather than failing load.
+## Protected-source comparison
 
-### Continuous landed celestial time
+The following scientifically or physically accepted baseline modules are byte-for-byte unchanged from v0.1.4.7.1:
 
-- Surface mode no longer freezes the celestial simulation merely because the local scene is active.
-- `surfaceAstronomyStep()` advances the authoritative major-body world through the existing integrator while deliberately **not** calling ordinary spacecraft `ShipDynamics.step()` or navigation.
-- Surface astronomical time is forced to **1×** in this foundation build; high time-warp is blocked while landed.
-- PAUSE may stop celestial time while local surface exploration/weather remains responsive.
-- TAKEOFF hands the spacecraft back to a safe orbit around the parent body's current advanced state and retains the accepted multi-frame ascent verification path.
+- `src/core/constants.js`
+- `src/data/systemGenerator.js`
+- `src/physics/gravity/directGravitySolver.js`
+- `src/physics/integrators/velocityVerlet.js`
+- `src/physics/shipDynamics.js`
+- `src/physics/transitDrive.js`
+- `src/core/astronomicalObserver.js`
+- `src/core/planetaryRotation.js`
+- `src/render/surfaceWorld.js`
+- `src/surface/surfaceGenerator.js`
+- `src/surface/surfaceSession.js`
+- `src/surface/surfaceWeather.js`
+- `src/surface/landingTransition.js`
+- `src/core/saveSystem.js`
 
-### Dynamic inertial sky projection
-
-- Surface mode continues to use the same deterministic inertial star catalog as space.
-- Star/horizon reprojection uses preallocated buffers and a bounded update cadence to avoid rebuilding/reseeding the catalog or performing a full 23k-star allocation each render.
-- Live Sun/major-body directions continue to come from the canonical astronomical observer.
-- Daylight/twilight/night presentation responds to physically derived stellar altitude; it remains a visual exposure proxy, **not** atmospheric radiative transfer/scattering.
-
-### Save/cache compatibility
-
-- Save schema remains **1**.
-- Existing generated bodies from older saves deterministically backfill rotation metadata while preserving saved physical mass/radius/position/velocity.
-- Active surface sessions may optionally persist the body-fixed anchor and capture metadata.
-- Shell/module cache tags are updated to `?v=147` to reduce mixed-version Safari/GitHub Pages loads.
+The new navigation/FRAME logic derives from those authoritative states rather than replacing them.
 
 ## Automated QA
 
-`npm run qa` on the release worktree:
+Final worktree `npm run qa`:
 
-- Static structure: **PASS — 43 required files**.
-- JS/MJS syntax checks: **PASS**.
-- Node test suite: **173/173 PASS**.
-- New focused coverage verifies rotation round-trips and periodicity, translating/rotating body-fixed observers, preallocated inertial-star horizon reprojection, spacecraft-isolated surface N-body stepping, body-fixed session serialization, old-save rotation backfill, and the locked legacy `ORIGIN-001` orbital signature.
-- Existing cockpit/MFD, FRAME isolation, gravity, trajectory, observer continuity, landing/takeoff recovery, renderer-backend, cosmic/weather, navigation and mobile-input regression tests remain passing.
-
-## Scientific boundaries retained
-
-This release does **not** claim atmospheric scattering/radiative transfer, seasons, axial precession/nutation, tidal spin evolution, terrain rigid-body contact, aerodynamics, physically integrated landing/ascent, phase shading, eclipses/occultations, or magnetohydrodynamics. The new rotation system is a deterministic rigid observer foundation intended to support those later layers without faking them now.
+- Static structure: **PASS — 46 required files**.
+- JS/MJS syntax: **PASS**.
+- Node tests: **187/187 PASS**.
+- Added coverage includes ORIGIN hierarchy/counts, navigation scientific derivations, conservative Hill screening, circular FRAME insertion invariants, target non-mutation, unsupported-target handling, FRAME manual-vs-normal exit policy, swept route safety, explicit `b-A` parent-bypass regression, and live-body waypoint anchoring.
 
 ## Physical release gate
 
-Automated QA cannot certify physical iPhone WebKit presentation, dynamic-starfield thermal cost, subtle sidereal drift readability, touch ergonomics, or the surface-to-orbit framebuffer handoff. Physical iPhone Safari remains the release gate.
+Automated tests cannot validate iPhone Safari/WebKit touch ergonomics, Canvas/System Map readability, actual FRAME visual feel, renderer compositing, thermals, or a complete interactive trip. Physical iPhone testing remains required before v0.1.4.8 is accepted.
 
-Primary checks after GitHub upload/reload:
+See `MOBILE-GITHUB-PAGES.md` for the release sequence, including the explicit **Caelum-4361 b-A SAFE BYPASS** test, planet/moon orbit insertion, target save/load persistence, and regression of the already accepted surface astronomy + takeoff path.
 
-1. Confirm **v0.1.4.7**, **ROTASTRO-147**, and **WebGL2 iOS**.
-2. LAND and verify **SKY TIME** advances at 1× while **ROTATION** reports a finite period/direction.
-3. Verify the star pattern is continuous through descent/landing and then evolves without reseeding as the body-fixed horizon rotates.
-4. PAUSE/RESUME on the surface and confirm only celestial time pauses; local exploration/weather remains usable.
-5. SAVE/LOAD while landed and verify the same local site returns without a sky-frame discontinuity.
-6. TAKEOFF and confirm visible orbital rendering, parent-relative safe return, immediate control response, and the existing `ORBIT VERIFIED` handoff behavior.
-7. Run the surface for several minutes and watch FPS/thermals for sustained regression.
+## Package validation
 
-## Static hosting smoke
+A repo-root candidate archive was created and tested as deployed content:
 
-**PASS.** A self-contained local HTTP probe returned HTTP 200 for `/`, `styles.css?v=147`, `src/main.js?v=147`, the versioned main → app → renderer/HUD → cockpit module chain, the new `src/core/planetaryRotation.js`, and `VERSION.json`.
+- ZIP integrity (`unzip -t`): **PASS**.
+- Repository-root layout: **PASS** — `index.html`, `package.json`, docs and `src/` are at archive root; no wrapper directory.
+- Clean-unzip `npm run qa`: **PASS — 187/187 tests**.
+- `.github/workflows/*`: **none present**.
+- Self-contained local HTTP smoke: **HTTP 200** for `/`, `styles.css?v=148`, `src/main.js?v=148`, `src/app/app.js?v=148`, `src/render/threeRenderer.js?v=148`, `src/render/cockpitView.js?v=148`, `src/ui/systemMap.js?v=148`, `src/navigation/systemNavigation.js`, `src/navigation/frameGuardRoute.js`, `src/physics/frameOrbitInsertion.js`, and `VERSION.json`.
+
+The final distributable is rebuilt from the same frozen worktree after this report is written, then rechecked before release.

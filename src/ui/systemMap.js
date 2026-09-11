@@ -1,12 +1,40 @@
 import { BODY_KIND, PHYSICS } from '../core/constants.js';
 import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
+import { frameOrbitInsertionPlan } from '../physics/frameOrbitInsertion.js';
+import { navigationBodySnapshot, orderedNavigationBodies } from '../navigation/systemNavigation.js';
 
 function distanceLabel(meters) {
   if (!Number.isFinite(meters)) return '—';
-  const au = meters / PHYSICS.AU;
-  if (Math.abs(au) >= 0.01) return `${au.toFixed(Math.abs(au) >= 100 ? 1 : 3)} AU`;
-  if (Math.abs(meters) >= 1e9) return `${(meters / 1e9).toFixed(2)} Gm`;
-  return `${(meters / 1e6).toFixed(2)} Mm`;
+  const abs = Math.abs(meters);
+  const au = abs / PHYSICS.AU;
+  if (au >= 0.01) return `${au.toFixed(au >= 100 ? 1 : au >= 10 ? 2 : 4)} AU`;
+  if (abs >= 1e9) return `${(meters / 1e9).toFixed(2)} Gm`;
+  if (abs >= 1e6) return `${(meters / 1e6).toFixed(2)} Mm`;
+  if (abs >= 1e3) return `${(meters / 1e3).toFixed(2)} km`;
+  return `${meters.toFixed(1)} m`;
+}
+
+function massLabel(mass) {
+  if (!Number.isFinite(mass) || mass <= 0) return '—';
+  if (mass >= PHYSICS.SOLAR_MASS * 0.01) return `${(mass / PHYSICS.SOLAR_MASS).toFixed(4)} M☉`;
+  if (mass >= PHYSICS.JUPITER_MASS * 0.25) return `${(mass / PHYSICS.JUPITER_MASS).toFixed(3)} M♃`;
+  if (mass >= PHYSICS.EARTH_MASS * 0.01) return `${(mass / PHYSICS.EARTH_MASS).toFixed(3)} M⊕`;
+  return `${mass.toExponential(3)} kg`;
+}
+
+function periodLabel(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '—';
+  if (seconds >= PHYSICS.YEAR) return `${(seconds / PHYSICS.YEAR).toFixed(3)} yr`;
+  if (seconds >= PHYSICS.DAY) return `${(seconds / PHYSICS.DAY).toFixed(3)} d`;
+  if (seconds >= 3600) return `${(seconds / 3600).toFixed(2)} h`;
+  return `${seconds.toFixed(0)} s`;
+}
+
+function rotationLabel(body) {
+  const seconds = Number(body?.rotationPeriodSeconds);
+  if (!(seconds > 0)) return 'STATIC / UNMODELED';
+  const direction = Number(body?.rotationDirection) < 0 ? 'RETRO' : 'PRO';
+  return `${periodLabel(seconds)} · ${direction}`;
 }
 
 function bodyColor(body) {
@@ -26,6 +54,22 @@ function realityColor(realityClass) {
   return '#a7bad0';
 }
 
+function linearProjection(position, origin, cx, cy, radiusPx, maxMeters, zoom = 1) {
+  const x = Number(position?.[0] ?? 0) - Number(origin?.[0] ?? 0);
+  const z = Number(position?.[2] ?? 0) - Number(origin?.[2] ?? 0);
+  const rMeters = Math.hypot(x, z);
+  const scaleMeters = Math.max(1, maxMeters / Math.max(0.55, zoom));
+  const factor = radiusPx / scaleMeters;
+  return { x: cx + x * factor, y: cy + z * factor, rMeters };
+}
+
+function appendOption(group, value, label) {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+  group.appendChild(option);
+}
+
 export class SystemMapController {
   constructor(app, root) {
     this.app = app;
@@ -35,7 +79,9 @@ export class SystemMapController {
     this.selection = null;
     this.markers = [];
     this.zoom = 1;
+    this.viewMode = 'survey';
     this.includeUnknown = true;
+    this._catalogSignature = '';
     this._boundPointer = (event) => this.onPointer(event);
     this.canvas?.addEventListener('pointerdown', this._boundPointer);
   }
@@ -44,6 +90,12 @@ export class SystemMapController {
     const n = Number(value);
     this.zoom = Number.isFinite(n) ? Math.max(0.55, Math.min(n, 3.5)) : 1;
     this.draw();
+  }
+
+  setViewMode(value) {
+    this.viewMode = ['survey', 'true-system', 'true-local'].includes(value) ? value : 'survey';
+    this.draw();
+    this.updateSelectionText();
   }
 
   resize() {
@@ -68,9 +120,7 @@ export class SystemMapController {
     const bodies = this.app.bodies.filter((body) => body.generated !== false || body.kind !== BODY_KIND.ASTEROID);
     const phenomena = this.app.cosmicPhenomena.values.filter((entry) => this.includeUnknown || this.app.discoveredPhenomena.has(entry.id));
     const entries = [];
-    for (const body of bodies) {
-      entries.push({ type: 'body', id: body.id, label: body.name, kind: body.kind, position: body.position, body });
-    }
+    for (const body of bodies) entries.push({ type: 'body', id: body.id, label: body.name, kind: body.kind, position: body.position, body });
     for (const phenomenon of phenomena) {
       const state = this.stateForPhenomenon(phenomenon);
       if (!state?.center) continue;
@@ -81,51 +131,153 @@ export class SystemMapController {
     return { origin, entries, star };
   }
 
-  project(position, origin, cx, cy, radiusPx, maxAu) {
-    const x = Number(position?.[0] ?? 0) - Number(origin?.[0] ?? 0);
-    const z = Number(position?.[2] ?? 0) - Number(origin?.[2] ?? 0);
+  refreshBodyCatalog(force = false) {
+    const select = this.root.querySelector('#mapBodySelect');
+    if (!select) return;
+    const hierarchy = orderedNavigationBodies(this.app.bodies);
+    const signature = this.app.bodies.map((body) => `${body.id}:${body.kind}:${body.parentId ?? ''}`).join('|');
+    const desired = this.selection?.type === 'body' ? this.selection.id : this.app.targetId;
+    if (!force && signature === this._catalogSignature && select.options.length > 1) {
+      if (desired && [...select.options].some((option) => option.value === desired)) select.value = desired;
+      return;
+    }
+    this._catalogSignature = signature;
+    select.replaceChildren();
+
+    if (hierarchy.star) {
+      const group = document.createElement('optgroup');
+      group.label = 'PRIMARY STAR';
+      appendOption(group, hierarchy.star.id, `★ ${hierarchy.star.name}`);
+      select.appendChild(group);
+    }
+    for (const planet of hierarchy.planets) {
+      const moons = hierarchy.moonsByParent.get(planet.id) ?? [];
+      const group = document.createElement('optgroup');
+      group.label = `${planet.name} · ${moons.length} moon${moons.length === 1 ? '' : 's'}`;
+      appendOption(group, planet.id, `● ${planet.name}`);
+      for (const moon of moons) appendOption(group, moon.id, `↳ ${moon.name}`);
+      select.appendChild(group);
+    }
+    if (hierarchy.other.length) {
+      const group = document.createElement('optgroup');
+      group.label = 'OTHER PHYSICAL BODIES';
+      for (const body of hierarchy.other) appendOption(group, body.id, `${body.kind === BODY_KIND.COMET ? '☄' : '◆'} ${body.name}`);
+      select.appendChild(group);
+    }
+
+    const fallback = desired && [...select.options].some((option) => option.value === desired)
+      ? desired
+      : hierarchy.planets[0]?.id ?? hierarchy.star?.id ?? select.options[0]?.value;
+    if (fallback) {
+      select.value = fallback;
+      if (!this.selection || this.selection.type === 'body') this.selection = { type: 'body', id: fallback };
+    }
+  }
+
+  selectedBody() {
+    if (this.selection?.type !== 'body') return null;
+    return this.app.registry.get(this.selection.id) ?? null;
+  }
+
+  localFocusBody() {
+    const selected = this.selectedBody() ?? this.app.target;
+    if (!selected) return null;
+    if (selected.kind === BODY_KIND.PLANET) return selected;
+    if (selected.kind === BODY_KIND.MOON && selected.parentId) return this.app.registry.get(selected.parentId) ?? null;
+    return null;
+  }
+
+  viewContext(collected) {
+    if (this.viewMode === 'true-local') {
+      const focus = this.localFocusBody();
+      if (focus) {
+        const family = collected.entries.filter((entry) => entry.type === 'body' && (entry.id === focus.id || entry.body.parentId === focus.id));
+        let maxMeters = Math.max(Number(focus.radius) * 12 || 1, 1e7);
+        for (const entry of family) {
+          maxMeters = Math.max(maxMeters, Math.hypot(entry.position[0] - focus.position[0], entry.position[2] - focus.position[2]));
+        }
+        const ship = collected.entries.find((entry) => entry.type === 'ship');
+        if (ship) {
+          const range = Math.hypot(ship.position[0] - focus.position[0], ship.position[2] - focus.position[2]);
+          if (range <= maxMeters * 2.5) family.push(ship);
+        }
+        return { origin: focus.position, entries: family, maxMeters: Math.max(maxMeters * 1.2, 1), linear: true, label: `TRUE LOCAL · ${focus.name} + MOONS` };
+      }
+    }
+
+    if (this.viewMode === 'true-system') {
+      let maxMeters = PHYSICS.AU;
+      for (const entry of collected.entries) {
+        const dx = Number(entry.position?.[0] ?? 0) - Number(collected.origin?.[0] ?? 0);
+        const dz = Number(entry.position?.[2] ?? 0) - Number(collected.origin?.[2] ?? 0);
+        maxMeters = Math.max(maxMeters, Math.hypot(dx, dz));
+      }
+      return { origin: collected.origin, entries: collected.entries, maxMeters: maxMeters * 1.08, linear: true, label: 'TRUE SYSTEM · LINEAR X/Z' };
+    }
+
+    let maxAu = 1;
+    for (const entry of collected.entries) {
+      const dx = Number(entry.position?.[0] ?? 0) - Number(collected.origin?.[0] ?? 0);
+      const dz = Number(entry.position?.[2] ?? 0) - Number(collected.origin?.[2] ?? 0);
+      maxAu = Math.max(maxAu, Math.hypot(dx, dz) / PHYSICS.AU);
+    }
+    return { origin: collected.origin, entries: collected.entries, maxAu: Math.max(2.2, maxAu / this.zoom), linear: false, label: 'LOG SURVEY · NON-LINEAR RANGE' };
+  }
+
+  project(position, context, cx, cy, radiusPx) {
+    if (context.linear) return linearProjection(position, context.origin, cx, cy, radiusPx, context.maxMeters, this.zoom);
+    const x = Number(position?.[0] ?? 0) - Number(context.origin?.[0] ?? 0);
+    const z = Number(position?.[2] ?? 0) - Number(context.origin?.[2] ?? 0);
     const rMeters = Math.hypot(x, z);
     if (rMeters < 1) return { x: cx, y: cy, rMeters };
     const rAu = rMeters / PHYSICS.AU;
-    const compressed = Math.log1p(rAu * 2.4 * this.zoom) / Math.log1p(Math.max(0.01, maxAu) * 2.4 * this.zoom);
+    const compressed = Math.log1p(rAu * 2.4 * this.zoom) / Math.log1p(Math.max(0.01, context.maxAu) * 2.4 * this.zoom);
     const rr = Math.min(radiusPx, compressed * radiusPx);
     const angle = Math.atan2(z, x);
     return { x: cx + Math.cos(angle) * rr, y: cy + Math.sin(angle) * rr, rMeters };
   }
 
+  drawScaleRings(ctx, context, cx, cy, mapRadius, scale) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(120,175,225,.15)';
+    ctx.lineWidth = Math.max(1, this.canvas.width / 900);
+    ctx.fillStyle = 'rgba(145,177,208,.62)';
+    ctx.font = `${Math.max(10, this.canvas.width / 80)}px ui-monospace,monospace`;
+    if (!context.linear) {
+      for (const au of [0.5, 1, 2, 5, 10, 20, 40]) {
+        if (au > context.maxAu * 1.15) continue;
+        const rr = Math.log1p(au * 2.4 * this.zoom) / Math.log1p(context.maxAu * 2.4 * this.zoom) * mapRadius;
+        ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillText(`${au} AU`, cx + rr + 4, cy - 3);
+      }
+    } else {
+      for (const fraction of [0.25, 0.5, 0.75, 1]) {
+        const rr = mapRadius * fraction;
+        ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillText(distanceLabel(context.maxMeters / this.zoom * fraction), cx + rr + 4, cy - 3);
+      }
+    }
+    ctx.restore();
+  }
+
   draw() {
     if (!this.canvas || !this.ctx || this.root.querySelector('#mapPanel')?.hidden) return;
+    this.refreshBodyCatalog();
     this.resize();
     const ctx = this.ctx;
     const w = this.canvas.width, h = this.canvas.height;
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = '#020711'; ctx.fillRect(0, 0, w, h);
-    const { origin, entries } = this.collect();
-    let maxAu = 1;
-    for (const entry of entries) {
-      const dx = Number(entry.position?.[0] ?? 0) - Number(origin?.[0] ?? 0);
-      const dz = Number(entry.position?.[2] ?? 0) - Number(origin?.[2] ?? 0);
-      maxAu = Math.max(maxAu, Math.hypot(dx, dz) / PHYSICS.AU);
-    }
-    maxAu = Math.max(2.2, maxAu / this.zoom);
+    const collected = this.collect();
+    const context = this.viewContext(collected);
     const cx = w * 0.5, cy = h * 0.5;
     const mapRadius = Math.max(60, Math.min(w, h) * 0.43);
-
-    ctx.save();
-    ctx.strokeStyle = 'rgba(120,175,225,.15)'; ctx.lineWidth = Math.max(1, w / 900);
-    for (const au of [0.5, 1, 2, 5, 10, 20, 40]) {
-      if (au > maxAu * 1.15) continue;
-      const rr = Math.log1p(au * 2.4 * this.zoom) / Math.log1p(maxAu * 2.4 * this.zoom) * mapRadius;
-      ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = 'rgba(145,177,208,.62)'; ctx.font = `${Math.max(10, w / 80)}px ui-monospace,monospace`;
-      ctx.fillText(`${au} AU`, cx + rr + 4, cy - 3);
-    }
-    ctx.restore();
+    const scale = Math.max(1, w / 700);
+    this.drawScaleRings(ctx, context, cx, cy, mapRadius, scale);
 
     this.markers = [];
-    const scale = Math.max(1, w / 700);
-    for (const entry of entries) {
-      const point = this.project(entry.position, origin, cx, cy, mapRadius, maxAu);
+    for (const entry of context.entries) {
+      const point = this.project(entry.position, context, cx, cy, mapRadius);
       const isSelected = this.selection?.type === entry.type && this.selection?.id === entry.id;
       if (entry.type === 'ship') {
         ctx.fillStyle = '#ffffff';
@@ -137,7 +289,10 @@ export class SystemMapController {
         const size = entry.kind === BODY_KIND.STAR ? 8 : entry.kind === BODY_KIND.MOON ? 3.3 : 5;
         ctx.fillStyle = bodyColor(entry.body);
         ctx.beginPath(); ctx.arc(point.x, point.y, (size + (isSelected ? 2 : 0)) * scale, 0, Math.PI * 2); ctx.fill();
-        if (isSelected) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 * scale; ctx.beginPath(); ctx.arc(point.x, point.y, 11 * scale, 0, Math.PI * 2); ctx.stroke(); }
+        if (isSelected) {
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 * scale; ctx.beginPath(); ctx.arc(point.x, point.y, 11 * scale, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = 'rgba(235,248,255,.92)'; ctx.font = `${Math.max(10, 9 * scale)}px ui-monospace,monospace`; ctx.fillText(entry.label, point.x + 13 * scale, point.y - 8 * scale);
+        }
         this.markers.push({ ...entry, x: point.x, y: point.y, hit: 14 * scale, distanceMeters: point.rMeters });
         continue;
       }
@@ -148,11 +303,8 @@ export class SystemMapController {
       ctx.lineWidth = (isSelected ? 2.2 : 1.4) * scale;
       const rr = (anomaly ? 6.5 : 5) * scale;
       ctx.beginPath();
-      if (anomaly) {
-        ctx.moveTo(point.x, point.y - rr); ctx.lineTo(point.x + rr, point.y); ctx.lineTo(point.x, point.y + rr); ctx.lineTo(point.x - rr, point.y); ctx.closePath();
-      } else {
-        ctx.arc(point.x, point.y, rr, 0, Math.PI * 2);
-      }
+      if (anomaly) { ctx.moveTo(point.x, point.y - rr); ctx.lineTo(point.x + rr, point.y); ctx.lineTo(point.x, point.y + rr); ctx.lineTo(point.x - rr, point.y); ctx.closePath(); }
+      else ctx.arc(point.x, point.y, rr, 0, Math.PI * 2);
       if (discovered) ctx.fill(); else ctx.stroke();
       if (!discovered) {
         ctx.fillStyle = '#dce5ef'; ctx.font = `${Math.max(10, 10 * scale)}px ui-monospace,monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', point.x, point.y + .5 * scale);
@@ -163,7 +315,9 @@ export class SystemMapController {
 
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = 'rgba(220,238,255,.72)'; ctx.font = `${Math.max(10, w / 80)}px ui-monospace,monospace`;
-    ctx.fillText(`LOG SYSTEM VIEW · extent ${maxAu.toFixed(1)} AU · ${this.app.cosmicPhenomena.values.filter((x) => x.anomaly).length} seeded anomalies`, 10 * scale, 18 * scale);
+    ctx.fillText(`${context.label} · ${this.app.cosmicPhenomena.values.filter((x) => x.anomaly).length} seeded anomalies`, 10 * scale, 18 * scale);
+    const projection = this.root.querySelector('#mapProjectionModel');
+    if (projection) projection.textContent = context.label;
   }
 
   onPointer(event) {
@@ -180,55 +334,116 @@ export class SystemMapController {
     }
     if (!best) return;
     this.selection = { type: best.type, id: best.id };
+    const bodySelect = this.root.querySelector('#mapBodySelect');
+    if (best.type === 'body' && bodySelect && [...bodySelect.options].some((option) => option.value === best.id)) bodySelect.value = best.id;
     this.updateSelectionText(best);
     this.draw();
   }
 
+  selectBodyById(id) {
+    const body = this.app.registry.get(id);
+    if (!body) return false;
+    this.selection = { type: 'body', id: body.id };
+    const select = this.root.querySelector('#mapBodySelect');
+    if (select && [...select.options].some((option) => option.value === body.id)) select.value = body.id;
+    this.updateSelectionText();
+    this.draw();
+    return true;
+  }
+
+  setDetail(id, text) {
+    const el = this.root.querySelector(id);
+    if (el) el.textContent = text;
+  }
+
   updateSelectionText(marker = null) {
+    this.refreshBodyCatalog();
     const title = this.root.querySelector('#mapSelectionName');
     const kind = this.root.querySelector('#mapSelectionKind');
-    const distance = this.root.querySelector('#mapSelectionDistance');
     const status = this.root.querySelector('#mapSelectionStatus');
     const landButton = this.root.querySelector('#mapLandAction');
     const selection = marker ?? this.currentMarker();
-    if (landButton) { landButton.disabled = true; landButton.title = 'Select the first landable solid world and move into its near-orbital descent envelope.'; }
+    if (landButton) { landButton.disabled = true; landButton.title = 'Select the current detailed landable world and move into its near-orbital descent envelope.'; }
+
+    for (const id of ['#mapSelectionDistance','#mapSelectionStarRange','#mapSelectionParent','#mapSelectionClass','#mapSelectionRadius','#mapSelectionMass','#mapSelectionGravity','#mapSelectionOrbit','#mapSelectionEccentricity','#mapSelectionRotation','#mapSelectionHill','#mapSelectionSurface','#mapSelectionAtmosphere','#mapSelectionFrameArrival']) this.setDetail(id, '—');
+
     if (!selection) {
-      if (title) title.textContent = 'Tap a map marker';
+      if (title) title.textContent = 'Choose a body or tap a marker';
       if (kind) kind.textContent = '—';
-      if (distance) distance.textContent = '—';
-      if (status) status.textContent = 'Bodies are physical targets. Cosmic markers may be known phenomena or unidentified anomaly signatures.';
+      if (status) status.textContent = 'The BODY CATALOG exposes the star → planets → moons hierarchy directly from the authoritative generated body registry.';
       return;
     }
+
     if (selection.type === 'body') {
-      if (title) title.textContent = selection.body.name;
-      if (kind) kind.textContent = selection.body.kind.toUpperCase();
-      if (distance) distance.textContent = distanceLabel(selection.distanceMeters);
-      const landing = this.app.landingEligibility(selection.body);
-      if (landButton) { landButton.disabled = !landing.ok; landButton.title = landing.ok ? 'Enter the seeded Shatterfall Basin surface region.' : landing.reason; }
-      if (status) status.textContent = selection.body.scientificWarning || (selection.body.landable
-        ? `Physical major-body target. This is the current detailed landing world. ${landing.ok ? 'LAND / DESCEND is available now.' : landing.reason}`
-        : 'Physical major-body target. TARGET selects it for scanner/navigation; FRAME opens the speculative spacecraft-only travel layer.');
+      const body = selection.body ?? this.app.registry.get(selection.id);
+      if (!body) return;
+      const snapshot = navigationBodySnapshot(body, this.app.bodies, this.app.ship);
+      if (title) title.textContent = body.name;
+      if (kind) kind.textContent = body.kind.toUpperCase();
+      this.setDetail('#mapSelectionDistance', distanceLabel(snapshot.shipRangeMeters));
+      this.setDetail('#mapSelectionStarRange', distanceLabel(snapshot.starRangeMeters));
+      this.setDetail('#mapSelectionParent', snapshot.parent?.name ?? (body.kind === BODY_KIND.STAR ? 'SYSTEM PRIMARY' : 'UNBOUND / NONE'));
+      this.setDetail('#mapSelectionClass', snapshot.classLabel);
+      this.setDetail('#mapSelectionRadius', distanceLabel(Number(body.radius)));
+      this.setDetail('#mapSelectionMass', massLabel(Number(body.mass)));
+      this.setDetail('#mapSelectionGravity', Number.isFinite(snapshot.surfaceGravityMps2) ? `${snapshot.surfaceGravityMps2.toFixed(3)} m/s²` : '—');
+      this.setDetail('#mapSelectionOrbit', periodLabel(snapshot.orbitalPeriodSeconds));
+      this.setDetail('#mapSelectionEccentricity', Number.isFinite(Number(body.eccentricity)) ? Number(body.eccentricity).toFixed(5) : '—');
+      this.setDetail('#mapSelectionRotation', rotationLabel(body));
+      this.setDetail('#mapSelectionHill', distanceLabel(snapshot.hillRadiusMeters));
+      this.setDetail('#mapSelectionSurface', snapshot.surfaceCapability);
+      this.setDetail('#mapSelectionAtmosphere', snapshot.atmosphereModel);
+      const arrival = frameOrbitInsertionPlan(this.app.ship, body, this.app.bodies);
+      this.setDetail('#mapSelectionFrameArrival', arrival.ok
+        ? `CIRCULAR +${distanceLabel(arrival.altitudeMeters)}${arrival.hillLimited ? ' · HILL-LIMITED' : ''}`
+        : 'INERTIAL FRAME MATCH');
+      const landing = this.app.landingEligibility(body);
+      if (landButton) { landButton.disabled = !landing.ok; landButton.title = landing.ok ? 'Enter the selected seeded surface region.' : landing.reason; }
+      if (status) status.textContent = body.scientificWarning || (body.landable
+        ? `Physical N-body target with the current detailed surface. ${landing.ok ? 'LAND / DESCEND is available now.' : landing.reason}`
+        : `${snapshot.classLabel}. NAV and FRAME use this live body directly. ${snapshot.atmosphereModel.includes('UNMODELED') || snapshot.atmosphereModel.includes('NOT YET') ? 'Atmospheric flight physics is not inferred or faked.' : ''}`);
       return;
     }
+
     if (selection.type === 'ship') {
-      if (title) title.textContent = 'SPACECRAFT'; if (kind) kind.textContent = 'SHIP'; if (distance) distance.textContent = distanceLabel(selection.distanceMeters);
-      if (status) status.textContent = 'Current spacecraft position projected into the logarithmic system map.';
+      if (title) title.textContent = 'SPACECRAFT';
+      if (kind) kind.textContent = 'SHIP';
+      this.setDetail('#mapSelectionDistance', '0 m');
+      if (status) status.textContent = 'Current spacecraft position projected from the live inertial state.';
       return;
     }
+
     const p = selection.phenomenon;
+    if (!p) return;
     const discovered = this.app.discoveredPhenomena.has(p.id);
     const scanDepth = this.app.discoveryScanDepth.get(p.id) ?? (discovered ? 1 : 0);
     if (title) title.textContent = discovered ? p.label : 'UNIDENTIFIED SIGNAL';
     if (kind) kind.textContent = discovered ? (p.anomaly ? (ANOMALY_REALITY_LABELS[p.realityClass] ?? 'ANOMALY') : p.kind.toUpperCase()) : 'UNKNOWN';
-    if (distance) distance.textContent = distanceLabel(selection.distanceMeters);
+    const center = selection.state?.center ?? this.stateForPhenomenon(p)?.center ?? null;
+    const shipPosition = this.app.ship?.position ?? null;
+    const phenomenonRange = center && shipPosition
+      ? Math.hypot(center[0] - shipPosition[0], center[1] - shipPosition[1], center[2] - shipPosition[2])
+      : null;
+    this.setDetail('#mapSelectionDistance', distanceLabel(phenomenonRange));
     if (status) status.textContent = discovered
       ? `${p.scanSummary ?? p.scientificStatus}${p.anomaly ? ` Scan depth ${scanDepth}/3.` : ''}`
-      : `Passive sensors show a coherent source at this location. SCAN reveals more; its actual classification is hidden.`;
+      : 'Passive sensors show a coherent source at this location. SCAN reveals more; its actual classification is hidden.';
   }
 
   currentMarker() {
     if (!this.selection) return null;
-    return this.markers.find((m) => m.type === this.selection.type && m.id === this.selection.id) ?? null;
+    const marker = this.markers.find((m) => m.type === this.selection.type && m.id === this.selection.id);
+    if (marker) return marker;
+    if (this.selection.type === 'body') {
+      const body = this.app.registry.get(this.selection.id);
+      if (body) return { type: 'body', id: body.id, label: body.name, kind: body.kind, position: body.position, body, distanceMeters: navigationBodySnapshot(body, this.app.bodies, this.app.ship).shipRangeMeters };
+    }
+    if (this.selection.type === 'phenomenon') {
+      const phenomenon = this.app.cosmicPhenomena.get(this.selection.id);
+      const state = phenomenon ? this.stateForPhenomenon(phenomenon) : null;
+      if (phenomenon && state?.center) return { type: 'phenomenon', id: phenomenon.id, phenomenon, state, position: state.center };
+    }
+    return null;
   }
 
   selectCurrent() {
@@ -236,7 +451,7 @@ export class SystemMapController {
     if (!marker) return false;
     if (marker.type === 'body') {
       this.app.selectTarget(marker.id);
-      this.app.hud.notify(`MAP TARGET: ${marker.body.name} selected for scanner/navigation.`);
+      this.app.hud.notify(`NAV TARGET: ${marker.body.name} selected from the live body registry.`);
       return true;
     }
     if (marker.type === 'phenomenon') {

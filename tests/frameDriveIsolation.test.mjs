@@ -30,12 +30,16 @@ test('FRAME can translate while simulation is paused without advancing world tim
   assert.match(app,/if \(this\.transitState\.active\) this\.updateTransit\(orbitalRealDt\);[\s\S]*if \(this\.running\) this\.clock\.advance/);
 });
 
-test('FRAME exit policy matches the target only on normal pilot/arrival exits', async()=>{
+test('FRAME exit policy keeps manual inertial matching while completed body arrivals can use circular orbit insertion', async()=>{
   const app=await appSource();
   assert.match(app,/this\.disengageTransit\(\{ notify: true, restoreWarp: false, matchTarget: true \}\);/);
+  assert.match(app,/completeFrameArrival\(locked\)/);
+  assert.match(app,/applyFrameOrbitInsertion\(this\.ship, target, plan\)/);
   assert.match(app,/matchTarget: true, reason: `FRAME ARRIVAL:/);
   assert.match(app,/matchTarget: false, reason: 'FRAME target disappeared/);
   assert.match(app,/matchTarget: false, reason: `FRAME safety dropout before/);
+  assert.match(app,/planFrameGuardRoute\(this\.ship\.position/);
+  assert.match(app,/resolveFrameGuardWaypoint/);
   assert.match(app,/matchFrameExitVelocity\(this\.ship, locked\.target\)/);
 });
 
@@ -43,7 +47,7 @@ test('FRAME UI is presented as tap-toggle and refreshes cockpit state immediatel
   const app=await appSource();
   const html=await htmlSource();
   assert.match(html,/id="frameQuick"[^>]*aria-pressed="false"[^>]*>FRAME<\/button>/);
-  assert.match(html,/id="mapTransitAction"[^>]*>OPEN FRAME<\/button>/);
+  assert.match(html,/id="mapTransitAction"[^>]*>FRAME TO TARGET<\/button>/);
   assert.doesNotMatch(html,/>OPEN TRANSIT<\/button>/);
   const engageStart=app.indexOf('\n  engageTransit()');
   const exitStart=app.indexOf('\n  disengageTransit(', engageStart);

@@ -2,7 +2,7 @@ import { EntityRegistry } from '../core/entityRegistry.js';
 import { SimulationClock } from '../core/simulationClock.js';
 import { FloatingReferenceFrame } from '../core/referenceFrame.js';
 import { ASTRONOMICAL_OBSERVER_MODE, AstronomicalObserverModel } from '../core/astronomicalObserver.js';
-import { captureBodyFixedSurfaceAnchor } from '../core/planetaryRotation.js';
+import { captureBodyFixedSurfaceAnchor, hasPhysicalRotationModel, inertialDirectionToBodyFixed, localSolarTimeHours, rotationAngleAt, surfaceLatitudeLongitude } from '../core/planetaryRotation.js';
 import { SaveSystem } from '../core/saveSystem.js';
 import { PHYSICS, SIMULATION, BODY_KIND } from '../core/constants.js';
 import { generateSystem } from '../data/systemGenerator.js';
@@ -23,9 +23,11 @@ import { CosmicPhenomenonRegistry } from '../cosmic/phenomenonRegistry.js';
 import { SpaceWeatherManager } from '../cosmic/spaceWeather.js';
 import { ANOMALY_REALITY_LABELS } from '../cosmic/anomalyGenerator.js';
 import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, transitClearanceCheck, firstTransitGuardHit, advanceTransitPosition, matchFrameExitVelocity } from '../physics/transitDrive.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=147';
-import { Hud } from '../ui/hud.js?v=147';
-import { SystemMapController } from '../ui/systemMap.js';
+import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
+import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=148';
+import { Hud } from '../ui/hud.js?v=148';
+import { SystemMapController } from '../ui/systemMap.js?v=148';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -34,6 +36,34 @@ import { stepSurfaceWeather, surfaceWeatherReading } from '../surface/surfaceWea
 function safeNumber(value, fallback) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function degrees(radians) {
+  return Number(radians) * (180 / Math.PI);
+}
+
+function formatBodyFixedCoordinate(latitudeRad, longitudeRad) {
+  const latitude = degrees(latitudeRad);
+  const longitude = degrees(longitudeRad);
+  if (![latitude, longitude].every(Number.isFinite)) return '—';
+  const latHemisphere = latitude < 0 ? 'S' : 'N';
+  const lonHemisphere = longitude < 0 ? 'W' : 'E';
+  return `${Math.abs(latitude).toFixed(4)}° ${latHemisphere} · ${Math.abs(longitude).toFixed(4)}° ${lonHemisphere}`;
+}
+
+function formatSolarHours(hours) {
+  if (!Number.isFinite(hours)) return '—';
+  const totalMinutes = Math.round((((hours % 24) + 24) % 24) * 60) % (24 * 60);
+  const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const mm = String(totalMinutes % 60).padStart(2, '0');
+  return `${hh}:${mm} SOLAR`;
+}
+
+function horizontalAzimuthDegrees(localDirection) {
+  const east = Number(localDirection?.[0]);
+  const north = Number(localDirection?.[2]);
+  if (![east, north].every(Number.isFinite)) return NaN;
+  return ((Math.atan2(east, north) * 180 / Math.PI) % 360 + 360) % 360;
 }
 
 function serializeBody(body) {
@@ -156,7 +186,7 @@ export class UniverseLabApp {
     this._lastWarpSafetyNotice = 0;
     this._lastNavigationPhase = null;
     this.turnBurnDirection = null;
-    this.transitState = { active: false, targetType: 'body', targetId: null, maxMultipleC: 100, matchOnExit: true, previousTimeScale: 1, status: null };
+    this.transitState = { active: false, targetType: 'body', targetId: null, maxMultipleC: 100, matchOnExit: true, arrivalMode: null, arrivalAltitudeMeters: null, routePlan: null, previousTimeScale: 1, status: null };
     this._particleWarpRestoreScale = null;
     this._particleWarpCapActive = false;
     this._announcedExperimentCompletions = new Set();
@@ -253,7 +283,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.7 online. Planetary rotation and continuous body-fixed surface astronomy are active: celestial N-body time continues at 1× while landed, while ShipDynamics stays surface-constrained. FRAME and the accepted cockpit/WebKit renderer remain unchanged. Active backend: ${backend}. Build ROTASTRO-147.`);
+    this.hud.notify(`v0.1.4.8 online. NAV now exposes the live star → planets → moons hierarchy with true/log map modes and planet/moon FRAME orbit insertion. The physically accepted surface astronomy, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build NAVSYS-148.`);
   }
 
   newSystem(seed) {
@@ -500,6 +530,8 @@ export class UniverseLabApp {
     }
     const save = this.root.querySelector('#surfaceSaveButton');
     if (save) save.disabled = phase !== SURFACE_PHASE.LANDED;
+    const skyPause = this.root.querySelector('#surfaceAstronomyPause');
+    if (skyPause) skyPause.disabled = phase !== SURFACE_PHASE.LANDED;
     if (takeoff) {
       if (phase === SURFACE_PHASE.ASCENDING) {
         takeoff.disabled = true;
@@ -592,7 +624,8 @@ export class UniverseLabApp {
         this.setSurfaceControlsEnabled(false);
       }
       this.selectTarget(body.id);
-      this.updateSurfaceHud();
+      const astronomy = this.solveAstronomicalObserver();
+      this.updateSurfaceHud(astronomy);
       this.updateSurfaceTransitionUi();
       if (options.notify !== false) this.hud.notify(options.fromLoad
         ? `SURFACE RESTORED: ${body.name} · ${this.surfaceRegion.name}. Local exploration resumed beside the parked spacecraft; the body-fixed sky continues from saved simulation time.`
@@ -816,9 +849,32 @@ export class UniverseLabApp {
     }
     if (this.surfaceSession?.active && this.surfaceRegion) {
       stepSurfaceWeather(this.surfaceSession.weather, this.surfaceRegion, realDt);
-      this.updateSurfaceHud();
       this.updateSurfaceTransitionUi();
     }
+  }
+
+  syncPauseControls() {
+    const flightPause = this.root.querySelector('#pauseToggle');
+    if (flightPause) flightPause.textContent = this.running ? 'PAUSE' : 'RESUME';
+    const surfacePause = this.root.querySelector('#surfaceAstronomyPause');
+    if (surfacePause) {
+      surfacePause.textContent = this.running ? 'PAUSE SKY' : 'RESUME SKY';
+      surfacePause.setAttribute('aria-pressed', this.running ? 'false' : 'true');
+    }
+  }
+
+  toggleSurfaceAstronomyPause() {
+    if (!this.surfaceSession?.active || !this.surfaceRegion || this.surfaceTransition?.phase !== SURFACE_PHASE.LANDED) {
+      this.hud.notify('SKY PAUSE is available after touchdown while the landed surface session is active.');
+      return this.running;
+    }
+    this.running = !this.running;
+    this.syncPauseControls();
+    this.updateSurfaceHud();
+    this.hud.notify(this.running
+      ? 'Surface astronomy resumed at 1×. The parked spacecraft remains constrained to the landing site.'
+      : 'Surface astronomy paused. Local walking and weather remain active; celestial N-body time is held.');
+    return this.running;
   }
 
   setSurfaceHudExpanded(expanded, notify = false) {
@@ -854,7 +910,7 @@ export class UniverseLabApp {
     return true;
   }
 
-  updateSurfaceHud() {
+  updateSurfaceHud(astronomy = null) {
     if (!this.surfaceSession?.active || !this.surfaceRegion) return;
     const region = this.surfaceRegion;
     const nearest = nearestSurfacePoi(this.surfaceSession, region);
@@ -879,9 +935,50 @@ export class UniverseLabApp {
       : `${Math.floor(astronomySeconds).toLocaleString()} s`);
     const parentBody = this.registry.get(this.surfaceSession.bodyId);
     const rotationPeriod = Math.abs(Number(parentBody?.rotationPeriodSeconds));
-    set('#surfaceRotation', Number.isFinite(rotationPeriod) && rotationPeriod > 0
+    const physicalRotation = hasPhysicalRotationModel(parentBody);
+    set('#surfaceRotation', physicalRotation && Number.isFinite(rotationPeriod) && rotationPeriod > 0
       ? `${(rotationPeriod / 3600).toFixed(2)} h · ${(Number(parentBody?.rotationDirection) || 1) < 0 ? 'RETRO' : 'PRO'}`
       : 'STATIC FRAME');
+
+    const anchor = this.surfaceSession.bodyFixedAnchor;
+    const anchorValid = Array.isArray(anchor) && anchor.length >= 3 && anchor.every((value) => Number.isFinite(Number(value)));
+    set('#surfaceRotationPhase', physicalRotation ? `${degrees(rotationAngleAt(parentBody, astronomySeconds)).toFixed(2)}°` : '—');
+
+    const astronomySolution = astronomy ?? this.solveAstronomicalObserver();
+    const observer = astronomySolution?.observer;
+    let observerBodyFixed = anchorValid ? anchor : null;
+    if (physicalRotation && observer?.valid && observer?.inertialPosition && parentBody?.position) {
+      const observerFromCenter = [
+        Number(observer.inertialPosition[0]) - Number(parentBody.position[0]),
+        Number(observer.inertialPosition[1]) - Number(parentBody.position[1]),
+        Number(observer.inertialPosition[2]) - Number(parentBody.position[2]),
+      ];
+      if (observerFromCenter.every(Number.isFinite)) observerBodyFixed = inertialDirectionToBodyFixed(parentBody, observerFromCenter, astronomySeconds);
+    }
+    if (observerBodyFixed) {
+      const coordinates = surfaceLatitudeLongitude(observerBodyFixed);
+      set('#surfaceLatLon', formatBodyFixedCoordinate(coordinates.latitudeRad, coordinates.longitudeRad));
+    } else set('#surfaceLatLon', '—');
+
+    const primaryStar = this.registry.get('star-0') ?? this.bodies.find((body) => body.kind === BODY_KIND.STAR) ?? null;
+    const observedStar = primaryStar ? astronomySolution?.bodies?.find((record) => record.id === primaryStar.id) : null;
+    if (observedStar?.finite && Number.isFinite(observedStar.centerAltitudeRad)) {
+      const altitudeDeg = degrees(observedStar.centerAltitudeRad);
+      const azimuthDeg = horizontalAzimuthDegrees(observedStar.localDirection);
+      set('#surfaceStarAltAz', Number.isFinite(azimuthDeg)
+        ? `${altitudeDeg >= 0 ? '+' : ''}${altitudeDeg.toFixed(2)}° ALT · ${azimuthDeg.toFixed(2)}° AZ`
+        : `${altitudeDeg >= 0 ? '+' : ''}${altitudeDeg.toFixed(2)}° ALT · — AZ`);
+    } else set('#surfaceStarAltAz', '—');
+
+    if (physicalRotation && observerBodyFixed && primaryStar?.position && parentBody?.position) {
+      const starDirection = [
+        Number(primaryStar.position[0]) - Number(parentBody.position[0]),
+        Number(primaryStar.position[1]) - Number(parentBody.position[1]),
+        Number(primaryStar.position[2]) - Number(parentBody.position[2]),
+      ];
+      set('#surfaceSolarTime', formatSolarHours(localSolarTimeHours(parentBody, observerBodyFixed, starDirection, astronomySeconds)));
+    } else set('#surfaceSolarTime', '—');
+    this.syncPauseControls();
     set('#surfaceDiscoveries', `${this.surfaceSession.scannedPoiIds.size}/${surfacePois(region).length}`);
     const weatherStatus = this.root.querySelector('#surfaceWeatherStatus');
     if (weatherStatus) {
@@ -1001,6 +1098,8 @@ export class UniverseLabApp {
       frameRateMps: this.transitState.status?.speedMps ?? 0,
       frameRemainingMeters: this.transitState.status?.remainingMeters ?? null,
       frameEtaSeconds: this.transitState.status?.speedMps > 0 ? Math.max(0, this.transitState.status.remainingMeters / this.transitState.status.speedMps) : null,
+      frameArrivalMode: this.transitState.arrivalMode ?? null,
+      frameArrivalAltitudeMeters: this.transitState.arrivalAltitudeMeters ?? null,
       targetName: target?.name ?? null,
       targetKind: target?.kind ?? null,
       targetDistanceMeters: distanceMeters,
@@ -1055,7 +1154,9 @@ export class UniverseLabApp {
       case 'nav-map':
         this.hud.toggleMore(false);
         this.hud.toggleMap(true);
-        this.systemMap.updateSelectionText();
+        this.systemMap.refreshBodyCatalog();
+        if (!this.systemMap.selection && this.targetId) this.systemMap.selectBodyById(this.targetId);
+        else this.systemMap.updateSelectionText();
         requestAnimationFrame(() => this.systemMap.draw());
         break;
       case 'flight-screen':
@@ -1145,11 +1246,54 @@ export class UniverseLabApp {
     return target ? { type: 'body', id: target.id, target } : null;
   }
 
+  frameArrivalPlan(chosen = null) {
+    const resolved = chosen ?? (this.transitState.active ? this.lockedTransitTarget() : this.selectedTransitTarget());
+    if (!resolved || resolved.type !== 'body') return null;
+    return frameOrbitInsertionPlan(this.ship, resolved.target, this.bodies);
+  }
+
+  orientShipProgradeRelativeTo(target) {
+    if (!target?.velocity) return;
+    const relative = new Float64Array([
+      this.ship.velocity[0] - target.velocity[0],
+      this.ship.velocity[1] - target.velocity[1],
+      this.ship.velocity[2] - target.velocity[2],
+    ]);
+    const speed = Math.hypot(...relative);
+    if (!(speed > 0.5)) return;
+    this.ship.lookAt(new Float64Array([
+      this.ship.position[0] + relative[0],
+      this.ship.position[1] + relative[1],
+      this.ship.position[2] + relative[2],
+    ]));
+  }
+
+  completeFrameArrival(locked) {
+    if (!locked?.target) return false;
+    const target = locked.target;
+    const plan = locked.type === 'body' ? frameOrbitInsertionPlan(this.ship, target, this.bodies) : null;
+    if (plan?.ok) {
+      const applied = applyFrameOrbitInsertion(this.ship, target, plan);
+      if (applied.applied) {
+        this.disengageTransit({ notify: false, restoreWarp: false, matchTarget: false });
+        this.shipContactId = null;
+        this.orientShipProgradeRelativeTo(target);
+        this.invalidatePredictions();
+        const hillNote = plan.hillLimited ? ' The altitude was reduced by the conservative prograde Hill-stability estimate.' : '';
+        this.hud.notify(`FRAME ORBIT INSERTION: ${target.name} · circular osculating altitude ${(plan.altitudeMeters / 1000).toLocaleString(undefined,{maximumFractionDigits:1})} km · ${(plan.circularSpeedMps / 1000).toLocaleString(undefined,{maximumFractionDigits:2})} km/s target-relative. Ordinary Newtonian ShipDynamics/gravity are active again at 1×.${hillNote}`);
+        return true;
+      }
+    }
+    this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: true, reason: `FRAME ARRIVAL: safe observation envelope reached near ${target.name}. No resolved circular insertion window was available, so the spacecraft matched the target inertial frame and returned to ordinary gravity/ShipDynamics at 1×.` });
+    return false;
+  }
+
   updateTransitPanel() {
     const panel = this.root.querySelector('#transitPanel');
     if (!panel) return;
     const locked = this.transitState.active ? this.lockedTransitTarget() : this.selectedTransitTarget();
     const target = locked?.target ?? null;
+    const orbitPlan = locked?.type === 'body' ? frameOrbitInsertionPlan(this.ship, target, this.bodies) : null;
     const set = (id, text) => { const el = this.root.querySelector(id); if (el) el.textContent = text; };
     set('#transitTargetName', target?.name ?? '—');
     if (target) {
@@ -1161,6 +1305,8 @@ export class UniverseLabApp {
     } else {
       set('#transitDistance', '—'); set('#transitLocalVelocity', '—');
     }
+    set('#transitArrivalProfile', orbitPlan?.ok ? `CIRCULAR +${(orbitPlan.altitudeMeters / 1000).toLocaleString(undefined,{maximumFractionDigits:1})} km${orbitPlan.hillLimited ? ' · HILL-LIMITED' : ''}` : 'INERTIAL FRAME MATCH');
+    set('#transitRouteProfile', this.transitState.active ? (this.transitState.routePlan?.needed ? `SAFE BYPASS · ${this.transitState.routePlan.blockedByName ?? 'MASSIVE BODY'}` : 'DIRECT · SWEPT CLEAR') : 'AUTO · SWEPT-GUARD');
     const status = this.transitState.status;
     set('#transitEffectiveSpeed', this.transitState.active && status ? `${status.multipleC.toLocaleString()} c` : '—');
     set('#transitEta', this.transitState.active && status?.speedMps > 0 ? `${Math.max(0, status.remainingMeters / status.speedMps).toFixed(1)} s` : '—');
@@ -1189,8 +1335,14 @@ export class UniverseLabApp {
       this.hud.notify(`FRAME DRIVE blocked: too close to ${clearance.body.name}. Move outside the ${(clearance.guardRadiusMeters / 1000).toLocaleString(undefined,{maximumFractionDigits:0})} km frame-clearance envelope first.`);
       return;
     }
+    const routePlan = planFrameGuardRoute(this.ship.position, chosen.target.position, this.massiveBodies, targetBodyId);
+    if (!routePlan.ok) {
+      this.hud.notify(`FRAME ROUTE BLOCKED: ${routePlan.blockedByName ?? 'a massive body'} prevents a swept-clear path to ${chosen.target.name}. No clearance guard was weakened; choose another staging target or move the ship before retrying.`);
+      return;
+    }
 
-    const arrival = transitArrivalDistanceMeters(this.ship, chosen.target, SIMULATION.shipBoostAcceleration);
+    const arrivalPlan = chosen.type === 'body' ? frameOrbitInsertionPlan(this.ship, chosen.target, this.bodies) : null;
+    const arrival = arrivalPlan?.ok ? arrivalPlan.radiusMeters : transitArrivalDistanceMeters(this.ship, chosen.target, SIMULATION.shipBoostAcceleration);
     const dx = chosen.target.position[0] - this.ship.position[0], dy = chosen.target.position[1] - this.ship.position[1], dz = chosen.target.position[2] - this.ship.position[2];
     const distance = Math.hypot(dx, dy, dz);
     const previousTimeScale = this.clock.timeScale;
@@ -1205,11 +1357,26 @@ export class UniverseLabApp {
     const warp = this.root.querySelector('#warpQuick'); if (warp) warp.textContent = 'WARP 1×';
 
     if (distance <= arrival) {
+      if (arrivalPlan?.ok) {
+        const applied = applyFrameOrbitInsertion(this.ship, chosen.target, arrivalPlan);
+        if (applied.applied) {
+          this.shipContactId = null;
+          this.orientShipProgradeRelativeTo(chosen.target);
+          this._modelLimitLatched = false;
+          this.hud.toggleTransit(false);
+          this.hud.toggleMore(false);
+          this.hud.notify(`FRAME ORBIT INSERTION: already inside the transfer envelope for ${chosen.target.name}. The spacecraft was placed into a calculated circular osculating orbit at ${(arrivalPlan.altitudeMeters / 1000).toLocaleString(undefined,{maximumFractionDigits:1})} km altitude; ordinary Newtonian ShipDynamics/gravity resume at 1×.`);
+          this.updateTransitPanel();
+          this.updateCockpitUi();
+          this.invalidatePredictions();
+          return;
+        }
+      }
       const sync = matchFrameExitVelocity(this.ship, chosen.target);
       this._modelLimitLatched = false;
       this.hud.toggleTransit(false);
       this.hud.toggleMore(false);
-      this.hud.notify(`FRAME SYNC: already inside the safe arrival envelope for ${chosen.target.name}. The spacecraft alone matched the target inertial velocity${sync.deltaVMps > 0 ? ` (fictional Δv ${(sync.deltaVMps / 1000).toLocaleString(undefined,{maximumFractionDigits:2})} km/s)` : ''}; ordinary gravity resumes from this state.`);
+      this.hud.notify(`FRAME SYNC: already inside the safe arrival envelope for ${chosen.target.name}. No resolved circular insertion window was available, so the spacecraft matched the target inertial velocity${sync.deltaVMps > 0 ? ` (fictional Δv ${(sync.deltaVMps / 1000).toLocaleString(undefined,{maximumFractionDigits:2})} km/s)` : ''}; ordinary gravity resumes from this state.`);
       this.updateTransitPanel();
       this.updateCockpitUi();
       this.invalidatePredictions();
@@ -1223,6 +1390,9 @@ export class UniverseLabApp {
       targetId: chosen.id,
       maxMultipleC: multipleC,
       matchOnExit: true,
+      arrivalMode: arrivalPlan?.ok ? 'orbit' : 'match',
+      arrivalAltitudeMeters: arrivalPlan?.ok ? arrivalPlan.altitudeMeters : null,
+      routePlan: routePlan.needed ? routePlan : null,
       previousTimeScale,
       status: null,
     };
@@ -1231,7 +1401,7 @@ export class UniverseLabApp {
     this.ship.transitDirection = new Float64Array(3);
     this.hud.toggleTransit(false);
     this.hud.toggleMore(false);
-    this.hud.notify(`SPECULATIVE FRAME DRIVE engaged toward ${chosen.target.name} at up to ${multipleC.toLocaleString()} c. Only the spacecraft translation is overridden; celestial gravity, body integration, experiments and world state keep their existing simulation authority.`);
+    this.hud.notify(`SPECULATIVE FRAME DRIVE engaged toward ${chosen.target.name} at up to ${multipleC.toLocaleString()} c. Only spacecraft translation is overridden; celestial gravity/body integration remain authoritative. ${routePlan.needed ? `A swept-clear bypass around ${routePlan.blockedByName} is active. ` : ''}${arrivalPlan?.ok ? `Normal completion will hand off into a calculated circular osculating orbit at ~${(arrivalPlan.altitudeMeters / 1000).toLocaleString(undefined,{maximumFractionDigits:0})} km altitude.` : 'Normal completion will use the existing inertial-frame match because this target has no resolved circular insertion model.'}`);
     this.updateTransitPanel();
     this.updateCockpitUi();
   }
@@ -1244,6 +1414,9 @@ export class UniverseLabApp {
     if (matchTarget && this.transitState.matchOnExit && locked?.target) sync = matchFrameExitVelocity(this.ship, locked.target);
     this.transitState.active = false;
     this.transitState.status = null;
+    this.transitState.arrivalMode = null;
+    this.transitState.arrivalAltitudeMeters = null;
+    this.transitState.routePlan = null;
     this.ship.clearNavigationAcceleration();
     this._modelLimitLatched = false;
     // Keep the purely visual streak/FOV state for a short exponential release instead of
@@ -1283,10 +1456,32 @@ export class UniverseLabApp {
     const locked = this.lockedTransitTarget();
     if (!locked) { this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: false, reason: 'FRAME target disappeared; returned to normal flight at 1× with the pre-frame local velocity preserved.' }); return; }
     const target = locked.target;
-    const arrivalDistance = transitArrivalDistanceMeters(this.ship, target, SIMULATION.shipBoostAcceleration);
+    const arrivalPlan = locked.type === 'body' ? frameOrbitInsertionPlan(this.ship, target, this.bodies) : null;
+    const arrivalDistance = arrivalPlan?.ok ? arrivalPlan.radiusMeters : transitArrivalDistanceMeters(this.ship, target, SIMULATION.shipBoostAcceleration);
     const start = new Float64Array(this.ship.position);
-    const step = advanceTransitPosition(start, target.position, this.transitState.maxMultipleC, realDt, arrivalDistance);
     const targetBodyId = locked.type === 'body' ? locked.id : (locked.target.anchorBodyId ?? null);
+
+    // A detour is used only when the direct swept segment intersects another massive-body guard.
+    // The waypoint is stored relative to the live blocking body so ordinary 1× N-body motion does
+    // not leave a stale inertial obstacle bypass behind while FRAME is crossing the system.
+    if (this.transitState.routePlan?.needed && !firstTransitGuardHit(start, target.position, this.massiveBodies, targetBodyId)) {
+      this.transitState.routePlan = null;
+    }
+    let routeWaypoint = this.transitState.routePlan ? resolveFrameGuardWaypoint(this.transitState.routePlan, this.massiveBodies) : null;
+    if (this.transitState.routePlan && !routeWaypoint) {
+      const replanned = planFrameGuardRoute(start, target.position, this.massiveBodies, targetBodyId);
+      if (!replanned.ok) {
+        this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: false, reason: `FRAME safety dropout: the live detour around ${replanned.blockedByName ?? 'a massive body'} could not be resolved without weakening a clearance guard. Local velocity was preserved.` });
+        return;
+      }
+      this.transitState.routePlan = replanned.needed ? replanned : null;
+      routeWaypoint = this.transitState.routePlan ? resolveFrameGuardWaypoint(this.transitState.routePlan, this.massiveBodies) : null;
+    }
+    const routeTarget = routeWaypoint ?? target.position;
+    const routeTolerance = this.transitState.routePlan?.waypoint?.guardRadiusMeters
+      ? Math.max(1_000_000, this.transitState.routePlan.waypoint.guardRadiusMeters * 0.025)
+      : arrivalDistance;
+    const step = advanceTransitPosition(start, routeTarget, this.transitState.maxMultipleC, realDt, routeTolerance);
     const hit = firstTransitGuardHit(start, step.nextPosition, this.massiveBodies, targetBodyId);
     if (hit) {
       const safeFraction = Math.max(0, hit.fraction - 0.002);
@@ -1297,15 +1492,27 @@ export class UniverseLabApp {
       return;
     }
     this.ship.position.set(step.nextPosition);
-    const dx = target.position[0] - this.ship.position[0], dy = target.position[1] - this.ship.position[1], dz = target.position[2] - this.ship.position[2];
+    const dx = routeTarget[0] - this.ship.position[0], dy = routeTarget[1] - this.ship.position[1], dz = routeTarget[2] - this.ship.position[2];
     const mag = Math.hypot(dx,dy,dz) || 1;
     this.ship.transitDirection[0] = dx / mag; this.ship.transitDirection[1] = dy / mag; this.ship.transitDirection[2] = dz / mag;
     this.ship.transitVisualFactor = Math.min(1, Math.log10(Math.max(1, step.multipleC)) / 3);
-    this.transitState.status = { mode: 'frame', phase: 'frame', multipleC: step.multipleC, speedMps: step.speedMps, remainingMeters: step.remainingMeters, arrivalDistanceMeters: arrivalDistance, distanceMeters: step.distanceMeters };
+    this.transitState.arrivalMode = arrivalPlan?.ok ? 'orbit' : 'match';
+    this.transitState.arrivalAltitudeMeters = arrivalPlan?.ok ? arrivalPlan.altitudeMeters : null;
+    const finalRange = Math.hypot(target.position[0] - this.ship.position[0], target.position[1] - this.ship.position[1], target.position[2] - this.ship.position[2]);
+    const routeRemaining = this.transitState.routePlan && routeWaypoint
+      ? Math.max(0, step.remainingMeters) + Math.max(0, Math.hypot(target.position[0] - routeWaypoint[0], target.position[1] - routeWaypoint[1], target.position[2] - routeWaypoint[2]) - arrivalDistance)
+      : Math.max(0, finalRange - arrivalDistance);
+    this.transitState.status = { mode: 'frame', phase: this.transitState.routePlan ? 'detour' : 'frame', multipleC: step.multipleC, speedMps: step.speedMps, remainingMeters: routeRemaining, arrivalDistanceMeters: arrivalDistance, distanceMeters: finalRange, routeDetour: Boolean(this.transitState.routePlan), routeObstacleName: this.transitState.routePlan?.blockedByName ?? null };
     this.invalidatePredictions();
-    if (step.arrived) {
-      const targetName = target.name;
-      this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: true, reason: `FRAME ARRIVAL: safe observation envelope reached near ${targetName}. The spacecraft matched the target inertial frame; ordinary gravity and ShipDynamics are active again at 1×.` });
+    if (step.arrived && this.transitState.routePlan) {
+      const replanned = planFrameGuardRoute(this.ship.position, target.position, this.massiveBodies, targetBodyId);
+      if (!replanned.ok) {
+        this.disengageTransit({ notify: true, restoreWarp: false, matchTarget: false, reason: `FRAME safety dropout after detour: no swept-clear continuation to ${target.name} could be resolved. Local velocity was preserved.` });
+        return;
+      }
+      this.transitState.routePlan = replanned.needed ? replanned : null;
+    } else if (step.arrived) {
+      this.completeFrameArrival(locked);
     }
     this.updateTransitPanel();
   }
@@ -2156,6 +2363,7 @@ export class UniverseLabApp {
 
     const renderStart = performance.now();
     const astronomy = this.solveAstronomicalObserver();
+    this.updateSurfaceHud(astronomy);
     this.renderer.renderSurface({ session: this.surfaceSession, transition: this.surfaceTransition, realTimeSeconds: now / 1000, astronomy });
     this.renderMs = performance.now() - renderStart;
     this.fpsFrames += 1;
@@ -2227,7 +2435,7 @@ export class UniverseLabApp {
     if (this.cameraMode === 'observe') this.hud.setCamera('observe', this.observationSource === 'cosmic' ? (this.selectedPhenomenon?.label ?? 'Cosmic phenomenon') : (this.selectedExperiment?.label ?? 'Experiment'), this.observationStyle, this._observationState);
     if (now >= this._nextParticleStatusAt) { this.updateParticleLabStatus(); this._nextParticleStatusAt = now + 500; }
     if (now >= this._nextSpaceWeatherPanelAt) { this.updateSpaceWeatherPanel(); if (this.scientificOverlays.enabled) this.updateOverlayPanel(); this._nextSpaceWeatherPanelAt = now + 700; }
-    if (!this.root.querySelector('#mapPanel')?.hidden && now >= this._nextMapUpdateAt) { this.systemMap.draw(); this._nextMapUpdateAt = now + 500; }
+    if (!this.root.querySelector('#mapPanel')?.hidden && now >= this._nextMapUpdateAt) { this.systemMap.draw(); this.systemMap.updateSelectionText(); this._nextMapUpdateAt = now + 500; }
 
     this.fpsFrames += 1;
     if (now - this.fpsClock >= 500) {
@@ -2412,13 +2620,15 @@ export class UniverseLabApp {
     $('#scienceToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleScience(); });
     $('#scienceClose').addEventListener('click', () => this.hud.toggleScience(false));
     $('#cosmosToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.updateCosmosPanel(); this.hud.toggleCosmos(); });
-    $('#mapToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleMap(true); this.systemMap.updateSelectionText(); requestAnimationFrame(() => this.systemMap.draw()); });
+    $('#mapToggle').addEventListener('click', () => { this.hud.toggleMore(false); this.hud.toggleMap(true); this.systemMap.refreshBodyCatalog(); if (!this.systemMap.selection && this.targetId) this.systemMap.selectBodyById(this.targetId); else this.systemMap.updateSelectionText(); requestAnimationFrame(() => this.systemMap.draw()); });
     $('#mapClose').addEventListener('click', () => this.hud.toggleMap(false));
+    $('#mapBodySelect').addEventListener('change', (event) => this.systemMap.selectBodyById(event.target.value));
+    $('#mapViewMode').addEventListener('change', (event) => this.systemMap.setViewMode(event.target.value));
     $('#mapZoom').addEventListener('change', (event) => this.systemMap.setZoom(event.target.value));
     $('#mapUnknownToggle').addEventListener('change', (event) => { this.systemMap.includeUnknown = event.target.checked; this.systemMap.draw(); });
-    $('#mapSelectAction').addEventListener('click', () => { if (!this.systemMap.selectCurrent()) this.hud.notify('Tap a body or cosmic marker on the SYSTEM MAP first.'); });
+    $('#mapSelectAction').addEventListener('click', () => { if (!this.systemMap.selectCurrent()) this.hud.notify('Choose a body from the catalog or tap a map marker first.'); });
     $('#mapScanAction').addEventListener('click', () => { if (!this.systemMap.scanCurrent()) this.hud.notify('SCAN SIGNAL applies to a cosmic/anomaly marker. Tap one of those map markers first.'); });
-    $('#mapTransitAction').addEventListener('click', () => { if (!this.systemMap.transitCurrent()) this.hud.notify('Tap a body or cosmic marker before opening FRAME DRIVE.'); });
+    $('#mapTransitAction').addEventListener('click', () => { if (!this.systemMap.transitCurrent()) this.hud.notify('Choose a body or cosmic marker before opening FRAME DRIVE.'); });
     $('#mapLandAction').addEventListener('click', () => { if (!this.systemMap.landCurrent()) this.hud.notify('LAND / DESCEND requires the current landable world inside its near-orbital descent envelope.'); });
     $('#mapCosmosAction').addEventListener('click', () => {
       const marker = this.systemMap.currentMarker();
@@ -2543,10 +2753,10 @@ export class UniverseLabApp {
     $('#shipViewButton').addEventListener('click', () => { this.hud.toggleLab(false); this.returnToShipView(); });
     $('#rendezvousExperiment').addEventListener('click', () => this.rendezvousExperiment());
 
-    $('#pauseToggle').addEventListener('click', (e) => {
+    $('#pauseToggle').addEventListener('click', () => {
       this.hud.toggleMore(false);
       this.running = !this.running;
-      e.currentTarget.textContent = this.running ? 'PAUSE' : 'RESUME';
+      this.syncPauseControls();
       this.hud.notify(this.surfaceSession?.active
         ? (this.running ? 'Surface astronomy resumed at 1×; the parked spacecraft remains surface-constrained.' : 'Surface astronomy paused; local exploration and weather remain available.')
         : (this.running ? 'Simulation resumed.' : 'Simulation paused.'));
@@ -2643,6 +2853,7 @@ export class UniverseLabApp {
     });
 
     $('#surfaceScanButton').addEventListener('click', () => this.scanSurface());
+    $('#surfaceAstronomyPause').addEventListener('click', () => this.toggleSurfaceAstronomyPause());
     $('#surfaceSaveButton').addEventListener('click', () => { this.saveSystem.save(this.serialize()); this.hud.notify('Surface position and discoveries saved locally on this device.'); });
     $('#surfaceTakeoffButton').addEventListener('click', () => this.requestSurfaceTakeoff());
 

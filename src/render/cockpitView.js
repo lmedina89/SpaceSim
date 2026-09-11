@@ -436,7 +436,10 @@ export class CockpitView {
       drawScreenFrame(flight.ctx, flight.canvas.width, flight.canvas.height, 'FRAME DRIVE', '#c7a9ff');
       drawLine(flight.ctx, 'RANGE', formatDistance(t.targetDistanceMeters), 72, flight.canvas.width, '#ffffff');
       drawLine(flight.ctx, 'FRAME RATE', `${fmt(t.frameMultipleC ?? 0, 0)} c`, 105, flight.canvas.width, '#dcc8ff');
-      drawLine(flight.ctx, 'EXIT', 'MATCH TARGET', 138, flight.canvas.width, '#bff6ff');
+      const frameArrival = t.frameArrivalMode === 'orbit'
+        ? `ORBIT +${formatDistance(t.frameArrivalAltitudeMeters)}`
+        : 'MATCH TARGET';
+      drawLine(flight.ctx, 'ARRIVAL', frameArrival, 138, flight.canvas.width, '#bff6ff');
       drawLine(flight.ctx, 'LOCAL ΔV', formatSpeed(t.targetRelativeSpeedMps), 171, flight.canvas.width, '#dceeff');
       drawLine(flight.ctx, 'ETA', Number.isFinite(t.frameEtaSeconds) ? `${fmt(t.frameEtaSeconds, 1)} s` : '—', 204, flight.canvas.width, '#ffd383');
       flight.ctx.fillStyle = '#c7a9ff'; flight.ctx.font = '600 16px ui-monospace, monospace'; flight.ctx.fillText('SPACECRAFT-ONLY · TAP FRAME TO EXIT', 18, 250);
