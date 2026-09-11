@@ -1,3 +1,20 @@
+# Universe Lab v0.1.5.0 — Planetary Environment Model iPhone Gate
+
+Before physically accepting `ENVSCI-150` on iPhone Safari/WebKit:
+
+1. Hard reload and confirm **v0.1.5.0**, build **ENVSCI-150**, and **WebGL2 iOS**.
+2. Open NAV/BODY CATALOG and inspect several planets, moons and `Rogue-1`. Environment class, escape velocity, stellar flux, **EQ TEMP**, Bond albedo, atmosphere pressure/retention proxy, volatile/ice potential, surface family and rotation state should remain finite/readable.
+3. Select `Caelum-4361 d`; its canonical atmosphere-pressure proxy should remain about **0.720 atm**, preserving the already-accepted detailed surface continuity.
+4. Select a gas giant. It must say **GAS GIANT / NO SOLID SURFACE** and must not invent a solid-surface pressure.
+5. Cockpit SCIENCE should show **EQ TEMP** for planets/moons/rogues and ordinary physical `TEMP` for bodies that actually own a stellar temperature field.
+6. Confirm only the existing detailed home world is landable. Other solid bodies should explicitly say that the generalized multi-world surface engine is not enabled yet.
+7. Regress existing features: Observation Planner + planner scrolling, NAV target selection, FRAME and `b-A` SAFE BYPASS, home LAND → PAUSE SKY → SAVE/LOAD → TAKEOFF, phase/eclipsing appearance and a brief impact/compact-object check.
+8. Watch short-landscape readability and several minutes of FPS/thermal behavior. Environment derivation is read-only and should not introduce visible frame-time spikes.
+
+Scientific interpretation: hard gravity/escape/flux/equilibrium values are derived physics; atmosphere/albedo/volatile fields are versioned **MODEL/PROXY** formation assumptions until future measurement/chemistry/climate systems exist.
+
+---
+
 # Universe Lab v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix iPhone Gate
 
 Before physically accepting `OBSUI-14911` on iPhone Safari/WebKit:

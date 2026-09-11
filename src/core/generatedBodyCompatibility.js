@@ -50,6 +50,17 @@ export function applyGeneratedBodyCompatibility(restored, generated) {
     }
   }
 
+  if (missing(restored.environmentModelVersion) && !missing(generated.environmentModelVersion)) {
+    restored.environmentModelVersion = generated.environmentModelVersion;
+  }
+  if (missing(restored.environmentFormationModel) && !missing(generated.environmentFormationModel)) {
+    restored.environmentFormationModel = generated.environmentFormationModel;
+  }
+  if ((!restored.environmentFormation || typeof restored.environmentFormation !== 'object')
+    && generated.environmentFormation && typeof generated.environmentFormation === 'object') {
+    restored.environmentFormation = { ...generated.environmentFormation };
+  }
+
   if (missing(restored.rogueOrbitModel) && !missing(generated.rogueOrbitModel)) {
     // Do not rewrite a legacy rogue velocity; the saved dynamical state remains authoritative.
     restored.rogueOrbitModel = 'legacy-saved-orbit-preserved-v1';

@@ -1,3 +1,21 @@
+# Universe Lab Scientific Notes — v0.1.5.0 Planetary Environment Model
+
+## What is physical vs modeled
+
+For planets, moons and rogue planets, v0.1.5.0 derives **bulk density, local surface gravity, escape velocity, current/reference stellar irradiance and radiative-equilibrium temperature** from authoritative SI body/star state. These values are not chosen for appearance.
+
+The environment model also needs formation information that cannot be uniquely recovered from the present N-body state. **Bond albedo, volatile inventory, initial atmospheric inventory and a representative atmospheric molecular mass are therefore deterministic seeded model assumptions**, versioned independently from orbital generation. They are not observations.
+
+The solid-world atmosphere value shown in NAV is a **pressure proxy**, calculated from the seeded inventory after a simplified thermal-retention/Jeans diagnostic and a generic temperature-dependent gas-phase-availability factor. This does not solve atmospheric composition, detailed phase equilibria, greenhouse warming, clouds, photochemistry, EUV/stellar-wind escape, climate, or atmospheric optics. Accordingly, `EQ TEMP` is a radiative-equilibrium diagnostic and must not be interpreted as actual surface temperature.
+
+Gas giants are classified as deep H/He envelopes and do not receive a fictitious solid surface or single surface pressure. Solid-world environment families are classification inputs for future multi-world surfaces; v0.1.5.0 intentionally leaves the existing detailed home world as the only enabled landing surface.
+
+### Independent population audit
+
+A 3,000-system post-implementation sweep covered **44,331 modeled worlds** (5,434 gas giants, 38,897 solid worlds, 21,409 moons, 1,889 rogues). It found zero non-finite environment records, zero gas/solid-surface contradictions, zero pressure-cap hits, zero hot bodies mislabeled ice-rich, and zero home-world pressure-continuity failures. Sampled radiative-equilibrium temperatures spanned about **23.29–595.36 K**; solid-world pressure proxies ranged from effectively airless to about **72.64 atm**. These ranges validate numerical/model consistency, not observational truth for a real exoplanet population.
+
+---
+
 # Scientific Notes — v0.1.4.9.1.1 Observation Planner Mobile Layout Hotfix
 
 The observation planner predicts **geometric stellar alignments**, not scripted events. It begins from a snapshot of the current authoritative N-body state, then advances a temporary clone with the same Newtonian force law and velocity-Verlet update used by the live major bodies. Ordinary search samples are no farther apart than 300 s; candidate local minima in apparent star-body angular separation are re-integrated over the surrounding window at a 10 s ceiling before the canonical finite apparent-disk overlap calculation is evaluated.

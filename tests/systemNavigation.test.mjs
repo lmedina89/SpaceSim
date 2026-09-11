@@ -14,7 +14,7 @@ test('NAV hierarchy exposes the complete ORIGIN star → planets → moons regis
   for (const moon of moons) assert.ok(hierarchy.planets.some((planet) => planet.id === moon.parentId));
 });
 
-test('NAV scientific snapshot reports finite physical values without inventing atmosphere physics', () => {
+test('NAV scientific snapshot exposes canonical environment physics while labeling atmosphere as a proxy', () => {
   const system = generateSystem('ORIGIN-001');
   const home = system.bodies.find((body) => body.id === system.homeId);
   const ship = { position: new Float64Array([home.position[0] + home.radius * 20, home.position[1], home.position[2]]) };
@@ -23,7 +23,12 @@ test('NAV scientific snapshot reports finite physical values without inventing a
   assert.ok(Number.isFinite(snapshot.starRangeMeters) && snapshot.starRangeMeters > 0);
   assert.ok(Number.isFinite(snapshot.surfaceGravityMps2) && snapshot.surfaceGravityMps2 > 0);
   assert.ok(Number.isFinite(snapshot.orbitalPeriodSeconds) && snapshot.orbitalPeriodSeconds > 0);
-  assert.match(snapshot.atmosphereModel, /UNMODELED/i);
+  assert.ok(snapshot.environment);
+  assert.ok(Number.isFinite(snapshot.environment.escapeVelocityMps) && snapshot.environment.escapeVelocityMps > 0);
+  assert.ok(Number.isFinite(snapshot.environment.currentStellarFluxWm2) && snapshot.environment.currentStellarFluxWm2 > 0);
+  assert.ok(Number.isFinite(snapshot.environment.equilibriumTemperatureK) && snapshot.environment.equilibriumTemperatureK > 0);
+  assert.match(snapshot.atmosphereModel, /PROXY|ENVELOPE/i);
+  assert.match(snapshot.environment.scientificBoundary, /not solved|not modeled/i);
   assert.match(snapshot.surfaceCapability, /DETAILED SURFACE/i);
 });
 

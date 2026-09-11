@@ -1,3 +1,27 @@
+# Universe Lab v0.1.5.0 — Planetary Environment Model Foundation
+
+**Build marker:** `ENVSCI-150`  
+**Save schema:** 1 (unchanged)  
+**Three.js:** 0.185.0 (unchanged)
+
+## v0.1.5.0 planetary environment foundation
+
+This release adds one canonical, read-only planetary-environment model before generalized multi-world surfaces are enabled. It separates quantities that are directly derived from authoritative body/star state from deterministic seeded formation assumptions that cannot yet be observed or solved uniquely.
+
+- Hard-derived science includes bulk density, surface gravity, escape velocity, live/reference stellar flux, and radiative-equilibrium temperature.
+- Deterministic formation metadata uses an independent per-body environment RNG stream for Bond albedo, volatile inventory, atmospheric inventory and representative molecular mass. The environment stream cannot perturb orbital generation.
+- Solid-world atmosphere pressure is explicitly a **formation + thermal-retention + generic gas-phase-availability proxy**. Greenhouse physics, atmospheric chemistry/condensation, EUV/stellar-wind escape, weather/climate and radiative transfer are not solved here.
+- Gas giants expose a deep H/He envelope and **no solid surface**; no fake surface pressure is invented.
+- Environment classes distinguish rocky/dry/hot/volatile-rich/ice-rich terrestrial, moon, rogue and gas-giant families. Surface existence is separate from whether a detailed surface engine currently exists.
+- NAV exposes environment class, escape velocity, stellar flux, equilibrium temperature, Bond albedo, atmosphere pressure/retention proxy, volatile/ice potential, surface family and tidal-rotation state.
+- The cockpit SCIENCE MFD shows **EQ TEMP** for planetary targets rather than pretending the radiative-equilibrium value is a measured surface temperature.
+- Existing schema-1 saves retain authoritative mass/radius/orbit/rotation and persisted formation metadata. Older saves deterministically backfill missing environment metadata only.
+- The already-shipping detailed home surface remains the only enabled landing surface in this release. **No additional world is made landable in v0.1.5.0.**
+
+The next milestone may generalize the surface architecture only after this environment layer passes physical iPhone validation.
+
+---
+
 # Universe Lab v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix
 
 **Build marker:** `OBSUI-14911`  

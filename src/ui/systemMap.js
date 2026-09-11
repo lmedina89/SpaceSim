@@ -46,6 +46,29 @@ function angularDiameterLabel(radians) {
   return `${(arcMinutes * 60).toFixed(2)}″`;
 }
 
+function speedLabel(mps) {
+  if (!Number.isFinite(mps) || mps < 0) return '—';
+  if (mps >= 1e6) return `${(mps / 1e6).toFixed(3)} Mm/s`;
+  if (mps >= 1e3) return `${(mps / 1e3).toFixed(3)} km/s`;
+  return `${mps.toFixed(2)} m/s`;
+}
+
+function fluxLabel(wm2, earthFlux) {
+  if (!Number.isFinite(wm2) || wm2 < 0) return '—';
+  const flux = wm2 >= 1000 ? `${wm2.toFixed(0)} W/m²` : wm2 >= 10 ? `${wm2.toFixed(1)} W/m²` : `${wm2.toFixed(3)} W/m²`;
+  return Number.isFinite(earthFlux) ? `${flux} · ${earthFlux.toFixed(3)} S⊕` : flux;
+}
+
+function pressureLabel(pa, capped = false) {
+  if (!Number.isFinite(pa) || pa < 0) return '—';
+  let label;
+  if (pa >= 100_000) label = `${(pa / 100_000).toFixed(3)} bar`;
+  else if (pa >= 1_000) label = `${(pa / 1_000).toFixed(2)} kPa`;
+  else if (pa >= 1) label = `${pa.toFixed(1)} Pa`;
+  else label = `${pa.toExponential(2)} Pa`;
+  return capped ? `≥${label} · MODEL LIMIT` : label;
+}
+
 function bodyColor(body) {
   if (body.kind === BODY_KIND.STAR) return '#ffe39a';
   if (body.kind === BODY_KIND.MOON) return '#c8d0d8';
@@ -374,7 +397,7 @@ export class SystemMapController {
     const selection = marker ?? this.currentMarker();
     if (landButton) { landButton.disabled = true; landButton.title = 'Select the current detailed landable world and move into its near-orbital descent envelope.'; }
 
-    for (const id of ['#mapSelectionDistance','#mapSelectionStarRange','#mapSelectionParent','#mapSelectionClass','#mapSelectionRadius','#mapSelectionMass','#mapSelectionGravity','#mapSelectionOrbit','#mapSelectionEccentricity','#mapSelectionRotation','#mapSelectionHill','#mapSelectionSurface','#mapSelectionAtmosphere','#mapSelectionAngular','#mapSelectionPhase','#mapSelectionShadow','#mapSelectionFrameArrival']) this.setDetail(id, '—');
+    for (const id of ['#mapSelectionDistance','#mapSelectionStarRange','#mapSelectionParent','#mapSelectionClass','#mapSelectionRadius','#mapSelectionMass','#mapSelectionGravity','#mapSelectionOrbit','#mapSelectionEccentricity','#mapSelectionRotation','#mapSelectionHill','#mapSelectionSurface','#mapSelectionAtmosphere','#mapSelectionEscape','#mapSelectionFlux','#mapSelectionEquilibrium','#mapSelectionAlbedo','#mapSelectionPressure','#mapSelectionRetention','#mapSelectionVolatiles','#mapSelectionSurfaceFamily','#mapSelectionTidal','#mapSelectionAngular','#mapSelectionPhase','#mapSelectionShadow','#mapSelectionFrameArrival']) this.setDetail(id, '—');
 
     if (!selection) {
       if (title) title.textContent = 'Choose a body or tap a marker';
@@ -402,6 +425,26 @@ export class SystemMapController {
       this.setDetail('#mapSelectionHill', distanceLabel(snapshot.hillRadiusMeters));
       this.setDetail('#mapSelectionSurface', snapshot.surfaceCapability);
       this.setDetail('#mapSelectionAtmosphere', snapshot.atmosphereModel);
+      const environment = snapshot.environment;
+      this.setDetail('#mapSelectionEscape', speedLabel(environment?.escapeVelocityMps));
+      this.setDetail('#mapSelectionFlux', fluxLabel(environment?.currentStellarFluxWm2, environment?.referenceFluxEarth));
+      this.setDetail('#mapSelectionEquilibrium', Number.isFinite(environment?.equilibriumTemperatureK)
+        ? `${environment.equilibriumTemperatureK.toFixed(1)} K · RADIATIVE EQ`
+        : '—');
+      this.setDetail('#mapSelectionAlbedo', Number.isFinite(environment?.bondAlbedo) ? environment.bondAlbedo.toFixed(3) : '—');
+      this.setDetail('#mapSelectionPressure', environment?.atmosphereClassId === 'deep-envelope'
+        ? 'DEPTH-DEPENDENT · NO SURFACE PRESSURE'
+        : pressureLabel(environment?.atmospherePressureProxyPa, environment?.atmospherePressureCapped));
+      this.setDetail('#mapSelectionRetention', environment?.atmosphereClassId === 'deep-envelope'
+        ? 'H/HE ENVELOPE · NOT JEANS-SCORED HERE'
+        : Number.isFinite(environment?.atmosphereRetentionScore)
+          ? `${(environment.atmosphereRetentionScore * 100).toFixed(1)}% · λ ${Number.isFinite(environment?.atmosphereRetentionParameter) ? environment.atmosphereRetentionParameter.toFixed(2) : '—'}`
+          : '—');
+      this.setDetail('#mapSelectionVolatiles', environment
+        ? `${(environment.volatileInventory01 * 100).toFixed(1)}% formation · ${(environment.icePotential01 * 100).toFixed(1)}% ice proxy`
+        : '—');
+      this.setDetail('#mapSelectionSurfaceFamily', environment?.surfaceFamily ?? '—');
+      this.setDetail('#mapSelectionTidal', environment?.tidalRotationState ?? '—');
       const primaryStar = this.app.bodies.find((candidate) => candidate.kind === BODY_KIND.STAR) ?? null;
       const shipRange = Math.max(0, Number(snapshot.shipRangeMeters) || 0);
       this.setDetail('#mapSelectionAngular', angularDiameterLabel(apparentAngularRadiusRad(body.radius, shipRange) * 2));
@@ -423,8 +466,8 @@ export class SystemMapController {
       const landing = this.app.landingEligibility(body);
       if (landButton) { landButton.disabled = !landing.ok; landButton.title = landing.ok ? 'Enter the selected seeded surface region.' : landing.reason; }
       if (status) status.textContent = body.scientificWarning || (body.landable
-        ? `Physical N-body target with the current detailed surface. ${landing.ok ? 'LAND / DESCEND is available now.' : landing.reason}`
-        : `${snapshot.classLabel}. NAV and FRAME use this live body directly. ${snapshot.atmosphereModel.includes('UNMODELED') || snapshot.atmosphereModel.includes('NOT YET') ? 'Atmospheric flight physics is not inferred or faked.' : ''}`);
+        ? `Physical N-body target with the current detailed surface. ${landing.ok ? 'LAND / DESCEND is available now.' : landing.reason} ${environment?.scientificBoundary ?? ''}`
+        : `${snapshot.classLabel}. ${environment?.landingReason ?? 'NAV and FRAME use this live body directly.'} ${environment?.scientificBoundary ?? ''}`);
       return;
     }
 

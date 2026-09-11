@@ -18,6 +18,7 @@ import { resolveImpact } from '../physics/impactResolver.js';
 import { osculatingMetrics, angularAlignment } from '../physics/orbitalMetrics.js';
 import { TrajectoryPredictor } from '../physics/trajectoryPredictor.js';
 import { massivePairPhysicsStepLimitSeconds } from '../physics/massivePairStepControl.js';
+import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
 import { ExperimentRegistry } from '../experiments/experimentRegistry.js';
 import { registerLabExperiments, MATERIALS, asteroidDefinitionFromParams, sphereRadiusFromMassDensity } from '../experiments/labSpawner.js';
 import { ParticleExperimentManager, PARTICLE_MODES } from '../experiments/particles/particleExperimentManager.js';
@@ -28,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=14911';
-import { Hud } from '../ui/hud.js?v=14911';
-import { SystemMapController } from '../ui/systemMap.js?v=14911';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=150';
+import { Hud } from '../ui/hud.js?v=150';
+import { SystemMapController } from '../ui/systemMap.js?v=150';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -130,6 +131,9 @@ function serializeBody(body) {
     parentId: body.parentId,
     densityKgM3: body.densityKgM3,
     physicalPropertyModel: body.physicalPropertyModel,
+    environmentModelVersion: body.environmentModelVersion,
+    environmentFormationModel: body.environmentFormationModel,
+    environmentFormation: body.environmentFormation && typeof body.environmentFormation === 'object' ? { ...body.environmentFormation } : body.environmentFormation,
     rogueOrbitModel: body.rogueOrbitModel,
     materialId: body.materialId,
     visualVersion: body.visualVersion,
@@ -331,7 +335,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.9.1.1 online. NAV now includes a read-only observation planner that forward-propagates a cloned N-body ephemeris to find stellar conjunctions/transits/eclipses without moving the live universe. Landed searches can use the exact current body-fixed site; body-center searches are explicitly labeled approximations. Core gravity, celestial appearance, impacts, NAV/FRAME, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build OBSUI-14911.`);
+    this.hud.notify(`v0.1.5.0 online. NAV now exposes the canonical planetary-environment model: derived gravity/escape/stellar-flux/equilibrium-temperature science plus explicitly labeled seeded atmosphere/volatile proxies. Existing N-body gravity, appearance/eclipses, observation planning, FRAME, impacts, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build ENVSCI-150.`);
   }
 
   newSystem(seed) {
@@ -1149,6 +1153,10 @@ export class UniverseLabApp {
     const targetGravityMps2 = target?.mass > 0 && distanceMeters > 0
       ? (PHYSICS.G * target.mass) / (distanceMeters * distanceMeters)
       : null;
+    const targetEnvironment = target ? derivePlanetaryEnvironment(target, this.bodies) : null;
+    const targetScienceTemperatureK = Number.isFinite(Number(target?.temperatureK))
+      ? Number(target.temperatureK)
+      : targetEnvironment?.equilibriumTemperatureK ?? null;
     return {
       shipSpeedMps: Math.hypot(...this.ship.velocity),
       engineMode: this.ship.engineMode,
@@ -1168,10 +1176,12 @@ export class UniverseLabApp {
       frameArrivalAltitudeMeters: this.transitState.arrivalAltitudeMeters ?? null,
       targetName: target?.name ?? null,
       targetKind: target?.kind ?? null,
+      targetClassLabel: targetEnvironment?.classLabel ?? null,
       targetDistanceMeters: distanceMeters,
       targetRelativeSpeedMps: state?.relativeSpeedMps ?? null,
       targetRadiusMeters: target?.radius ?? null,
-      targetTemperatureK: target?.temperatureK ?? null,
+      targetTemperatureK: targetScienceTemperatureK,
+      targetTemperatureModel: Number.isFinite(Number(target?.temperatureK)) ? 'PHYSICAL' : targetEnvironment ? 'RADIATIVE EQ' : null,
       targetGravityMps2,
       overlaysEnabled: Boolean(this.scientificOverlays.enabled),
       rendererBackend: this.rendererBackend,

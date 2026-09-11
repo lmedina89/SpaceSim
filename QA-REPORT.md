@@ -1,3 +1,29 @@
+# Universe Lab v0.1.5.0 — Planetary Environment Model Foundation QA Report
+
+## Release identity
+- Version: **0.1.5.0**
+- Build marker: **ENVSCI-150**
+- Save schema: **1 (unchanged)**
+- Three.js: **0.185.0 (unchanged)**
+- Baseline: exact physically tested v0.1.4.9.1.1 `OBSUI-14911` release
+
+## Scope
+This release adds the canonical planetary-environment derivation/classification layer and read-only NAV/cockpit science presentation. It intentionally does **not** add generalized surfaces, new landing destinations, atmosphere rendering, climate, or chemistry.
+
+## Equation/reference validation
+Automated tests check Earth/Sun reference-scale values for stellar flux, `GM/R²` surface gravity, `sqrt(2GM/R)` escape speed, radiative-equilibrium temperature and an Earth-atmosphere mass-fraction pressure reference. Additional tests verify finite/bounded/monotonic thermal-retention behavior, deterministic/nonmutating ORIGIN environment derivation, gas-giant no-surface semantics and save compatibility.
+
+## Population validation
+Independent 3,000-system audit: **44,331 worlds**; 5,434 gas giants; 38,897 solids; 21,409 moons; 1,889 rogues. Results: 0 non-finite environment records, 0 gas/solid-surface contradictions, 0 atmosphere pressure-cap hits, 0 hot ice-rich misclassifications, and 0 home-world pressure-continuity failures. Equilibrium-temperature span ~**23.29–595.36 K**; solid pressure-proxy span **0–72.64 atm**; stellar flux span ~**0.131–34,355 W/m²**.
+
+## Protected-source boundary
+The direct Newtonian gravity solver, velocity-Verlet integrator, ShipDynamics, transit/FRAME physics, FRAME insertion/routing, collision/impact hardening, massive-pair timestep control, celestial appearance/observer geometry, planetary rotation, Observation Planner, surface generation/session/weather/landing lifecycle and WebKit backend policy are protected from this feature. Generator changes are limited to an independent environment metadata stream/calibration after orbital generation; no authoritative mass/radius/position/velocity/orbit is changed by environment derivation.
+
+## Automated worktree gate
+Final release QA is recorded below after the frozen worktree and archive-level checks complete.
+
+---
+
 # Universe Lab v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix QA Report
 
 ## Release identity
@@ -167,3 +193,18 @@ Physical iPhone Safari/WebKit remains the final presentation/performance gate.
 - Extracted archive file tree: **130 files**, byte-for-byte identical to the frozen worktree before final QA-report recording.
 - Static HTTP smoke: **14/14** shell/versioned module/science-module paths returned HTTP 200.
 - No `.github/workflows/*` files.
+
+## v0.1.5.0 frozen-worktree verification
+
+- `npm run qa`: **238/238 PASS**; static structure **52 required files**; all JS/MJS syntax valid.
+- Independent 3,000-system environment sweep: **44,331 worlds**; zero invalid environment records, gas/solid-surface contradictions, pressure-cap hits, hot ice-rich classifications, or home-pressure continuity failures.
+- 1,000-seed baseline/current orbital-compatibility comparison: **17,580 bodies, 0 mismatches** across id/kind/mass/radius/parent/orbital fields, Float64 position/velocity state and rotation metadata. The new environment RNG/metadata therefore does not perturb the accepted initial N-body systems.
+- SHA-256 comparison across **23 protected pre-existing scientific/runtime modules: 0 mismatches**. This includes gravity, velocity-Verlet, ShipDynamics, FRAME transit/insertion/routing, massive-pair step control, collision/impact hardening, celestial appearance/observer geometry, planetary properties/rotation, Observation Planner, save engine, surface renderer/generator/session/weather/landing, and WebKit backend policy.
+
+Archive-level verification is performed on a clean extraction before handoff.
+
+## v0.1.5.0 release-candidate archive verification
+
+The repo-root release-candidate ZIP passed `unzip -t`; a clean extraction passed `npm run qa` with **238/238 tests**, static structure **52 required files**, and all JS/MJS syntax valid. Local static HTTP smoke returned **15/15 HTTP 200** for the shell, v150 CSS/main/app/renderer/cockpit/HUD/System Map chain, the new planetary-environment module, Observation Planner, celestial appearance/observer, system generator, direct gravity module and `VERSION.json`. `.github/workflows/*` is absent, and the extracted **133-file** archive matched the frozen worktree byte-for-byte.
+
+The final handoff archive is rebuilt from this same frozen tree after recording this evidence, then the archive-level checks are repeated without further source edits.

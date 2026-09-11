@@ -459,7 +459,7 @@ export class CockpitView {
     drawScreenFrame(science.ctx, science.canvas.width, science.canvas.height, science.title, science.accent);
     drawLine(science.ctx, 'OBJECT', String(t.targetKind || '—').toUpperCase(), 72, science.canvas.width, '#dfffee');
     drawLine(science.ctx, 'RADIUS', formatRadius(t.targetRadiusMeters), 105, science.canvas.width);
-    drawLine(science.ctx, 'TEMP', Number.isFinite(t.targetTemperatureK) ? `${fmt(t.targetTemperatureK, 0)} K` : '—', 138, science.canvas.width);
+    drawLine(science.ctx, t.targetTemperatureModel === 'RADIATIVE EQ' ? 'EQ TEMP' : 'TEMP', Number.isFinite(t.targetTemperatureK) ? `${fmt(t.targetTemperatureK, 0)} K` : '—', 138, science.canvas.width);
     drawLine(science.ctx, 'LOCAL g', Number.isFinite(t.targetGravityMps2) ? `${fmt(t.targetGravityMps2, 5)} m/s²` : '—', 171, science.canvas.width);
     drawLine(science.ctx, 'OVERLAYS', t.overlaysEnabled ? 'ACTIVE' : 'STANDBY', 204, science.canvas.width, t.overlaysEnabled ? '#9effcf' : '#9db4c0');
     science.ctx.fillStyle = '#7ee8b7'; science.ctx.font = '600 16px ui-monospace, monospace'; science.ctx.fillText('TOUCH SCREEN → SCIENCE', 18, 250);

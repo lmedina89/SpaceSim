@@ -4,7 +4,7 @@ import { constants } from 'node:fs';
 const required = [
   'index.html','styles.css','src/main.js','src/app/app.js','src/core/constants.js','src/data/systemGenerator.js',
   'src/physics/gravity/directGravitySolver.js','src/physics/integrators/velocityVerlet.js','src/physics/orbitalMetrics.js',
-  'src/physics/trajectoryPredictor.js','src/physics/planetaryProperties.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/frameOrbitInsertion.js','src/physics/massivePairStepControl.js','src/physics/impactResolver.js',
+  'src/physics/trajectoryPredictor.js','src/physics/planetaryProperties.js','src/physics/planetaryEnvironment.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/frameOrbitInsertion.js','src/physics/massivePairStepControl.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
   'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/anomalyGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
   'src/core/astronomicalObserver.js','src/core/celestialAppearance.js','src/core/planetaryRotation.js','src/core/generatedBodyCompatibility.js','src/core/inertialStarCatalog.js','src/navigation/systemNavigation.js','src/navigation/frameGuardRoute.js','src/navigation/observationPlanner.js','src/render/starfield.js','src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/surfaceWorld.js','src/render/cockpitView.js','src/surface/surfaceGenerator.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
@@ -14,13 +14,13 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.4.9.1.1')) throw new Error('Shell version is not v0.1.4.9.1.1.');
-if (!html.includes('OBSUI-14911')) throw new Error('OBSUI-14911 build marker missing.');
-if (pkg.version !== '0.1.4.9.1.1') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.5.0')) throw new Error('Shell version is not v0.1.5.0.');
+if (!html.includes('ENVSCI-150')) throw new Error('ENVSCI-150 build marker missing.');
+if (pkg.version !== '0.1.5.0') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Flight/System control drawer missing.');
 if (!html.includes('id="engineeringPanel"') || !html.includes('id="engineeringClose"')) throw new Error('Dedicated Engineering/Diagnostics drawer missing.');
-if (!html.includes('./styles.css?v=14911') || !html.includes('./src/main.js?v=14911')) throw new Error('Build-version cache-busting tags missing.');
+if (!html.includes('./styles.css?v=150') || !html.includes('./src/main.js?v=150')) throw new Error('Build-version cache-busting tags missing.');
 if (html.includes('id="moreToggle"')) throw new Error('Redundant bottom MORE launcher must remain removed.');
 if (!html.includes('id="cockpitRestore"')) throw new Error('Cockpit restore failsafe missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -31,6 +31,7 @@ for (const id of ['cosmosToggle','cosmosPanel','phenomenonSelect','phenomenonRea
 for (const id of ['landTarget','surfaceLandButton','mapLandAction','surfaceHud','surfaceWorldName','surfaceBiome','surfaceGravity','surfaceTemperature','surfaceAtmosphere','surfaceCoords','surfaceDiscoveries','surfaceNearest','surfaceScanStatus','surfaceScanButton','surfaceSprintButton','surfaceSaveButton','surfaceTakeoffButton','surfaceMovePad','surfaceForward','surfaceBack','surfaceLeft','surfaceRight','surfaceWeather','surfaceWind','surfaceShipDistance','surfaceClock','surfaceWeatherStatus','surfaceRegionSelect','surfaceRegionLabel','surfaceHudToggle','surfaceHudDetails','surfaceShipCompact','surfacePhase','surfaceSkyClock','surfaceRotation','surfaceLatLon','surfaceRotationPhase','surfaceStarAltAz','surfaceSolarTime','surfaceAstronomyPause','surfacePlannerButton','surfaceStarDisk','surfaceEclipse','surfaceTargetPhase','surfaceTargetAngular']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Surface foundation control missing: ${id}`);
 for (const id of ['mapSelectionAngular','mapSelectionPhase','mapSelectionShadow']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Celestial appearance map diagnostic missing: ${id}`);
 for (const id of ['targetAngularDiameter','targetIllumination','targetStellarShadow']) if (!html.includes(`id=\"${id}\"`)) throw new Error(`Celestial appearance scanner diagnostic missing: ${id}`);
+for (const id of ['mapSelectionEscape','mapSelectionFlux','mapSelectionEquilibrium','mapSelectionAlbedo','mapSelectionPressure','mapSelectionRetention','mapSelectionVolatiles','mapSelectionSurfaceFamily','mapSelectionTidal']) if (!html.includes(`id="${id}"`)) throw new Error(`Planetary environment map diagnostic missing: ${id}`);
 const surfaceGenerator = await readFile(new URL('../src/surface/surfaceGenerator.js', import.meta.url), 'utf8');
 for (const token of ['Shatterfall Basin','Glasswind Flats','Frostscar Rise','fracture-gate','gravity-knot','frozen-lightning','reverse-shadow','vacuum-bloom','ghost-ruin','chronal-shear','IMPOSSIBLE / FICTIONAL']) if (!surfaceGenerator.includes(token)) throw new Error(`Surface generator token missing: ${token}`);
 const surfaceSession = await readFile(new URL('../src/surface/surfaceSession.js', import.meta.url), 'utf8');
@@ -102,9 +103,9 @@ for (const token of ['enterObservation','currentCameraView','rendezvousExperimen
 const backendPolicy = await readFile(new URL('../src/render/backendPolicy.js', import.meta.url), 'utf8');
 for (const token of ['isAppleMobileWebKit','rendererBackendPolicy','MacIntel','maxTouchPoints','ios-webkit-presentation-isolation']) if (!backendPolicy.includes(token)) throw new Error(`Renderer backend policy token missing: ${token}`);
 const renderer = await readFile(new URL('../src/render/threeRenderer.js', import.meta.url), 'utf8');
-if (!main.includes("./app/app.js?v=14911")) throw new Error('Main-to-app cache-busting import missing.');
-if (!app.includes("../render/threeRenderer.js?v=14911") || !app.includes("../ui/hud.js?v=14911") || !app.includes("../ui/systemMap.js?v=14911")) throw new Error('App cache-busting imports missing.');
-if (!renderer.includes("./cockpitView.js?v=14911")) throw new Error('Cockpit renderer cache-busting import missing.');
+if (!main.includes("./app/app.js?v=150")) throw new Error('Main-to-app cache-busting import missing.');
+if (!app.includes("../render/threeRenderer.js?v=150") || !app.includes("../ui/hud.js?v=150") || !app.includes("../ui/systemMap.js?v=150")) throw new Error('App cache-busting imports missing.');
+if (!renderer.includes("./cockpitView.js?v=150")) throw new Error('Cockpit renderer cache-busting import missing.');
 const cockpit = await readFile(new URL('../src/render/cockpitView.js', import.meta.url), 'utf8');
 for (const token of ['class CockpitView','NAVIGATION','FLIGHT','SCIENCE','SYSTEM DIAGNOSTICS','diagnostics-screen','drawDiagnosticsScreen','pick(clientX','cockpitAction','MAP','APPR','ENG','SCAN','OVR']) if (!cockpit.includes(token)) throw new Error(`3D cockpit token missing: ${token}`);
 for (const token of ['experimentVisuals','syncParticleExperiments','cosmicVisuals','syncCosmicPhenomena','PointsMaterial','particleExperiments = []','cosmicPhenomena = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(observer?.inertialPosition ?? ship.position)','centerStarfieldOnCamera']) if (!renderer.includes(token)) throw new Error(`Renderer integration token missing: ${token}`);
@@ -130,7 +131,7 @@ if (!css.includes('.ship-cockpit-enabled .top-hud .stat{display:none}') || !css.
 if (!app.includes('toggleCockpit') || !app.includes('updateCockpitUi') || !app.includes('syncViewClasses') || !app.includes('cockpitEnabled') || !app.includes('handleCockpitAction') || !app.includes('cockpitTelemetry')) throw new Error('Interactive cockpit app integration missing.');
 for (const token of ['rendererBackend: this.rendererBackend','physicsMs: this.physicsMs','renderMs: this.renderMs','drawCalls: runtime.drawCalls','predictionMs: this.predictionMs','experimentParticles: this.particleExperiments.activeParticles']) if (!app.includes(token)) throw new Error(`Cockpit diagnostics telemetry missing: ${token}`);
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'OBSUI-14911') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'ENVSCI-150') throw new Error('VERSION.json build marker mismatch.');
 if (!String(versionJson.collisionDetection || '').includes('first relative-motion intersection root')) throw new Error('VERSION.json swept-contact capability missing.');
 if (!String(versionJson.impactConservation || '').includes('linear momentum') || !String(versionJson.impactConservation || '').includes('COM impact energy')) throw new Error('VERSION.json impact-conservation capability missing.');
 if (!String(versionJson.blackHoleAccretion || '').includes('mandatory collision sink')) throw new Error('VERSION.json black-hole sink capability missing.');
@@ -153,6 +154,11 @@ if (!String(versionJson.assetCachePolicy || '').includes('styles.css') || !Strin
 if (!String(versionJson.frameDrive || '').includes('spacecraft-only') || !String(versionJson.frameDrive || '').includes('target inertial velocity')) throw new Error('VERSION.json FRAME drive isolation capability missing.');
 if (!html.includes('id="frameQuick"') || !html.includes('SPECULATIVE FRAME DRIVE')) throw new Error('Direct FRAME cockpit control/UI missing.');
 if (!app.includes('if (this.transitState.active) this.updateTransit(orbitalRealDt);')) throw new Error('FRAME must remain usable independently of the simulation running flag.');
+
+const planetaryEnvironment = await readFile(new URL('../src/physics/planetaryEnvironment.js', import.meta.url), 'utf8');
+for (const token of ['derivePlanetaryEnvironment','escapeVelocityMps','stellarFluxWm2','equilibriumTemperatureK','jeansEscapeParameter','pressureFromAtmosphereMassFraction']) if (!planetaryEnvironment.includes(token)) throw new Error(`Planetary environment token missing: ${token}`);
+if (!String(versionJson.planetaryEnvironmentModel || '').includes('hard derived physics') || !String(versionJson.planetaryEnvironmentModel || '').includes('seeded formation')) throw new Error('VERSION.json planetary environment model boundary missing.');
+if (!String(versionJson.planetaryAtmosphereBoundary || '').includes('proxy') || !String(versionJson.planetaryAtmosphereBoundary || '').includes('greenhouse')) throw new Error('VERSION.json atmosphere proxy boundary missing.');
 
 const observationPlanner = await readFile(new URL('../src/navigation/observationPlanner.js', import.meta.url), 'utf8');
 for (const token of ['ObservationPlannerSearch','cloneBodiesForObservationPlanning','VelocityVerletIntegrator','diskOccultation','massivePairPhysicsStepLimitSeconds','CURRENT LANDED SITE','BODY CENTER']) if (!observationPlanner.includes(token)) throw new Error(`Observation planner token missing: ${token}`);
@@ -184,7 +190,7 @@ const frameOrbitInsertion = await readFile(new URL('../src/physics/frameOrbitIns
 for (const token of ['frameOrbitInsertionPlan','applyFrameOrbitInsertion','PROGRADE_HILL_STABILITY_FRACTION','instantaneous-newtonian-circular-orbit-v1']) if (!frameOrbitInsertion.includes(token)) throw new Error(`FRAME orbit insertion token missing: ${token}`);
 if (!String(versionJson.systemMap || '').includes('star → planet → moon') || !String(versionJson.systemMap || '').includes('TRUE SYSTEM')) throw new Error('VERSION.json planetary navigation map capability missing.');
 if (!String(versionJson.frameOrbitArrival || '').includes('circular osculating orbit') || !String(versionJson.frameOrbitArrival || '').includes('47%')) throw new Error('VERSION.json FRAME orbit-arrival capability missing.');
-if (!String(versionJson.landabilityFoundation || '').includes('gas giants') || !String(versionJson.landabilityFoundation || '').includes('unmodeled')) throw new Error('VERSION.json landability foundation missing.');
+if (!String(versionJson.landabilityFoundation || '').includes('gas giants') || !String(versionJson.landabilityFoundation || '').includes('only the already-shipping home-world detailed surface')) throw new Error('VERSION.json landability foundation missing.');
 const frameGuardRoute = await readFile(new URL('../src/navigation/frameGuardRoute.js', import.meta.url), 'utf8');
 for (const token of ['planFrameGuardRoute','resolveFrameGuardWaypoint','live-body-anchored-swept-detour-v1','firstTransitGuardHit']) if (!frameGuardRoute.includes(token)) throw new Error(`FRAME guard-route token missing: ${token}`);
 if (!String(versionJson.frameSafetyRouting || '').includes('live-body-anchored') || !String(versionJson.frameSafetyRouting || '').includes('never reduced')) throw new Error('VERSION.json FRAME safety-routing capability missing.');

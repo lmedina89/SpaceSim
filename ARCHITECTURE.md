@@ -1,3 +1,19 @@
+# Universe Lab Architecture — v0.1.5.0
+
+## Planetary-environment authority boundary
+
+`src/physics/planetaryEnvironment.js` is a pure/read-only derivation layer. It consumes authoritative generated-body mass, radius, live/star geometry, orbital metadata and versioned deterministic formation metadata, then produces the environment record used by NAV and cockpit science. It owns no position, velocity, gravity, clock, FRAME, landing or save authority.
+
+Hard-derived quantities are kept separate from formation assumptions. Surface gravity uses `GM/R²`; escape velocity uses `sqrt(2GM/R)`; stellar irradiance uses `L/(4πr²)`; radiative-equilibrium temperature uses Bond albedo with full heat redistribution and unit long-wave emissivity. Bond albedo, volatile inventory, initial atmospheric inventory and representative molecular mass are seeded formation inputs because the current simulator cannot uniquely infer them from mass/radius/orbit alone.
+
+The pressure model is deliberately bounded in scientific meaning: initial atmospheric inventory is filtered through a simplified Jeans-retention diagnostic and a generic temperature-dependent gas-phase-availability proxy, then converted to a hydrostatic surface-pressure proxy for solid worlds. It is not an atmosphere chemistry, condensation, greenhouse, climate, stellar-wind/EUV escape or radiative-transfer solver. Gas giants expose no solid-surface pressure.
+
+Environment metadata is generated from an independent `${seed}:environment:${body.id}:v1` RNG stream after orbital generation, preventing any change to legacy system initial conditions. Schema-1 compatibility preserves saved environment formation fields when present and deterministically backfills only missing values. The accepted home-world atmosphere continuity is achieved by calibrating its initial inventory through the same canonical solver, not by overriding the derived pressure afterward.
+
+`systemNavigation.js`, `systemMap.js` and cockpit telemetry consume this environment record read-only. Detailed surface availability remains a separate capability layer: v0.1.5.0 classifies physical surfaces but intentionally enables no new surface renderer/landing destinations.
+
+---
+
 # Universe Lab Architecture — v0.1.4.9.1.1
 
 ## Observation-planner authority boundary

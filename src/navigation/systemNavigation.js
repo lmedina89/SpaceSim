@@ -1,4 +1,5 @@
 import { BODY_KIND, PHYSICS } from '../core/constants.js';
+import { derivePlanetaryEnvironment, surfaceGravityMps2FromMassRadius } from '../physics/planetaryEnvironment.js';
 
 function finite(value, fallback = null) {
   const n = Number(value);
@@ -14,18 +15,11 @@ export function navigationParent(body, bodies = []) {
   return null;
 }
 
-export function bodyClassLabel(body) {
+export function bodyClassLabel(body, bodies = []) {
   if (!body) return 'UNKNOWN';
+  const environment = derivePlanetaryEnvironment(body, bodies);
+  if (environment?.classLabel) return environment.classLabel;
   if (body.kind === BODY_KIND.STAR) return body.spectralClass ? `${body.spectralClass}-CLASS STAR` : 'STAR';
-  if (body.kind === BODY_KIND.MOON) {
-    const density = finite(body.densityKgM3, 0);
-    return density > 0 && density < 2600 ? 'ICE-RICH MOON' : 'ROCKY MOON';
-  }
-  if (body.kind === BODY_KIND.ROGUE_PLANET) return 'ROGUE PLANET';
-  if (body.kind === BODY_KIND.PLANET) {
-    const type = String(body.planetType || 'planet').toUpperCase();
-    return type === 'GAS' ? 'GAS GIANT' : `${type} PLANET`;
-  }
   if (body.kind === BODY_KIND.COMET) return 'COMET NUCLEUS';
   if (body.kind === BODY_KIND.BLACK_HOLE) return 'BLACK HOLE';
   if (body.kind === BODY_KIND.NEUTRON_STAR) return 'NEUTRON STAR';
@@ -35,27 +29,22 @@ export function bodyClassLabel(body) {
   return String(body.kind || 'unknown').toUpperCase();
 }
 
-export function surfaceCapabilityLabel(body) {
+export function surfaceCapabilityLabel(body, bodies = []) {
   if (!body) return '—';
-  if (body.landable && body.surfaceProfile && body.surfaceProfile !== 'orbital-only') return 'DETAILED SURFACE';
-  if (body.kind === BODY_KIND.MOON) return 'SOLID · ORBITAL ONLY';
-  if (body.kind === BODY_KIND.PLANET) return body.planetType === 'gas' ? 'NO SOLID SURFACE' : 'SOLID · ORBITAL ONLY';
-  if (body.kind === BODY_KIND.ROGUE_PLANET) return 'ORBITAL ONLY';
+  const environment = derivePlanetaryEnvironment(body, bodies);
+  if (environment?.surfaceCapability) return environment.surfaceCapability;
   return 'NOT APPLICABLE';
 }
 
-export function atmosphereModelLabel(body) {
+export function atmosphereModelLabel(body, bodies = []) {
   if (!body) return '—';
-  if ([BODY_KIND.PLANET, BODY_KIND.MOON, BODY_KIND.ROGUE_PLANET].includes(body.kind)) {
-    return body.landable ? 'VISUAL WEATHER ONLY · PHYSICS UNMODELED' : 'NOT YET MODELED';
-  }
+  const environment = derivePlanetaryEnvironment(body, bodies);
+  if (environment?.atmosphereLabel) return environment.atmosphereLabel;
   return 'NOT APPLICABLE';
 }
 
 export function surfaceGravityMps2(body) {
-  const radius = finite(body?.radius, 0);
-  const mass = finite(body?.mass, 0);
-  return radius > 0 && mass > 0 ? PHYSICS.G * mass / (radius * radius) : null;
+  return surfaceGravityMps2FromMassRadius(body?.mass, body?.radius);
 }
 
 export function orbitalPeriodSeconds(body, parent) {
@@ -120,12 +109,14 @@ export function starRangeMeters(body, bodies = []) {
 export function navigationBodySnapshot(body, bodies = [], ship = null) {
   const parent = navigationParent(body, bodies);
   const moons = bodies.filter((candidate) => candidate.kind === BODY_KIND.MOON && candidate.parentId === body?.id);
+  const environment = derivePlanetaryEnvironment(body, bodies);
   return {
     body,
     parent,
-    classLabel: bodyClassLabel(body),
-    surfaceCapability: surfaceCapabilityLabel(body),
-    atmosphereModel: atmosphereModelLabel(body),
+    environment,
+    classLabel: environment?.classLabel ?? bodyClassLabel(body, bodies),
+    surfaceCapability: environment?.surfaceCapability ?? surfaceCapabilityLabel(body, bodies),
+    atmosphereModel: environment?.atmosphereLabel ?? atmosphereModelLabel(body, bodies),
     shipRangeMeters: shipRangeMeters(ship, body),
     starRangeMeters: starRangeMeters(body, bodies),
     surfaceGravityMps2: surfaceGravityMps2(body),

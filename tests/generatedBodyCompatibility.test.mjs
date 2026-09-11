@@ -53,3 +53,42 @@ test('legacy gas saves preserve mass/radius but repair contradictory stored dens
   assert.equal(restored.densityKgM3, bulkDensityKgM3(oldMass, oldRadius));
   assert.equal(restored.physicalPropertyModel, 'legacy-gas-geometry-preserved-v1');
 });
+
+test('environment formation metadata backfills older schema-1 bodies without touching saved dynamics', () => {
+  const restored = {
+    id: 'planet-2', kind: 'planet', planetType: 'rocky', mass: 6e24, radius: 6.4e6,
+    position: new Float64Array([10, 20, 30]), velocity: new Float64Array([1, 2, 3]),
+  };
+  const generated = {
+    ...restored,
+    environmentModelVersion: 'planetary-environment-v1',
+    environmentFormationModel: 'seeded-formation-v1',
+    environmentFormation: { bondAlbedo: 0.23, volatileInventory01: 0.4, atmosphereInventoryMassFraction: 1e-6, representativeAtmosphereMolecularMassAmu: 28 },
+  };
+  applyGeneratedBodyCompatibility(restored, generated);
+  assert.equal(restored.environmentModelVersion, 'planetary-environment-v1');
+  assert.equal(restored.environmentFormationModel, 'seeded-formation-v1');
+  assert.deepEqual(restored.environmentFormation, generated.environmentFormation);
+  assert.notEqual(restored.environmentFormation, generated.environmentFormation);
+  assert.deepEqual([...restored.position], [10, 20, 30]);
+  assert.deepEqual([...restored.velocity], [1, 2, 3]);
+});
+
+test('saved environment formation metadata remains authoritative across generator upgrades', () => {
+  const restored = {
+    id: 'planet-2', kind: 'planet', planetType: 'rocky', mass: 6e24, radius: 6.4e6,
+    environmentModelVersion: 'planetary-environment-v1',
+    environmentFormationModel: 'seeded-formation-v1',
+    environmentFormation: { bondAlbedo: 0.19, volatileInventory01: 0.21, atmosphereInventoryMassFraction: 2e-7, representativeAtmosphereMolecularMassAmu: 31 },
+  };
+  const generated = {
+    ...restored,
+    environmentModelVersion: 'planetary-environment-v2',
+    environmentFormationModel: 'future-model-v2',
+    environmentFormation: { bondAlbedo: 0.7, volatileInventory01: 0.9, atmosphereInventoryMassFraction: 1e-3, representativeAtmosphereMolecularMassAmu: 18 },
+  };
+  applyGeneratedBodyCompatibility(restored, generated);
+  assert.equal(restored.environmentModelVersion, 'planetary-environment-v1');
+  assert.equal(restored.environmentFormationModel, 'seeded-formation-v1');
+  assert.deepEqual(restored.environmentFormation, { bondAlbedo: 0.19, volatileInventory01: 0.21, atmosphereInventoryMassFraction: 2e-7, representativeAtmosphereMolecularMassAmu: 31 });
+});

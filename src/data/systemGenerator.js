@@ -4,6 +4,7 @@ import { vec3 } from '../physics/vector.js';
 import { generateCosmicPhenomena } from '../cosmic/phenomenonGenerator.js';
 import { generateAnomalies } from '../cosmic/anomalyGenerator.js';
 import { breakupPeriodSeconds, bulkDensityKgM3, gasGiantPropertiesFromSamples } from '../physics/planetaryProperties.js';
+import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
 
 const STAR_NAMES = ['Aster', 'Vesper', 'Orison', 'Nadir', 'Eidra', 'Khepri', 'Ilyon', 'Morrow', 'Sable', 'Caelum'];
 const PLANET_TYPES = [
@@ -320,6 +321,97 @@ function roguePlanetDefinition(rng, starName, starMass) {
   };
 }
 
+function environmentFormationMetadata(seed, body) {
+  const rng = createRng(`${seed}:environment:${body.id}:v1`);
+  let bondAlbedo = 0.3;
+  let volatileInventory01 = 0.3;
+  let atmosphereLog10MassFraction = -8;
+  let representativeAtmosphereMolecularMassAmu = 28;
+
+  if (body.kind === BODY_KIND.PLANET && body.planetType === 'gas') {
+    bondAlbedo = rng.range(0.25, 0.55);
+    volatileInventory01 = 1;
+    atmosphereLog10MassFraction = 0;
+    representativeAtmosphereMolecularMassAmu = 2.3;
+  } else if (body.kind === BODY_KIND.PLANET) {
+    switch (body.planetType) {
+      case 'oceanic':
+        bondAlbedo = rng.range(0.14, 0.36);
+        volatileInventory01 = rng.range(0.62, 0.98);
+        atmosphereLog10MassFraction = rng.range(-7.1, -4.7);
+        representativeAtmosphereMolecularMassAmu = rng.range(26, 31);
+        break;
+      case 'desert':
+        bondAlbedo = rng.range(0.18, 0.46);
+        volatileInventory01 = rng.range(0.03, 0.28);
+        atmosphereLog10MassFraction = rng.range(-9.5, -5.2);
+        representativeAtmosphereMolecularMassAmu = rng.range(30, 44);
+        break;
+      case 'ice':
+        bondAlbedo = rng.range(0.38, 0.78);
+        volatileInventory01 = rng.range(0.72, 0.99);
+        atmosphereLog10MassFraction = rng.range(-8.8, -4.9);
+        representativeAtmosphereMolecularMassAmu = rng.range(16, 30);
+        break;
+      default:
+        bondAlbedo = rng.range(0.10, 0.34);
+        volatileInventory01 = rng.range(0.12, 0.62);
+        atmosphereLog10MassFraction = rng.range(-9.0, -5.0);
+        representativeAtmosphereMolecularMassAmu = rng.range(27, 40);
+        break;
+    }
+  } else if (body.kind === BODY_KIND.MOON) {
+    const density = Number(body.densityKgM3) || 3000;
+    const iceBias = Math.max(0, Math.min(1, (3200 - density) / 1600));
+    volatileInventory01 = Math.max(0.02, Math.min(0.98, rng.range(0.04, 0.42) + iceBias * rng.range(0.25, 0.55)));
+    bondAlbedo = rng.range(0.08 + 0.24 * iceBias, 0.30 + 0.48 * iceBias);
+    atmosphereLog10MassFraction = rng.range(-12.0, -7.0 + 1.2 * volatileInventory01);
+    representativeAtmosphereMolecularMassAmu = rng.range(20, 40);
+  } else if (body.kind === BODY_KIND.ROGUE_PLANET) {
+    bondAlbedo = rng.range(0.08, 0.34);
+    volatileInventory01 = rng.range(0.18, 0.78);
+    atmosphereLog10MassFraction = rng.range(-9.0, -4.8);
+    representativeAtmosphereMolecularMassAmu = rng.range(24, 40);
+  } else {
+    return null;
+  }
+
+  let atmosphereInventoryMassFraction = body.kind === BODY_KIND.PLANET && body.planetType === 'gas'
+    ? 1
+    : 10 ** atmosphereLog10MassFraction;
+
+  return {
+    bondAlbedo,
+    volatileInventory01,
+    atmosphereInventoryMassFraction,
+    representativeAtmosphereMolecularMassAmu,
+    homeSurfaceContinuityPressureAtm: body.homeCandidate ? 0.72 : undefined,
+  };
+}
+
+function assignEnvironmentFormationMetadata(seed, bodies) {
+  for (const body of bodies) {
+    const formation = environmentFormationMetadata(seed, body);
+    if (!formation) continue;
+    body.environmentModelVersion = 'planetary-environment-v1';
+    body.environmentFormationModel = 'seeded-formation-v1';
+    body.environmentFormation = formation;
+  }
+
+  // The already-shipping detailed home surface has a physically tested 0.72 atm local proxy.
+  // Calibrate only its seeded inventory so the canonical formation+retention model lands on that
+  // same pressure. The solver remains unchanged and no mass/radius/orbital state is touched.
+  const home = bodies.find((body) => body.homeCandidate && body.kind === BODY_KIND.PLANET && body.planetType !== 'gas');
+  if (home?.environmentFormation) {
+    const environment = derivePlanetaryEnvironment(home, bodies);
+    const targetAtm = 0.72;
+    if (environment?.atmospherePressureProxyAtm > 0) {
+      home.environmentFormation.atmosphereInventoryMassFraction *= targetAtm / environment.atmospherePressureProxyAtm;
+      home.environmentFormation.homeSurfaceContinuityPressureAtm = targetAtm;
+    }
+  }
+}
+
 function assignRotationMetadata(seed, bodies) {
   const byId = new Map(bodies.map((body) => [body.id, body]));
   const star = bodies.find((body) => body.kind === BODY_KIND.STAR) ?? null;
@@ -462,6 +554,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
 
   shiftToBarycentricFrame(bodies);
   assignRotationMetadata(seed, bodies);
+  assignEnvironmentFormationMetadata(seed, bodies);
   const phenomena = [...generateCosmicPhenomena(seed, bodies), ...generateAnomalies(seed, bodies)];
 
   return {
@@ -489,7 +582,8 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       physicalPropertyModel: 'coherent-gas-envelope-v2',
       rotationModel: 'orbital-relative-v2',
       roguePopulationModel: 'positive-energy-v2',
-      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, coherent gas-giant bulk mass/radius/density generation, orbital-relative rigid-body planetary spin axes, synchronous moon rotation aligned to the parent direction at epoch, high-eccentricity physical comet nuclei, optional positive-energy unbound rogue planets, and separately labeled visual population phenomena plus an explicitly labeled speculative/fictional anomaly layer',
+      planetaryEnvironmentModel: 'planetary-environment-v1',
+      scientificModel: 'Newtonian finite-radius N-body initial conditions with near-Keplerian planet/moon orbits, coherent gas-giant bulk mass/radius/density generation, orbital-relative rigid-body planetary spin axes, synchronous moon rotation aligned to the parent direction at epoch, high-eccentricity physical comet nuclei, optional positive-energy unbound rogue planets, a versioned deterministic planetary-environment formation layer isolated from orbital RNG, and separately labeled visual population phenomena plus an explicitly labeled speculative/fictional anomaly layer',
     },
   };
 }
