@@ -1,3 +1,18 @@
+# v0.1.5.2 scientific boundary notes
+
+The new surface worlds are presentations derived from the canonical planetary-environment model; they do not upgrade that model into a climate/geochemistry solver.
+
+- **Radiative-equilibrium temperature** remains the full-redistribution/unit-emissivity equilibrium estimate. It is not a measured or greenhouse-corrected surface temperature.
+- **Atmosphere pressure** remains the seeded formation + simplified thermal-retention/gas-availability proxy introduced in v0.1.5.0.
+- **Caelum-4361 e** uses a cold rocky terrain/lighting/fog presentation informed by its canonical environment. Its dust/frost events are deterministic visual weather proxies; no CFD, aerosol microphysics, precipitation cycle or aerodynamic force is solved.
+- **Caelum-4361 h-A** uses high-albedo ice/fracture/contaminant terrain proxies informed by its high ice potential and cryogenic equilibrium temperature. This does not claim solved mineralogy, water-ice phase structure, volatile transport, tidal heating or subsurface-ocean state.
+- Surface gravity shown/used comes from the canonical body environment (`GM/R²`).
+- Gas giants still have no fake ground. Rogues remain surface-disabled until a defensible rotation model exists.
+- The suspected FRAME target-body pass-through remains unmodified: the available physical recording did not establish a reproducible intersection, and the user explicitly deferred speculative clearance instrumentation/routing work.
+- Close-orbit sphere/texture limitations are rendering limitations and remain scheduled for later near-orbit/celestial rendering milestones rather than being disguised as physics changes.
+
+---
+
 # Universe Lab Scientific Notes — v0.1.5.1.2 Portrait HUD Transparency Hotfix
 
 ## v0.1.5.1.2 scientific boundary

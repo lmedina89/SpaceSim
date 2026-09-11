@@ -4,29 +4,36 @@ import { bodyFixedDirectionToInertial } from '../core/planetaryRotation.js';
 
 export function createSurfaceSession(region, snapshot = null) {
   const landing = region?.landing ?? { x: 0, z: 0, yaw: 0 };
-  const restoredIds = Array.isArray(snapshot?.scannedPoiIds) ? snapshot.scannedPoiIds : [];
+  const bodyCompatible = !snapshot?.bodyId || snapshot.bodyId === region?.bodyId;
+  const profileCompatible = !snapshot?.surfaceProfileId || snapshot.surfaceProfileId === region?.surfaceEngineProfile;
+  const restored = bodyCompatible && profileCompatible ? snapshot : null;
+  const restoredIds = Array.isArray(restored?.scannedPoiIds) ? restored.scannedPoiIds : [];
   return {
     active: true,
     bodyId: region.bodyId,
     regionId: region.id,
-    surfaceProfileId: snapshot?.surfaceProfileId ?? region.surfaceEngineProfile ?? null,
-    surfaceModelVersion: Number.isFinite(Number(snapshot?.surfaceModelVersion)) ? Math.max(1, Math.floor(Number(snapshot.surfaceModelVersion))) : (Number(region.surfaceModelVersion) || 1),
-    x: Number.isFinite(snapshot?.x) ? snapshot.x : landing.x,
-    z: Number.isFinite(snapshot?.z) ? snapshot.z : landing.z,
-    yaw: Number.isFinite(snapshot?.yaw) ? snapshot.yaw : landing.yaw,
-    pitch: Number.isFinite(snapshot?.pitch) ? snapshot.pitch : -0.08,
+    // The generated region is authoritative for current profile/model identity. Compatible
+    // schema-1 snapshots restore local state but cannot relabel one world's runtime as another.
+    surfaceProfileId: region.surfaceEngineProfile ?? restored?.surfaceProfileId ?? null,
+    surfaceModelVersion: Number.isFinite(Number(region.surfaceModelVersion))
+      ? Math.max(1, Math.floor(Number(region.surfaceModelVersion)))
+      : (Number.isFinite(Number(restored?.surfaceModelVersion)) ? Math.max(1, Math.floor(Number(restored.surfaceModelVersion))) : 1),
+    x: Number.isFinite(restored?.x) ? restored.x : landing.x,
+    z: Number.isFinite(restored?.z) ? restored.z : landing.z,
+    yaw: Number.isFinite(restored?.yaw) ? restored.yaw : landing.yaw,
+    pitch: Number.isFinite(restored?.pitch) ? restored.pitch : -0.08,
     walkSpeedMps: 14,
     sprintSpeedMps: 24,
     lastMoveSpeedMps: 0,
     scannedPoiIds: new Set(restoredIds),
-    selectedPoiId: snapshot?.selectedPoiId ?? null,
-    hudExpanded: snapshot?.hudExpanded === true,
-    bodyFixedAnchor: Array.isArray(snapshot?.bodyFixedAnchor) && snapshot.bodyFixedAnchor.length >= 3
-      ? snapshot.bodyFixedAnchor.slice(0, 3).map((value) => Number(value))
+    selectedPoiId: restored?.selectedPoiId ?? null,
+    hudExpanded: restored?.hudExpanded === true,
+    bodyFixedAnchor: Array.isArray(restored?.bodyFixedAnchor) && restored.bodyFixedAnchor.length >= 3
+      ? restored.bodyFixedAnchor.slice(0, 3).map((value) => Number(value))
       : null,
-    anchorCapturedAtSimSeconds: Number.isFinite(Number(snapshot?.anchorCapturedAtSimSeconds)) ? Number(snapshot.anchorCapturedAtSimSeconds) : null,
-    rotationModelVersion: Number.isFinite(Number(snapshot?.rotationModelVersion)) ? Math.max(1, Math.floor(Number(snapshot.rotationModelVersion))) : 1,
-    weather: createSurfaceWeatherState(region, snapshot?.weather ?? null),
+    anchorCapturedAtSimSeconds: Number.isFinite(Number(restored?.anchorCapturedAtSimSeconds)) ? Number(restored.anchorCapturedAtSimSeconds) : null,
+    rotationModelVersion: Number.isFinite(Number(restored?.rotationModelVersion)) ? Math.max(1, Math.floor(Number(restored.rotationModelVersion))) : 1,
+    weather: createSurfaceWeatherState(region, restored?.weather ?? null),
   };
 }
 

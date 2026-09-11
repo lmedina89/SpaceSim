@@ -1,3 +1,18 @@
+## v0.1.5.2 — Multi-World Landing & Exploration
+
+- Expanded the v0.1.5.1 bounded surface architecture into a deterministic multi-world exploration set without unlocking every solid body.
+- `ORIGIN-001` now supports surfaces on Caelum-4361 d, f-A, e and h-A.
+- Added deterministic `ATMOSPHERIC_ROCKY` exploration terrain for the cold/thin-atmosphere Caelum-4361 e reference case, with ordinary dust/frost presentation only and no anomaly-weather leakage.
+- Added deterministic `ICE_VOLATILE` terrain for the cryogenic Caelum-4361 h-A reference case, with bright ice/fracture/dark-ejecta proxies and no weather scheduler on its effectively airless environment.
+- Preserved the accepted home-world generation/weather path and the accepted airless f-A reference path.
+- Hardened schema-1 surface-session restore so local state is accepted only when saved body/profile identity matches the current generated region.
+- Fixed generalized takeoff handoff so the departing session/region survive cleanup long enough to reconstruct the current rotated body-fixed landing direction; generalized surfaces then reuse the existing Hill-screened circular-orbit insertion planner. Home-world return behavior remains unchanged.
+- Added multi-world exploration regressions and large-seed selection/insertion/property audits.
+- Deliberately did not add speculative FRAME target-clearance diagnostics or route changes; no reproducible body intersection was established.
+- Save schema remains 1; Three.js remains 0.185.0; iPhone/iPad WebKit remains forced WebGL2.
+
+---
+
 # Changelog
 
 ## v0.1.5.1.2 — Portrait HUD Transparency & Visual Weight Hotfix

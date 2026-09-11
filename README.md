@@ -1,3 +1,32 @@
+# Universe Lab v0.1.5.2 — Multi-World Landing & Exploration
+
+**Build marker:** `SURFEXP-152`  
+**Save schema:** 1 (unchanged)  
+**Three.js:** 0.185.0 (unchanged)
+
+## v0.1.5.2 exploration expansion
+
+This release turns the v0.1.5.1 surface-profile proof into a deliberately bounded multi-world exploration loop. It does **not** unlock every solid body. Surface access remains data-driven from the canonical v0.1.5.0 planetary-environment record, and only scientifically suitable reference bodies are enabled.
+
+`ORIGIN-001` now exposes four surface-capable reference worlds:
+
+- **Caelum-4361 d** — the accepted detailed atmospheric home world; its legacy generated region/weather path remains the regression baseline.
+- **Caelum-4361 f-A** — the accepted airless rocky reference moon.
+- **Caelum-4361 e** — a new cold rocky exploration planet, ~218.8 K radiative-equilibrium temperature, ~573 Pa atmosphere proxy and ~9.91 m/s² surface gravity.
+- **Caelum-4361 h-A** — a new cryogenic ice/volatile exploration moon, ~81.3 K radiative-equilibrium temperature, ~0.23 Pa atmosphere proxy and ~0.85 m/s² surface gravity.
+
+New rocky and ice surfaces use deterministic profile-specific terrain/material/POI rules rather than recoloring the home world. The rocky profile permits only ordinary dust/frost presentation events; the cryogenic airless profile has no weather/wind scheduler. Neither profile claims solved geology, mineralogy, fluid dynamics, atmospheric chemistry, greenhouse climate, volatile phase equilibrium or thermal inertia.
+
+Surface-session restore is now explicitly body/profile isolated: a snapshot can restore local position/scans/weather only when its saved body and profile identity match the freshly generated region. This prevents state from one world leaking into another. Save schema remains 1.
+
+Generalized takeoff also retains the departing surface session through cleanup so the current rotated body-fixed landing anchor is actually available to the return-orbit handoff. The accepted home-world 5-radius return remains unchanged; generalized surfaces reuse the existing Hill-screened circular-orbit insertion planner.
+
+Rogue surfaces remain disabled until their rotation model is complete. Gas giants remain no-solid-surface. The suspected FRAME target-body pass-through is **not** modified in this release; physical testing did not establish a reproducible intersection, so no speculative clearance diagnostic or route rewrite was added.
+
+Close-orbit planetary visual detail is also intentionally outside this milestone and remains scheduled for later near-orbit/celestial rendering work.
+
+---
+
 # Universe Lab v0.1.5.1.2 — Portrait HUD Transparency & Visual Weight Hotfix
 
 **Build marker:** `PORTHUD-1512`  

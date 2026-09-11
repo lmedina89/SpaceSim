@@ -180,8 +180,8 @@ function createTerrain(region) {
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.94,
-    metalness: region.planetType === 'rocky' ? 0.08 : 0.03,
+    roughness: Number.isFinite(Number(region.materialRoughness)) ? Number(region.materialRoughness) : 0.94,
+    metalness: Number.isFinite(Number(region.materialMetalness)) ? Number(region.materialMetalness) : (region.planetType === 'rocky' ? 0.08 : 0.03),
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.receiveShadow = false;
@@ -192,6 +192,38 @@ function createScatter(region, rng) {
   const group = new THREE.Group();
   group.name = 'surface-scatter';
   const dummy = new THREE.Object3D();
+
+  if (region.surfaceArchitectureFamily === 'ICE_VOLATILE') {
+    const iceGeometry = new THREE.ConeGeometry(1, 3.8, 5);
+    const iceMaterial = new THREE.MeshStandardMaterial({ color: region.palette.accent, roughness: 0.58, metalness: 0.01 });
+    const shards = new THREE.InstancedMesh(iceGeometry, iceMaterial, 170);
+    for (let i = 0; i < shards.count; i += 1) {
+      const x = rng.range(-region.terrainSizeMeters * 0.48, region.terrainSizeMeters * 0.48);
+      const z = rng.range(-region.terrainSizeMeters * 0.48, region.terrainSizeMeters * 0.48);
+      const y = surfaceHeightAt(region, x, z);
+      const s = rng.range(0.35, 2.6) * (rng.random() < 0.08 ? 2.1 : 1);
+      dummy.position.set(x, y + s * 0.5, z);
+      dummy.rotation.set(rng.range(-0.18, 0.18), rng.range(0, Math.PI * 2), rng.range(-0.22, 0.22));
+      dummy.scale.set(s * rng.range(0.55, 1.05), s * rng.range(0.75, 1.55), s * rng.range(0.55, 1.05));
+      dummy.updateMatrix(); shards.setMatrixAt(i, dummy.matrix);
+    }
+    group.add(shards);
+    const darkGeometry = new THREE.DodecahedronGeometry(1, 0);
+    const darkMaterial = new THREE.MeshStandardMaterial({ color: region.palette.rock, roughness: 0.9, metalness: 0.015 });
+    const darkRocks = new THREE.InstancedMesh(darkGeometry, darkMaterial, 72);
+    for (let i = 0; i < darkRocks.count; i += 1) {
+      const x = rng.range(-region.terrainSizeMeters * 0.48, region.terrainSizeMeters * 0.48);
+      const z = rng.range(-region.terrainSizeMeters * 0.48, region.terrainSizeMeters * 0.48);
+      const y = surfaceHeightAt(region, x, z);
+      const s = rng.range(0.4, 2.9);
+      dummy.position.set(x, y + s * 0.2, z);
+      dummy.rotation.set(rng.range(0, Math.PI), rng.range(0, Math.PI), rng.range(0, Math.PI));
+      dummy.scale.set(s * rng.range(0.6, 1.4), s * rng.range(0.35, 0.8), s * rng.range(0.6, 1.4));
+      dummy.updateMatrix(); darkRocks.setMatrixAt(i, dummy.matrix);
+    }
+    group.add(darkRocks);
+    return group;
+  }
 
   if (region.atmosphereMode === 'airless') {
     const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
@@ -654,7 +686,7 @@ export class SurfaceWorldVisual {
     this._baseFogColor = new THREE.Color(region.palette.fog);
     this.scene.background = this._baseBackgroundColor.clone();
     this.isAirless = region.atmosphereMode === 'airless';
-    this._baseFogDensity = this.isAirless ? 0 : (0.00115 / Math.max(0.3, region.atmosphereAtmProxy));
+    this._baseFogDensity = this.isAirless ? 0 : (Number.isFinite(Number(region.fogDensityProxy)) ? Math.max(0, Number(region.fogDensityProxy)) : (0.00115 / Math.max(0.3, region.atmosphereAtmProxy)));
     this.scene.fog = this.isAirless ? null : new THREE.FogExp2(this._baseFogColor.clone(), this._baseFogDensity);
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.08, 6200);
     this.rng = createRng(`${region.seed}:render`);
@@ -665,7 +697,9 @@ export class SurfaceWorldVisual {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 28, 18), new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide, depthWrite: false }));
     sky.position.y = 260; this.scene.add(sky); this.sky = sky;
 
-    const hemi = new THREE.HemisphereLight(region.palette.skyHorizon, 0x17120f, this.isAirless ? 0.025 : 1.55); this.scene.add(hemi); this.hemi = hemi;
+    this._profileHemiIntensity = Number.isFinite(Number(region.ambientSkyIntensity)) ? Number(region.ambientSkyIntensity) : null;
+    const hemiIntensity = this._profileHemiIntensity ?? (this.isAirless ? 0.025 : 1.55);
+    const hemi = new THREE.HemisphereLight(region.palette.skyHorizon, 0x17120f, hemiIntensity); this.scene.add(hemi); this.hemi = hemi;
     const sunColor = new THREE.Color(star?.color ?? 0xffe1b0);
     this.sun = new THREE.DirectionalLight(sunColor, 3.2);
     this.sun.target.position.set(0, 0, 0);
@@ -739,7 +773,9 @@ export class SurfaceWorldVisual {
     // attenuates visibility separately. The underlying celestial directions remain untouched.
     const daylightFactor = this.isAirless ? 0 : (this.region.atmosphereAtmProxy > 0.01 ? 0.075 + exposure.daylight * 0.925 : 0.025);
     if (this.sky?.material?.color) this.sky.material.color.setScalar(this.isAirless ? 0 : daylightFactor);
-    if (this.hemi) this.hemi.intensity = this.isAirless ? 0.025 : (0.12 + exposure.daylight * 1.43);
+    if (this.hemi) this.hemi.intensity = this._profileHemiIntensity != null
+      ? (this.isAirless ? this._profileHemiIntensity : this._profileHemiIntensity * (0.34 + exposure.daylight * 0.66))
+      : (this.isAirless ? 0.025 : (0.12 + exposure.daylight * 1.43));
     if (this.scene.background?.copy) this.scene.background.copy(this._baseBackgroundColor).multiplyScalar(this.isAirless ? 0 : Math.max(0.04, daylightFactor));
     if (this.scene.fog?.color?.copy) this.scene.fog.color.copy(this._baseFogColor).multiplyScalar(Math.max(0.10, daylightFactor));
     this.astronomicalSky?.traverse((node) => {

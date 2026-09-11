@@ -151,10 +151,14 @@ function gaussian(x, z, cx, cz, radius) {
 export function surfaceHeightAt(region, x, z) {
   const seedHash = region.seedHash >>> 0;
   const rough = region.terrain.roughness;
-  const broad = fbm(x / 620, z / 620, seedHash) * 92 * rough;
-  const medium = fbm(x / 170 + 11.3, z / 170 - 7.8, seedHash ^ 0x51ed270b) * 34 * rough;
-  const ridges = Math.abs(fbm(x / 390 - 4, z / 390 + 8, seedHash ^ 0x9e3779b9)) * 52 * rough;
-  let h = broad + medium + ridges - 22;
+  const broadAmplitude = Number.isFinite(Number(region.terrain.broadAmplitude)) ? Number(region.terrain.broadAmplitude) : 92;
+  const mediumAmplitude = Number.isFinite(Number(region.terrain.mediumAmplitude)) ? Number(region.terrain.mediumAmplitude) : 34;
+  const ridgeAmplitude = Number.isFinite(Number(region.terrain.ridgeAmplitude)) ? Number(region.terrain.ridgeAmplitude) : 52;
+  const baseOffset = Number.isFinite(Number(region.terrain.baseOffset)) ? Number(region.terrain.baseOffset) : -22;
+  const broad = fbm(x / 620, z / 620, seedHash) * broadAmplitude * rough;
+  const medium = fbm(x / 170 + 11.3, z / 170 - 7.8, seedHash ^ 0x51ed270b) * mediumAmplitude * rough;
+  const ridges = Math.abs(fbm(x / 390 - 4, z / 390 + 8, seedHash ^ 0x9e3779b9)) * ridgeAmplitude * rough;
+  let h = broad + medium + ridges + baseOffset;
 
   const crater = region.terrain.crater;
   const dx = x - crater.x, dz = z - crater.z;
@@ -186,6 +190,21 @@ export function surfaceColorAt(region, x, z, height = surfaceHeightAt(region, x,
     const broad = fbm(x / 410 - 8.2, z / 410 + 2.9, region.seedHash ^ 0xa533d49b);
     const high = clamp01((height + 70) / 230);
     const shade = Math.max(0.62, Math.min(1.25, 0.94 + micro * 0.11 + broad * 0.08 + high * 0.08));
+    return [clamp01(base[0] * shade), clamp01(base[1] * shade), clamp01(base[2] * shade)];
+  }
+  if (region.surfaceEngineProfile === SURFACE_ENGINE_PROFILES.ICE_VOLATILE) {
+    const micro = fbm(x / 74 + 7.7, z / 74 - 2.4, region.seedHash ^ 0x7a2f19d1);
+    const contamination = clamp01((fbm(x / 520 - 1.7, z / 520 + 9.2, region.seedHash ^ 0x19c39f21) + 1) * 0.5);
+    const high = clamp01((height + 90) / 240);
+    const fracture = Math.abs(fbm(x / 135 + 3.8, z / 135 - 5.3, region.seedHash ^ 0xb17ad00d));
+    const bright = Math.max(0.72, Math.min(1.28, 0.91 + high * 0.15 + micro * 0.08 - contamination * 0.13 - fracture * 0.035));
+    return [clamp01(base[0] * bright), clamp01(base[1] * bright), clamp01(base[2] * bright)];
+  }
+  if (region.surfaceEngineProfile === SURFACE_ENGINE_PROFILES.ATMOSPHERIC_ROCKY) {
+    const micro = fbm(x / 96 - 4.1, z / 96 + 6.4, region.seedHash ^ 0x438e1c97);
+    const dust = clamp01((fbm(x / 460 + 5.2, z / 460 - 1.8, region.seedHash ^ 0xd1930ac7) + 1) * 0.5);
+    const high = clamp01((height + 80) / 260);
+    const shade = Math.max(0.67, Math.min(1.22, 0.9 + high * 0.11 + micro * 0.08 + dust * 0.04));
     return [clamp01(base[0] * shade), clamp01(base[1] * shade), clamp01(base[2] * shade)];
   }
   const w = surfaceZoneWeights(region, x, z);
@@ -302,12 +321,227 @@ function generateAirlessRockyRegion(system, body, environment) {
   };
 }
 
+
+function generateAtmosphericRockyRegion(system, body, environment) {
+  const regionKey = 'tenuous-rocky-highland';
+  const regionSeed = `${system.seed}:${body.id}:surface:${regionKey}:multiworld-v1`;
+  const rng = createRng(regionSeed);
+  const seedHash = hashSeed(regionSeed);
+  const albedo = Math.max(0.02, Math.min(0.9, Number(environment?.bondAlbedo) || 0.24));
+  const pressurePa = Math.max(0, Number(environment?.atmospherePressureProxyPa) || 0);
+  const pressureAtm = Math.max(0, Number(environment?.atmospherePressureProxyAtm) || 0);
+  const coldness = clamp01((300 - (Number(environment?.equilibriumTemperatureK) || 240)) / 180);
+  const tone = 0.18 + (1 - albedo) * 0.13;
+  const palette = {
+    name: 'Tenuous rocky highland',
+    skyTop: 0x10151c,
+    skyHorizon: 0x4c403b,
+    fog: 0x514640,
+    ground: [clamp01(tone + 0.08), clamp01(tone + 0.035), clamp01(tone + 0.015 + coldness * 0.025)],
+    rock: 0x47423f,
+    accent: 0x8a776b,
+    atmosphere: pressureAtm,
+  };
+  const terrainSizeMeters = 3000;
+  const craterRadius = rng.range(250, 390);
+  const craterAngle = rng.range(0, TAU);
+  const craterDistance = rng.range(520, 760);
+  const crater = {
+    x: Math.cos(craterAngle) * craterDistance,
+    z: Math.sin(craterAngle) * craterDistance,
+    radius: craterRadius,
+    depth: craterRadius * rng.range(0.16, 0.27),
+  };
+  const ridgeAngle = craterAngle + rng.range(1.2, 2.6);
+  const ridge = { x: Math.cos(ridgeAngle) * rng.range(520, 780), z: Math.sin(ridgeAngle) * rng.range(520, 780) };
+  const basinAngle = ridgeAngle + rng.range(1.1, 2.4);
+  const glassBasin = { x: Math.cos(basinAngle) * rng.range(430, 700), z: Math.sin(basinAngle) * rng.range(430, 700) };
+  const landingYaw = rng.range(-0.35, 0.35);
+  const landedShip = { x: -18, z: -20, yaw: landingYaw + 0.18 };
+  const gravityMps2 = Number(environment?.surfaceGravityMps2) || (PHYSICS.G * body.mass / Math.max(1, body.radius * body.radius));
+  const temperatureK = Number(environment?.currentEquilibriumTemperatureK ?? environment?.equilibriumTemperatureK) || equilibriumTemperatureK(system, body);
+  // This is a visibility/presentation proxy only. It deliberately scales down with pressure and
+  // does not claim a solved aerosol optical depth or radiative-transfer atmosphere.
+  const fogDensityProxy = 0.000018 + Math.sqrt(Math.min(0.03, pressureAtm)) * 0.00038;
+
+  return {
+    version: 4,
+    surfaceModelVersion: 2,
+    surfaceEngineProfile: SURFACE_ENGINE_PROFILES.ATMOSPHERIC_ROCKY,
+    surfaceArchitectureFamily: 'ATMOSPHERIC_ROCKY',
+    atmosphereMode: 'tenuous',
+    weatherEnabled: pressurePa >= 100,
+    anomalyVisualsEnabled: false,
+    skyMode: 'thin-atmosphere-proxy',
+    id: `${body.id}:${regionKey}`,
+    regionKey,
+    seed: regionSeed,
+    seedHash,
+    bodyId: body.id,
+    bodyName: body.name,
+    name: 'Tenuous Highland Survey',
+    subtitle: 'Cold rocky terrain under a thin modeled atmosphere',
+    planetType: body.planetType ?? 'rocky',
+    gravityMps2,
+    temperatureK,
+    temperatureModel: 'radiative-equilibrium',
+    atmospherePressurePa: pressurePa,
+    atmosphereAtmProxy: pressureAtm,
+    fogDensityProxy,
+    ambientSkyIntensity: 0.18,
+    terrainSizeMeters,
+    terrainResolution: 82,
+    materialRoughness: 0.93,
+    materialMetalness: 0.025,
+    palette,
+    landing: { x: 0, z: 0, yaw: landingYaw },
+    landedShip,
+    terrain: {
+      roughness: 0.9 + rng.range(-0.05, 0.07),
+      broadAmplitude: 108,
+      mediumAmplitude: 31,
+      ridgeAmplitude: 44,
+      baseOffset: -24,
+      crater,
+      ridge,
+      glassBasin,
+    },
+    zones: {
+      frost: { x: 18_000, z: 18_000, radius: 1 },
+      ember: { x: 18_100, z: 18_100, radius: 1 },
+      glass: { x: 18_200, z: 18_200, radius: 1 },
+      mineral: { x: 18_300, z: 18_300, radius: 1 },
+    },
+    weatherProfile: {
+      enabled: pressurePa >= 100,
+      anomalyChance: 0,
+      allowAnomalous: false,
+      allowedTypes: ['dust-front', 'frost-squall'],
+      preferred: temperatureK < 235 ? ['frost-squall', 'dust-front'] : ['dust-front'],
+      firstEventMinSeconds: 28,
+      firstEventMaxSeconds: 58,
+      calmMinSeconds: 45,
+      calmMaxSeconds: 105,
+    },
+    normalPois: [
+      { id: `${regionKey}:weathered-rim`, type: 'geology', name: 'Weathered Crater Rim', realityClass: 'known', x: crater.x, z: crater.z, scanRadiusMeters: 105, signal: 'Impact-exposed rocky strata proxy', summary: 'A conventional crater rim modified by the local terrain/weather presentation model.', archive: 'Procedural geology only; stratigraphy, mineral chemistry, erosion rate and age are not solved.' },
+      { id: `${regionKey}:highland-ridge`, type: 'geology', name: 'Highland Ridge', realityClass: 'known', x: ridge.x, z: ridge.z, scanRadiusMeters: 100, signal: 'Elevated fractured bedrock proxy', summary: 'A raised rocky ridge generated from the body-specific surface seed.', archive: 'Topography is deterministic but not a tectonic reconstruction or spectroscopic composition map.' },
+    ],
+    anomalies: [],
+    scientificStatus: 'Multi-world rocky exploration surface. Canonical gravity, pressure proxy, equilibrium temperature and body rotation drive the local presentation. Terrain and aerosols/weather are deterministic proxies; greenhouse climate, composition, erosion, hydrology and atmospheric radiative transfer are not solved yet.',
+  };
+}
+
+function generateIceVolatileRegion(system, body, environment) {
+  const regionKey = 'cryogenic-ice-shelf';
+  const regionSeed = `${system.seed}:${body.id}:surface:${regionKey}:multiworld-v1`;
+  const rng = createRng(regionSeed);
+  const seedHash = hashSeed(regionSeed);
+  const albedo = Math.max(0.02, Math.min(0.9, Number(environment?.bondAlbedo) || 0.55));
+  const pressurePa = Math.max(0, Number(environment?.atmospherePressureProxyPa) || 0);
+  const pressureAtm = Math.max(0, Number(environment?.atmospherePressureProxyAtm) || 0);
+  const icePotential = clamp01(Number(environment?.icePotential01) || 0.6);
+  const brightness = 0.42 + albedo * 0.34 + icePotential * 0.08;
+  const palette = {
+    name: 'Cryogenic ice / rock shelf',
+    skyTop: 0x000000,
+    skyHorizon: 0x000000,
+    fog: 0x000000,
+    ground: [clamp01(brightness * 0.84), clamp01(brightness * 0.94), clamp01(brightness)],
+    rock: 0x51616b,
+    accent: 0xc6e6ee,
+    atmosphere: pressureAtm,
+  };
+  const terrainSizeMeters = 2800;
+  const craterRadius = rng.range(210, 310);
+  const craterAngle = rng.range(0, TAU);
+  const craterDistance = rng.range(480, 710);
+  const crater = {
+    x: Math.cos(craterAngle) * craterDistance,
+    z: Math.sin(craterAngle) * craterDistance,
+    radius: craterRadius,
+    depth: craterRadius * rng.range(0.13, 0.22),
+  };
+  const ridgeAngle = craterAngle + rng.range(1.3, 2.5);
+  const ridge = { x: Math.cos(ridgeAngle) * rng.range(470, 720), z: Math.sin(ridgeAngle) * rng.range(470, 720) };
+  const basinAngle = ridgeAngle + rng.range(1.2, 2.4);
+  const glassBasin = { x: Math.cos(basinAngle) * rng.range(380, 620), z: Math.sin(basinAngle) * rng.range(380, 620) };
+  const landingYaw = rng.range(-0.35, 0.35);
+  const landedShip = { x: -18, z: -20, yaw: landingYaw + 0.18 };
+  const gravityMps2 = Number(environment?.surfaceGravityMps2) || (PHYSICS.G * body.mass / Math.max(1, body.radius * body.radius));
+  const temperatureK = Number(environment?.currentEquilibriumTemperatureK ?? environment?.equilibriumTemperatureK) || equilibriumTemperatureK(system, body);
+  const effectivelyAirless = pressurePa < 1;
+
+  return {
+    version: 4,
+    surfaceModelVersion: 2,
+    surfaceEngineProfile: SURFACE_ENGINE_PROFILES.ICE_VOLATILE,
+    surfaceArchitectureFamily: 'ICE_VOLATILE',
+    atmosphereMode: effectivelyAirless ? 'airless' : 'trace',
+    weatherEnabled: false,
+    anomalyVisualsEnabled: false,
+    skyMode: effectivelyAirless ? 'vacuum' : 'trace-atmosphere-proxy',
+    id: `${body.id}:${regionKey}`,
+    regionKey,
+    seed: regionSeed,
+    seedHash,
+    bodyId: body.id,
+    bodyName: body.name,
+    name: 'Cryogenic Ice Shelf',
+    subtitle: 'Ice-rich volatile terrain reference surface',
+    planetType: 'ice',
+    gravityMps2,
+    temperatureK,
+    temperatureModel: 'radiative-equilibrium',
+    atmospherePressurePa: pressurePa,
+    atmosphereAtmProxy: pressureAtm,
+    fogDensityProxy: 0,
+    ambientSkyIntensity: 0.02,
+    terrainSizeMeters,
+    terrainResolution: 82,
+    materialRoughness: 0.62,
+    materialMetalness: 0.015,
+    palette,
+    landing: { x: 0, z: 0, yaw: landingYaw },
+    landedShip,
+    terrain: {
+      roughness: 0.7 + rng.range(-0.05, 0.08),
+      broadAmplitude: 74,
+      mediumAmplitude: 27,
+      ridgeAmplitude: 36,
+      baseOffset: -16,
+      crater,
+      ridge,
+      glassBasin,
+    },
+    zones: {
+      frost: { x: 17_000, z: 17_000, radius: 1 },
+      ember: { x: 17_100, z: 17_100, radius: 1 },
+      glass: { x: 17_200, z: 17_200, radius: 1 },
+      mineral: { x: 17_300, z: 17_300, radius: 1 },
+    },
+    weatherProfile: { enabled: false, anomalyChance: 0, allowAnomalous: false, allowedTypes: [], preferred: [], firstEventMinSeconds: 1e12, firstEventMaxSeconds: 1e12, calmMinSeconds: 1e12, calmMaxSeconds: 1e12 },
+    normalPois: [
+      { id: `${regionKey}:fracture-field`, type: 'geology', name: 'Fractured Ice Field', realityClass: 'known', x: ridge.x, z: ridge.z, scanRadiusMeters: 105, signal: 'High-reflectance fractured surface proxy', summary: 'A field of disrupted ice-rich material crossing an older ridge.', archive: 'Ice abundance comes from the environment proxy; crystal phase, salts, organics and fracture mechanics are not solved.' },
+      { id: `${regionKey}:dark-ejecta`, type: 'geology', name: 'Dark Ejecta Patch', realityClass: 'known', x: crater.x, z: crater.z, scanRadiusMeters: 105, signal: 'Low-albedo contaminant/ejecta proxy', summary: 'Darker impact-processed material interrupts the brighter cryogenic surface.', archive: 'The contrast is procedural and does not claim a measured contaminant composition.' },
+    ],
+    anomalies: [],
+    scientificStatus: 'Multi-world cryogenic exploration surface. Canonical gravity, equilibrium temperature, albedo, ice potential and body rotation drive the local presentation. Ice texture, fracture fields and dark contaminants are deterministic geological proxies; subsurface ocean state, composition, phase transitions and thermal evolution are not solved.',
+  };
+}
+
 export function availableSurfaceRegions(system, body, bodies = system?.bodies ?? []) {
   if (!system?.seed || !body?.id) return [];
   const support = surfaceEngineSupport(body, bodies);
   if (!support.enabled) return [];
   if (support.profileId === SURFACE_ENGINE_PROFILES.AIRLESS_ROCKY) {
-    return [{ id: 'airless-regolith', name: 'Regolith Survey Site', subtitle: 'Airless rocky moon proof surface' }];
+    return [{ id: 'airless-regolith', name: 'Regolith Survey Site', subtitle: 'Airless rocky reference surface' }];
+  }
+  if (support.profileId === SURFACE_ENGINE_PROFILES.ATMOSPHERIC_ROCKY) {
+    return [{ id: 'tenuous-rocky-highland', name: 'Tenuous Highland Survey', subtitle: 'Cold rocky terrain under a thin modeled atmosphere' }];
+  }
+  if (support.profileId === SURFACE_ENGINE_PROFILES.ICE_VOLATILE) {
+    return [{ id: 'cryogenic-ice-shelf', name: 'Cryogenic Ice Shelf', subtitle: 'Ice-rich volatile terrain reference surface' }];
   }
   return Object.values(SURFACE_REGION_PROFILES).map((profile) => ({
     id: profile.id,
@@ -322,6 +556,12 @@ export function generateSurfaceRegion(system, body, requestedRegionId = 'shatter
   if (!support.enabled) throw new Error(`Surface engine is not enabled for ${body.name ?? body.id}.`);
   if (support.profileId === SURFACE_ENGINE_PROFILES.AIRLESS_ROCKY) {
     return generateAirlessRockyRegion(system, body, support.environment ?? derivePlanetaryEnvironment(body, bodies));
+  }
+  if (support.profileId === SURFACE_ENGINE_PROFILES.ATMOSPHERIC_ROCKY) {
+    return generateAtmosphericRockyRegion(system, body, support.environment ?? derivePlanetaryEnvironment(body, bodies));
+  }
+  if (support.profileId === SURFACE_ENGINE_PROFILES.ICE_VOLATILE) {
+    return generateIceVolatileRegion(system, body, support.environment ?? derivePlanetaryEnvironment(body, bodies));
   }
   const profile = SURFACE_REGION_PROFILES[requestedRegionId] ?? SURFACE_REGION_PROFILES['shatterfall-basin'];
   const regionSeed = `${system.seed}:${body.id}:surface:${profile.id}:environment-v2`;

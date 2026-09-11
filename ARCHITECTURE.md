@@ -1,3 +1,29 @@
+# v0.1.5.2 architecture delta — bounded multi-world exploration
+
+v0.1.5.2 keeps the existing simulation architecture and expands only the surface-access/profile layer.
+
+## Surface selection
+
+`src/surface/surfaceProfiles.js` remains the read-only bridge from canonical planetary-environment records into surface-engine capability. Architecture version 2 may enable, per generated system, a bounded set consisting of the legacy home world, at most one airless rocky reference moon, one contrasting rocky planet and one ice/volatile world. Selection is deterministic and environment-driven; rogues are excluded while their rotation state is unresolved, and gas giants remain no-solid-surface.
+
+For `ORIGIN-001` the bounded set is Caelum-4361 d, f-A, e and h-A.
+
+## Profile generation
+
+`src/surface/surfaceGenerator.js` keeps the accepted home generator intact and dispatches generalized profiles to separate deterministic generators. `ATMOSPHERIC_ROCKY` produces a cold/thin-atmosphere rocky highland proxy; `AIRLESS_ROCKY` retains the v0.1.5.1 regolith proof/reference; `ICE_VOLATILE` produces a cryogenic ice/rock shelf proxy. Terrain/material appearance is a rendering/geology proxy and is not a solved composition or thermodynamic model.
+
+`src/render/surfaceWorld.js` consumes optional profile-specific material, fog and ambient-light parameters while preserving legacy defaults when those fields are absent. `src/surface/surfaceWeather.js` preserves the exact home RNG/weather path and allows generalized profiles to restrict ordinary event types or disable scheduling entirely.
+
+## Session and handoff isolation
+
+The schema-1 `surfaceSession` payload remains backward compatible. Restore now treats generated body/profile identity as authoritative and restores local x/z/yaw/pitch/scans/weather only when the snapshot body/profile matches. This blocks cross-world/profile leakage.
+
+Takeoff captures the departing session/region before surface cleanup. Legacy home takeoff retains the accepted 5-radius behavior. Generalized surfaces reconstruct the current inertial radial direction from the rotated body-fixed landing anchor and reuse the existing `frameOrbitInsertionPlan()` / `applyFrameOrbitInsertion()` Hill-screened circular-orbit handoff.
+
+No direct-gravity, velocity-Verlet, FRAME route/insertion equations, collision/impact, observer/eclipse, planetary-environment, save-schema or WebKit-backend architecture is changed by this milestone.
+
+---
+
 # Universe Lab Architecture — v0.1.5.1.2
 
 ## v0.1.5.1.2 portrait HUD transparency boundary

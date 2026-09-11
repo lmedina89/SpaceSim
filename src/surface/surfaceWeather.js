@@ -31,13 +31,30 @@ function nextRandom(state) {
 function range(state, min, max) { return min + (max - min) * nextRandom(state); }
 
 function chooseEventType(state, region) {
-  const anomalyBias = Math.max(0.08, Math.min(0.62, Number(region?.weatherProfile?.anomalyChance) || 0.32));
+  const profile = region?.weatherProfile ?? {};
+  const restrictedTypes = Array.isArray(profile.allowedTypes)
+    ? profile.allowedTypes.filter((type) => NORMAL_TYPES.includes(type) || ANOMALOUS_TYPES.includes(type))
+    : null;
+  // Existing reference-world weather deliberately keeps the exact legacy RNG path. The
+  // restricted branch is used only by generalized scientific surface profiles.
+  if (restrictedTypes) {
+    const allowAnomalous = profile.allowAnomalous === true;
+    const pool = restrictedTypes.filter((type) => allowAnomalous || !ANOMALOUS_TYPES.includes(type));
+    if (!pool.length) return 'clear';
+    let chosen = pool[Math.floor(nextRandom(state) * pool.length) % pool.length];
+    if (profile.preferred?.length && nextRandom(state) < 0.56) {
+      const preferred = profile.preferred.filter((type) => pool.includes(type));
+      if (preferred.length) chosen = preferred[Math.floor(nextRandom(state) * preferred.length) % preferred.length];
+    }
+    return chosen;
+  }
+  const anomalyBias = Math.max(0.08, Math.min(0.62, Number(profile.anomalyChance) || 0.32));
   const anomalous = nextRandom(state) < anomalyBias;
   const pool = anomalous ? ANOMALOUS_TYPES : NORMAL_TYPES;
   let chosen = pool[Math.floor(nextRandom(state) * pool.length) % pool.length];
   // Region identity nudges normal weather without making every site deterministic in the same way.
-  if (!anomalous && region?.weatherProfile?.preferred?.length && nextRandom(state) < 0.56) {
-    const preferred = region.weatherProfile.preferred;
+  if (!anomalous && profile.preferred?.length && nextRandom(state) < 0.56) {
+    const preferred = profile.preferred;
     chosen = preferred[Math.floor(nextRandom(state) * preferred.length) % preferred.length];
   }
   return chosen;

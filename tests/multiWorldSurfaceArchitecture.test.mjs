@@ -9,7 +9,7 @@ import { bodyFixedDirectionToInertial } from '../src/core/planetaryRotation.js';
 import { availableSurfaceRegions, generateSurfaceRegion, surfaceHeightAt } from '../src/surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, surfaceTakeoffReferencePosition } from '../src/surface/surfaceSession.js';
 import { createSurfaceWeatherState, stepSurfaceWeather, surfaceWeatherReading } from '../src/surface/surfaceWeather.js';
-import { selectProofAirlessMoon, surfaceEngineSupport, SURFACE_ENGINE_PROFILES } from '../src/surface/surfaceProfiles.js';
+import { selectProofAirlessMoon, selectExplorationRockyWorld, selectExplorationIceWorld, surfaceEngineSupport, SURFACE_ENGINE_PROFILES } from '../src/surface/surfaceProfiles.js';
 
 function origin() {
   const system = generateSystem('ORIGIN-001');
@@ -20,15 +20,19 @@ function origin() {
   return { system, home, proof };
 }
 
-test('ORIGIN enables exactly the legacy home world plus one deterministic airless proof moon', () => {
+test('ORIGIN keeps the legacy home and deterministic airless reference while exploration expansion remains bounded', () => {
   const { system, home, proof } = origin();
+  const rocky = selectExplorationRockyWorld(system.bodies);
+  const ice = selectExplorationIceWorld(system.bodies);
   assert.equal(proof.id, 'moon-5-1');
   assert.equal(proof.name, 'Caelum-4361 f-A');
+  assert.equal(rocky?.id, 'planet-4');
+  assert.equal(ice?.id, 'moon-7-1');
   const enabled = system.bodies.filter((body) => surfaceEngineSupport(body, system.bodies).enabled);
-  assert.deepEqual(enabled.map((body) => body.id).sort(), [home.id, proof.id].sort());
+  assert.deepEqual(enabled.map((body) => body.id).sort(), [home.id, proof.id, rocky.id, ice.id].sort());
   assert.equal(surfaceEngineSupport(proof, system.bodies).profileId, SURFACE_ENGINE_PROFILES.AIRLESS_ROCKY);
   assert.deepEqual(availableSurfaceRegions(system, proof, system.bodies), [
-    { id: 'airless-regolith', name: 'Regolith Survey Site', subtitle: 'Airless rocky moon proof surface' },
+    { id: 'airless-regolith', name: 'Regolith Survey Site', subtitle: 'Airless rocky reference surface' },
   ]);
 });
 
@@ -95,7 +99,7 @@ test('surface session saves profile/model identity for multi-world restore witho
 test('NAV advertises the one proof moon as enabled without making every solid moon landable', () => {
   const { system, proof } = origin();
   const proofSnapshot = navigationBodySnapshot(proof, system.bodies, null);
-  assert.match(proofSnapshot.surfaceCapability, /AIRLESS PROOF SURFACE · CURRENT BUILD/);
+  assert.match(proofSnapshot.surfaceCapability, /AIRLESS REFERENCE SURFACE · CURRENT BUILD/);
   const otherMoon = system.bodies.find((body) => body.kind === 'moon' && body.id !== proof.id);
   assert.ok(otherMoon);
   const otherSnapshot = navigationBodySnapshot(otherMoon, system.bodies, null);
@@ -151,6 +155,6 @@ test('moon takeoff reference follows the current rotated body-fixed landing anch
 
 test('app moon return orbit derives its planning position from the live surface anchor', () => {
   const source = fs.readFileSync(new URL('../src/app/app.js', import.meta.url), 'utf8');
-  assert.match(source, /surfaceTakeoffReferencePosition\(this\.surfaceSession, body, this\.clock\.elapsedSimSeconds\)/);
+  assert.match(source, /surfaceTakeoffReferencePosition\(departingSession, body, this\.clock\.elapsedSimSeconds\)/);
   assert.match(source, /frameOrbitInsertionPlan\(planningShip, body, this\.bodies\)/);
 });

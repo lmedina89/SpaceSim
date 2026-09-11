@@ -1,7 +1,11 @@
-# v0.1.5.1.2 Prebuild Audit — Portrait HUD Transparency
+# v0.1.5.2 Prebuild Audit — Multi-World Landing & Exploration
 
-Source-of-truth baseline: **v0.1.5.1.1 `PORTRAIT-1511`**.
+Source-of-truth baseline: **v0.1.5.1.2 `PORTHUD-1512`**.
 
-Observed physical-iPhone issue: the portrait central FLIGHT MFD reads as a heavy opaque black card and obscures too much of the outside universe. The portrait shortcut strip is also visually heavier than needed.
+Authorized scope: expand the existing deterministic surface-profile architecture into a bounded exploration set, add one contrasting rocky profile and one ice/volatile profile when scientifically suitable candidates exist, preserve the accepted home and airless-reference paths, harden cross-world save/session isolation, and ensure generalized takeoff uses the existing safe circular-orbit handoff from the current body-fixed landing direction.
 
-Authorized scope is presentation only: lower only the portrait FLIGHT glass/background alpha, hide its opaque physical bezel in portrait, soften the portrait shortcut strip, bump cache/version identity, and add focused regressions. Landscape presentation and all simulation/surface/save systems are protected.
+Explicitly protected: direct Newtonian gravity, velocity-Verlet, ship gravity/propulsion, FRAME routing/insertion equations, collision/impact hardening, celestial appearance/eclipses, Observation Planner, planetary environment derivation, save schema, WebKit backend policy, and accepted portrait/landscape cockpit behavior.
+
+Explicitly out of scope: enabling every solid body, rogue surfaces before spin modeling is complete, gas-giant ground, full atmospheric/climate/geochemistry simulation, close-orbit celestial-renderer overhaul, and speculative FRAME target-clearance diagnostics or route changes without reproducible evidence.
+
+ORIGIN-001 candidate audit selected **Caelum-4361 e** as the contrasting rocky reference and **Caelum-4361 h-A** as the cryogenic ice/volatile reference. The accepted home **d** and airless reference **f-A** remain part of the bounded set.

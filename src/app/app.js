@@ -29,14 +29,14 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=1512';
-import { Hud } from '../ui/hud.js?v=1512';
-import { SystemMapController } from '../ui/systemMap.js?v=1512';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=152';
+import { Hud } from '../ui/hud.js?v=152';
+import { SystemMapController } from '../ui/systemMap.js?v=152';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
 import { stepSurfaceWeather, surfaceWeatherReading } from '../surface/surfaceWeather.js';
-import { surfaceEngineSupport } from '../surface/surfaceProfiles.js';
+import { surfaceEngineSupport, SURFACE_ENGINE_PROFILES } from '../surface/surfaceProfiles.js';
 
 function safeNumber(value, fallback) {
   const n = Number(value);
@@ -336,7 +336,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.1.2 online. Portrait HUD glass hotfix is active: portrait keeps the compact single-MFD flight deck but removes the opaque FLIGHT bezel and lowers only the glass/background alpha so telemetry stays crisp while space remains visible. Landscape restores the accepted four-MFD deck. Multi-world surfaces, N-body gravity, environment science, appearance/eclipses, observation planning, FRAME, impacts, saves, and the WebKit renderer remain protected. Active backend: ${backend}. Build PORTHUD-1512.`);
+    this.hud.notify(`v0.1.5.2 online. Multi-world landing and exploration is active: the accepted home world and airless reference moon remain available, while the bounded environment-driven set now adds a contrasting rocky world and an ice/volatile world when suitable candidates exist. ORIGIN-001 enables Caelum-4361 d, f-A, e, and h-A. Surface saves are body/profile isolated, generalized takeoff returns through the existing Hill-screened circular-orbit planner, and protected N-body/FRAME/astronomy/impact/WebKit systems remain unchanged. Active backend: ${backend}. Build SURFEXP-152.`);
   }
 
   newSystem(seed) {
@@ -469,17 +469,18 @@ export class UniverseLabApp {
     }
   }
 
-  placeShipInSurfaceReturnOrbit(body) {
+  placeShipInSurfaceReturnOrbit(body, departingSession = this.surfaceSession, departingRegion = this.surfaceRegion) {
     if (!body) return;
     let distance = body.radius * 5;
-    if (body.kind === BODY_KIND.MOON) {
-      // The legacy 5-radius return orbit can sit outside a small moon's conservative Hill
-      // window. Reuse the already-tested circular-orbit insertion planner for proof moons so
-      // takeoff hands back to a physically local prograde orbit without changing home-world behavior.
-      const takeoffReference = surfaceTakeoffReferencePosition(this.surfaceSession, body, this.clock.elapsedSimSeconds);
+    const generalizedProfile = departingRegion?.surfaceEngineProfile && departingRegion.surfaceEngineProfile !== SURFACE_ENGINE_PROFILES.LEGACY_HOME;
+    if (body.kind === BODY_KIND.MOON || generalizedProfile) {
+      // Generalized surfaces return through the same Hill-screened circular-orbit planner used by
+      // FRAME insertion. The reference position is reconstructed from the current rotated
+      // body-fixed landing anchor before the surface session is detached.
+      const takeoffReference = surfaceTakeoffReferencePosition(departingSession, body, this.clock.elapsedSimSeconds);
       const planningShip = takeoffReference ? { position: takeoffReference } : this.ship;
       const plan = frameOrbitInsertionPlan(planningShip, body, this.bodies);
-      if (!plan.ok) throw new Error(`No safe moon return orbit: ${plan.reason ?? 'unknown'}`);
+      if (!plan.ok) throw new Error(`No safe local return orbit: ${plan.reason ?? 'unknown'}`);
       applyFrameOrbitInsertion(this.ship, body, plan);
       distance = plan.radiusMeters;
     } else {
@@ -763,6 +764,8 @@ export class UniverseLabApp {
     // has been detached. ORBIT is the commit state, not the start of cleanup.
     this.setSurfaceControlsEnabled(false);
     this.releaseAllHeldControls();
+    const departingSession = this.surfaceSession;
+    const departingRegion = this.surfaceRegion;
     try { this.renderer.exitSurface(); } catch (error) { console.error('Surface renderer exit cleanup failed', error); }
     this.surfaceSession = null;
     this.surfaceRegion = null;
@@ -772,7 +775,7 @@ export class UniverseLabApp {
     const move = this.root.querySelector('#surfaceMovePad'); if (move) move.hidden = true;
     if (returnToOrbit && body) {
       this.cancelNavigation();
-      this.placeShipInSurfaceReturnOrbit(body);
+      this.placeShipInSurfaceReturnOrbit(body, departingSession, departingRegion);
       this.selectTarget(body.id);
       this.returnToShipView(false);
       // A successful ascent always hands control back at 1×. The pre-surface orbital scale is
@@ -797,7 +800,7 @@ export class UniverseLabApp {
     setLandingPhase(this.surfaceTransition, SURFACE_PHASE.ORBIT);
     this.syncViewClasses();
     this.updateLandingUi();
-    if (notify && returnToOrbit) this.hud.notify(`ORBIT RESTORED: spacecraft returned to a safe 5-radius orbit around ${body?.name ?? 'the landing world'}. Normal Newtonian flight is active again.`, 7000);
+    if (notify && returnToOrbit) this.hud.notify(`ORBIT RESTORED: spacecraft returned to a safe local orbit around ${body?.name ?? 'the landing world'}. Normal Newtonian flight is active again.`, 7000);
     return true;
   }
 
@@ -992,10 +995,14 @@ export class UniverseLabApp {
     set('#surfaceBiome', region.palette.name.toUpperCase());
     set('#surfaceGravity', `${region.gravityMps2.toFixed(2)} m/s²`);
     const weatherNow = surfaceWeatherReading(this.surfaceSession.weather);
-    set('#surfaceTemperature', `${(region.temperatureK - 273.15 + weatherNow.temperatureOffsetC).toFixed(0)} °C${region.atmosphereMode === 'airless' ? ' EQ' : ''}`);
+    const temperatureIsEquilibrium = region.atmosphereMode === 'airless' || region.temperatureModel === 'radiative-equilibrium';
+    set('#surfaceTemperature', `${(region.temperatureK - 273.15 + weatherNow.temperatureOffsetC).toFixed(0)} °C${temperatureIsEquilibrium ? ' EQ' : ''}`);
+    const surfacePressurePa = Number(region.atmospherePressurePa);
     set('#surfaceAtmosphere', region.atmosphereMode === 'airless'
       ? `${Math.max(0, Number(region.atmospherePressurePa) || 0).toExponential(2)} Pa PROXY`
-      : `${region.atmosphereAtmProxy.toFixed(2)} atm PROXY`);
+      : Number.isFinite(surfacePressurePa)
+        ? `${surfacePressurePa >= 1000 ? `${(surfacePressurePa / 1000).toFixed(2)} kPa` : `${surfacePressurePa.toFixed(0)} Pa`} PROXY`
+        : `${region.atmosphereAtmProxy.toFixed(2)} atm PROXY`);
     set('#surfaceCoords', `${this.surfaceSession.x.toFixed(0)}, ${this.surfaceSession.z.toFixed(0)} m`);
     const weather = weatherNow;
     set('#surfaceWeather', `${weather.label.toUpperCase()}${weather.realityClass === 'impossible' ? ' ⚠' : ''}`);
