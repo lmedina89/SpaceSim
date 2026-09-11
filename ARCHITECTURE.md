@@ -1,3 +1,11 @@
+# v0.1.5.3.1 architecture delta — input release hardening only
+
+This hotfix changes only UI input-lifecycle handling and build identity. The existing `bindHold()` path retains pointer capture, pointerup/pointercancel/lostpointercapture, document pointer release, blur, visibility and forced release hooks. It now also installs per-control `touchend` / `touchcancel` fallbacks that release only after that control has no remaining `targetTouches`. A document-level all-touches-up fallback and `pagehide` neutralization provide final iPhone/WebKit safety nets.
+
+The surface movement scalar model, locomotion physics, surface session, weather, atmosphere optics, celestial rendering, N-body integration, FRAME, save schema and WebGL2 backend policy are unchanged.
+
+---
+
 # v0.1.5.3 architecture delta — atmospheric optics presentation layer
 
 v0.1.5.3 adds optics beside the existing simulation/environment architecture; it does not move atmospheric rendering into simulation authority.

@@ -1,3 +1,9 @@
+# v0.1.5.3.1 scientific boundary notes — no science-model changes
+
+This hotfix changes input lifecycle handling and build identity only. v0.1.5.3 atmospheric optics, v0.1.5.2 multi-world surfaces, canonical environment derivation, astronomy, N-body gravity, FRAME, collision/impact physics and save authority are unchanged.
+
+---
+
 # v0.1.5.3 scientific boundary notes — atmosphere & sky optics
 
 ## What is physically derived

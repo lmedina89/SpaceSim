@@ -1,3 +1,15 @@
+# v0.1.5.3.1 QA — Surface Input Release & Version Identity Hotfix
+
+- Baseline: exact frozen v0.1.5.3 `ATMOSKY-153` archive. Baseline QA: **276/276 PASS**.
+- Final-version worktree QA: static structure **54 required files**, all JS/MJS syntax PASS, **279/279 tests PASS**.
+- New regressions: per-control target-touch-aware `touchend` / `touchcancel` release fallback; all-touches-up + `pagehide` force-neutralization; sign-safe shared-axis surface direction releases. Static check now verifies the exact visible top-left `v0.1.5.3.1` badge.
+- Source protection audit: v0.1.5.3 baseline contained 62 source JS modules; **59/62 are byte-for-byte unchanged**. Only `src/app/app.js`, `src/main.js`, and `src/render/threeRenderer.js` differ. `main.js` and `threeRenderer.js` are cache-tag-only; functional runtime changes are isolated to hold-input lifecycle handling in `app.js`.
+- No changes to atmospheric optics, celestial appearance, N-body gravity/integrator, FRAME, collision/impact physics, planetary environment, surface generation/profiles/session/weather, landing/takeoff, save schema, cockpit presentation, or WebKit backend policy.
+- RC archive: 141 files, 415,260 bytes, SHA-256 `3f9b2dd9459481dcee903cacbcfd1037e3608c2281ef30c2383f0de0b0b56fcd`; ZIP integrity PASS; clean-unzip QA **279/279 PASS**; HTTP/module smoke **15/15 PASS**; no `.github/workflows/*`; extracted RC byte-for-byte matches frozen worktree.
+- Physical iPhone Safari remains the release gate for the original symptom: hold/release FORWARD repeatedly, test two-finger LOOK+WALK, drag/release outside the button, and verify no movement/highlight stays latched.
+
+---
+
 # Universe Lab v0.1.5.3 — Physical Atmosphere & Sky Optics QA Report
 
 - Version: **v0.1.5.3**

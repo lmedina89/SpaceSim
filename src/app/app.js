@@ -29,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=153';
-import { Hud } from '../ui/hud.js?v=153';
-import { SystemMapController } from '../ui/systemMap.js?v=153';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1531';
+import { Hud } from '../ui/hud.js?v=1531';
+import { SystemMapController } from '../ui/systemMap.js?v=1531';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -336,7 +336,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.3 online. Physical atmosphere and sky optics are active: surface sky color, direct stellar extinction, twilight/horizon reddening, weather aerosol extinction, clear-air visibility, and orbital atmosphere limbs now derive from the canonical environment pressure/temperature/gravity plus live stellar geometry. Airless worlds remain black-sky and limb-free. This is a bounded Rayleigh + generic aerosol/Mie presentation model, not solved atmospheric chemistry, multiple scattering, refraction, clouds, or climate. Active backend: ${backend}. Build ATMOSKY-153.`);
+    this.hud.notify(`v0.1.5.3.1 online. Surface hold-release hardening and the corrected build identity are active; physical atmosphere and sky optics remain unchanged: surface sky color, direct stellar extinction, twilight/horizon reddening, weather aerosol extinction, clear-air visibility, and orbital atmosphere limbs now derive from the canonical environment pressure/temperature/gravity plus live stellar geometry. Airless worlds remain black-sky and limb-free. This is a bounded Rayleigh + generic aerosol/Mie presentation model, not solved atmospheric chemistry, multiple scattering, refraction, clouds, or climate. Active backend: ${backend}. Build INPUTREL-1531.`);
   }
 
   newSystem(seed) {
@@ -3248,6 +3248,17 @@ export class UniverseLabApp {
       element.addEventListener('pointerup', (event) => { event.preventDefault(); release(event); });
       element.addEventListener('pointercancel', (event) => release(event));
       element.addEventListener('lostpointercapture', (event) => release(event));
+      // iPhone/WebKit can occasionally finish or cancel the underlying touch during browser/chrome
+      // gesture arbitration without delivering the Pointer Event release that owns this hold.
+      // targetTouches is scoped to this button, so releasing LOOK with another finger does not
+      // accidentally cancel a still-held WALK/THRUST control.
+      const releaseTouchFallback = (event) => {
+        if (activePointer === null) return;
+        if (event?.targetTouches?.length > 0) return;
+        release(null, true);
+      };
+      element.addEventListener('touchend', releaseTouchFallback, { passive: true });
+      element.addEventListener('touchcancel', releaseTouchFallback, { passive: true });
       // Capture-phase document releases protect against WebKit occasionally transferring the
       // pointer away from a button during browser/chrome gesture arbitration.
       document.addEventListener('pointerup', (event) => release(event), true);
@@ -3270,6 +3281,15 @@ export class UniverseLabApp {
     bindHold($('#surfaceLeft'), () => { this.surfaceInput.strafe = -1; }, () => { if (this.surfaceInput.strafe < 0) this.surfaceInput.strafe = 0; });
     bindHold($('#surfaceRight'), () => { this.surfaceInput.strafe = 1; }, () => { if (this.surfaceInput.strafe > 0) this.surfaceInput.strafe = 0; });
     bindHold($('#surfaceSprintButton'), () => { this.surfaceInput.sprint = true; }, () => { this.surfaceInput.sprint = false; });
+    // Last-resort iOS/WebKit safety net: once every touch on the page is gone, no hold control may
+    // remain latched. Per-control targetTouches fallbacks above preserve normal multi-touch while
+    // fingers are still down.
+    const releaseHoldsWhenAllTouchesEnd = (event) => {
+      if ((event?.touches?.length ?? 0) === 0) this.releaseAllHeldControls();
+    };
+    document.addEventListener('touchend', releaseHoldsWhenAllTouchesEnd, true);
+    document.addEventListener('touchcancel', releaseHoldsWhenAllTouchesEnd, true);
+    window.addEventListener('pagehide', () => this.releaseAllHeldControls());
     $('#rcsToggle').addEventListener('click', () => { this.hud.toggleMore(false); $('#rcsPanel').hidden = !$('#rcsPanel').hidden; });
 
     const viewport = $('#viewport');

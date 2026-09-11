@@ -11,7 +11,7 @@ import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPercep
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
 import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
-import { CockpitView } from './cockpitView.js?v=153';
+import { CockpitView } from './cockpitView.js?v=1531';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {

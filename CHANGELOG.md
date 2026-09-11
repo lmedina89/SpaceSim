@@ -1,3 +1,14 @@
+## v0.1.5.3.1 — Surface Input Release & Version Identity Hotfix
+
+- Fixed the stale top-left shell badge so the running build visibly reports `v0.1.5.3.1` instead of the old `v0.1.5.2` label.
+- Hardened all hold controls, including surface WALK, with an independent iPhone/WebKit `touchend` / `touchcancel` fallback in addition to the existing Pointer Event release paths.
+- Added a target-touch-aware guard so multi-touch remains valid: lifting LOOK does not cancel a still-held WALK/THRUST touch.
+- Added a document all-touches-up failsafe and `pagehide` neutralization so no hold can remain latched after browser/chrome gesture arbitration or page lifecycle changes.
+- No atmosphere/sky optics, N-body, FRAME, terrain, landing/takeoff, save-schema, environment, astronomy, or rendering-model changes.
+- Cache tags updated to `?v=1531`; build marker `INPUTREL-1531`.
+
+---
+
 ## v0.1.5.3 — Physical Atmosphere & Sky Optics
 
 - Added pure `src/physics/atmosphericOptics.js` with pressure-scaled dry-air-like Rayleigh reference optical depth, generic aerosol/Mie proxy, optical air mass, hydrostatic scale height, surface sky/direct-star solution and orbital limb solution.

@@ -1,3 +1,15 @@
+# Universe Lab v0.1.5.3.1 — Surface Input Release & Version Identity Hotfix
+
+**Build marker:** `INPUTREL-1531`  
+**Save schema:** 1 (unchanged)  
+**Three.js:** 0.185.0 (unchanged)
+
+This hotfix sits directly on v0.1.5.3. It fixes the stale shell version badge and hardens iPhone/WebKit hold-release handling after a physical test showed the surface forward button could remain visually/behaviorally latched after a touch ended. The existing pointer-release paths remain; the added Touch Event fallback is target-touch-aware so normal two-finger LOOK + WALK input is preserved.
+
+No scientific model, atmosphere optics, surface generation, navigation, FRAME, save authority, or landing/takeoff behavior is intentionally changed.
+
+---
+
 # Universe Lab v0.1.5.3 — Physical Atmosphere & Sky Optics
 
 **Build marker:** `ATMOSKY-153`  

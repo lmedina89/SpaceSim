@@ -1,6 +1,6 @@
 {
-  "version": "0.1.5.3",
-  "name": "Physical Atmosphere & Sky Optics",
+  "version": "0.1.5.3.1",
+  "name": "Surface Input Release & Version Identity Hotfix",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -40,13 +40,13 @@
   "mobileViewport": "visualViewport-height-synchronized",
   "motionCue": "visual-only logarithmic inertial velocity reference",
   "deploymentMode": "github-pages-branch-root",
-  "mobileInput": "pointer-capture + document-release fallback + selection/callout suppression",
+  "mobileInput": "pointer-capture + document pointer-release fallback + per-control touchend/touchcancel fallback + all-touches-up/pagehide failsafe + selection/callout suppression",
   "flightComputer": "propulsion-safe target-relative approach with braking-safe velocity envelope + persistent station-keeping hold + STOP RELATIVE + TURN & BURN + physical inertial brake + prograde/retrograde attitude aids",
   "fragmentPolicy": "max 2 representative mutually gravitating impact fragments per event, 16 total resolved fragments, family cascade suppression; representative ejecta is generated in the collision center-of-mass frame with target recoil so represented linear momentum is conserved and fragment/recoil kinetic energy is capped to a configured fraction of available COM impact energy",
   "navigationNumerics": "adaptive ship strong-gravity substeps + adaptive massive-body pair encounter/crossing timestep ceiling + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "ATMOSKY-153",
+  "buildMarker": "INPUTREL-1531",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric circular-CR3BP L1/L2/L3 numerical equilibrium roots at live separation + equilateral L4/L5 geometry + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples; overlays remain diagnostic approximations and do not alter gravity",
   "transitDrive": "explicitly fictional spacecraft-only FRAME translation with swept massive-body clearance; ordinary celestial integration remains authoritative; manual exit matches target inertial velocity and supported normal body arrivals use an exit-only circular-orbit insertion calculation",
@@ -90,7 +90,7 @@
   "cockpitLighting": "mobile-safe emissive-only panel accents plus live POWER/TARGET/NAV/PROPULSION/CAUTION indicators; no additional dynamic cockpit lights or physics state",
   "cockpitDiagnostics": "live renderer, FPS, physics/render time, ship speed, simulation time, seed, major/test counts, draw calls, prediction time and experiment telemetry are mirrored into the right-side translucent ship-mounted MFD and a dedicated read-only Engineering/Diagnostics drawer; the values remain sourced from existing app/renderer state and own no simulation authority",
   "frameDrive": "tap-toggle speculative spacecraft-only translation toward a locked body/COSMOS target; real-time frame-rate tiers step down near arrival; world N-body/particle simulation authority is untouched; local ship acceleration is suspended while active; manual disengage matches the target inertial velocity, while normal planet/moon/rogue-planet completion may hand off into a calculated circular osculating orbit before ordinary ShipDynamics/gravity resume",
-  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build tag 153; main/app/renderer/cockpit module hops are also version-tagged so Safari/GitHub Pages do not mix the v0.1.5.3 shell with stale JavaScript.",
+  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build tag 1531; main/app/renderer/cockpit module hops are also version-tagged so Safari/GitHub Pages do not mix the v0.1.5.3.1 shell with stale JavaScript.",
   "planetaryRotation": "fresh generated planets use orbital-relative v2 spin poles derived from parent-relative orbital angular momentum, with PRO/RETRO classification matching the physical spin pole; generated moons use parent+moon synchronous periods and face the parent at the rotation epoch. Existing schema-1 saves preserve serialized v1 rotation frames so body-fixed landing anchors do not move.",
   "surfaceAstronomyDiagnostics": "read-only surface DETAILS diagnostics derive from the same canonical astronomical observer and rotation model used by rendering: procedural body-fixed latitude/longitude, rotation phase, primary-star altitude/azimuth, and geometric local solar time from primary-star hour angle; no independent sky model or physics authority",
   "planetaryNavigation": "generated stars, planets and moons are first-class selectable NAV targets; planets/moons/rogues additionally expose canonical environment class, escape speed, stellar flux, radiative-equilibrium temperature, Bond albedo, atmosphere pressure/retention proxy, volatile/ice potential, surface family and tidal rotation state alongside existing live navigation diagnostics",
@@ -131,5 +131,6 @@
   "atmosphericOpticsModel": "atmospheric-optics-v1 is a pure read-only presentation solver: dry-air-like pressure-scaled Rayleigh optical depth at representative RGB wavelengths + a generic weakly wavelength-dependent aerosol/Mie optical-depth proxy; it consumes canonical pressure/equilibrium temperature/surface gravity/representative molecular mass and live stellar altitude/eclipse visibility without mutating simulation state.",
   "surfaceAtmosphericOptics": "surface sky top/horizon color, direct stellar spectral transmission, twilight/horizon reddening, stellar/galactic washout, diffuse sky-light proxy and clear-air FogExp2 extinction are recomputed from the current optics solution; weather may only add bounded aerosol optical depth/transmission. Airless profiles pass zero pressure and remain black-sky with no fog.",
   "orbitalAtmosphereLimb": "solid planets/moons with optically meaningful pressure may render a thin BackSide atmosphere shell whose thickness derives from hydrostatic scale height and whose opacity/color derive from a Rayleigh tangent-column proxy; trace/vacuum bodies do not receive a fake limb. The shell is presentation-only and does not alter physical body radius, collisions, landing or apparent-disk science.",
-  "atmosphericOpticsBoundary": "This release does not solve atmospheric composition-specific refractivity, line absorption, multiple scattering, refraction, polarization, cloud microphysics, radiative-convective climate, greenhouse feedback, terrain shadows or full spherical radiative transfer. Radiative-equilibrium temperature and atmosphere pressure remain the canonical v1.5.0 model/proxies."
+  "atmosphericOpticsBoundary": "This release does not solve atmospheric composition-specific refractivity, line absorption, multiple scattering, refraction, polarization, cloud microphysics, radiative-convective climate, greenhouse feedback, terrain shadows or full spherical radiative transfer. Radiative-equilibrium temperature and atmosphere pressure remain the canonical v1.5.0 model/proxies.",
+  "surfaceHoldRelease": "iPhone/WebKit hold controls release through pointerup/pointercancel/lostpointercapture plus per-control targetTouches-aware touchend/touchcancel fallback; when all touches end or pagehide occurs, every held control is force-neutralized."
 }

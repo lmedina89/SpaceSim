@@ -1,3 +1,16 @@
+# Universe Lab v0.1.5.3.1 — Surface Input Release iPhone Gate
+
+Before physically accepting `INPUTREL-1531` on iPhone Safari/WebKit:
+
+1. Hard reload and confirm the **top-left badge**, startup notice and Engineering build identity all report **v0.1.5.3.1 / INPUTREL-1531**.
+2. Land on a supported world and hold FORWARD for several seconds, then release normally. The button must immediately lose its held highlight and Local X/Z must stop changing.
+3. Repeat while simultaneously using LOOK with a second finger. Releasing LOOK alone must not cancel a still-held FORWARD press; releasing FORWARD must stop movement.
+4. Drag a held WALK finger toward/outside the button before release and repeat several times. No direction may remain latched.
+5. While holding a surface direction, background/foreground the browser or trigger a page/chrome interruption if convenient; returning must show neutral movement.
+6. Regress v0.1.5.3 atmosphere/sky behavior on d/e/f-A/h-A and portrait↔landscape.
+
+---
+
 # Universe Lab v0.1.5.3 — Atmosphere/Sky Optics iPhone Gate
 
 Before physically accepting `ATMOSKY-153` on iPhone Safari/WebKit:

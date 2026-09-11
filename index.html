@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.5.3</title>
-  <link rel="stylesheet" href="./styles.css?v=153">
+  <title>Universe Lab v0.1.5.3.1</title>
+  <link rel="stylesheet" href="./styles.css?v=1531">
   <script type="importmap">
   {
     "imports": {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.5.2</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.5.3.1</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -154,7 +154,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. FRAME DRIVE remains a separate fictional spacecraft-only translation layer and never rewrites celestial gravity. Multi-world exploration keeps the bounded deterministic surface set from the canonical planetary-environment model. Physical atmosphere/sky presentation now uses a pressure-scaled Rayleigh reference spectrum plus a generic aerosol/Mie optical-depth proxy for sky color, twilight, stellar extinction, clear-air visibility and orbital atmosphere limbs; airless worlds remain black-sky. Composition-specific radiative transfer, refraction, cloud microphysics and climate are not solved. ORIGIN-001 surfaces remain Caelum-4361 d, f-A, e, and h-A. Build marker: <b>ATMOSKY-153</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. FRAME DRIVE remains a separate fictional spacecraft-only translation layer and never rewrites celestial gravity. Multi-world exploration keeps the bounded deterministic surface set from the canonical planetary-environment model. Physical atmosphere/sky presentation now uses a pressure-scaled Rayleigh reference spectrum plus a generic aerosol/Mie optical-depth proxy for sky color, twilight, stellar extinction, clear-air visibility and orbital atmosphere limbs; airless worlds remain black-sky. Composition-specific radiative transfer, refraction, cloud microphysics and climate are not solved. ORIGIN-001 surfaces remain Caelum-4361 d, f-A, e, and h-A. Build marker: <b>INPUTREL-1531</b>.</p>
     </aside>
 
     <aside id="engineeringPanel" class="drawer engineering-panel" hidden>
@@ -180,7 +180,7 @@
           <b>MODEL BOUNDARY</b>
           <span>These values mirror existing runtime telemetry only. This panel does not change gravity, integration, FRAME behavior, navigation, save state, or renderer-backend policy.</span>
         </div>
-        <p class="engineering-build">BUILD <b>ATMOSKY-153</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
+        <p class="engineering-build">BUILD <b>INPUTREL-1531</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
       </div>
     </aside>
 
@@ -449,6 +449,6 @@
       </div>
     </aside>
   </main>
-  <script type="module" src="./src/main.js?v=153"></script>
+  <script type="module" src="./src/main.js?v=1531"></script>
 </body>
 </html>
