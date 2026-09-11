@@ -1,4 +1,23 @@
-# Universe Lab v0.1.5.0 — Planetary Environment Model Foundation
+# Universe Lab v0.1.5.1 — Multi-World Surface Architecture
+
+**Build marker:** `SURFARCH-151`  
+**Save schema:** 1 (unchanged)  
+**Three.js:** 0.185.0 (unchanged)
+
+## v0.1.5.1 multi-world surface architecture
+
+- Adds a data-driven surface-profile layer that consumes the canonical v0.1.5.0 planetary-environment record instead of treating every surface as the home world. Architectural families are `ATMOSPHERIC_ROCKY`, `AIRLESS_ROCKY`, and `ICE_VOLATILE`; only the first two have an enabled proof path in this release.
+- The existing home world still uses its accepted anomalous atmospheric generator. Its core generated region and deterministic weather sequence match v0.1.5.0 exactly; new metadata only identifies the surface profile/model.
+- Exactly one qualifying airless rocky moon may be enabled as a proof surface per system. `ORIGIN-001` deterministically selects **Caelum-4361 f-A** (`moon-5-1`). Other solid worlds remain landing-disabled.
+- Airless profile: black vacuum sky even in daylight, no fog/clouds/wind/weather scheduler, no atmospheric anomalies, deterministic regolith/crater terrain and conventional geology scan sites. Canonical star/planet/moon directions, phases, eclipses, rotation and celestial time remain live.
+- Airless terrain color/roughness/cratering are procedural geology/albedo proxies. No mineralogy, regolith mechanics, thermal inertia, dust electrostatics or detailed surface thermodynamics are claimed.
+- Surface sessions may persist optional `surfaceProfileId` and `surfaceModelVersion`; old schema-1 home-world saves remain valid.
+- Moon takeoff uses the existing Hill-screened circular orbit insertion calculation rather than the legacy planet-only 5-radius return rule. The accepted home-world return path is unchanged.
+- No general rollout of additional landable planets/moons occurs in 1.5.1; that remains v0.1.5.2 scope.
+
+---
+
+# Previous milestone: v0.1.5.0 — Planetary Environment Model Foundation
 
 **Build marker:** `ENVSCI-150`  
 **Save schema:** 1 (unchanged)  

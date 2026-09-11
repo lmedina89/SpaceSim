@@ -1,4 +1,16 @@
-# Universe Lab Architecture — v0.1.5.0
+# Universe Lab Architecture — v0.1.5.1
+
+## Multi-world surface boundary
+
+`planetaryEnvironment.js` remains the canonical read-only world science layer. `surfaceProfiles.js` maps that environment into **surface-engine architecture families** without changing body physics. `surfaceGenerator.js` then produces a deterministic local region for an enabled profile.
+
+The home-world `anomalous-showcase-v1` path is preserved as the atmospheric regression baseline. A second proof path, `airless-rocky-v1`, is enabled for at most one qualifying airless rocky moon. In `ORIGIN-001` that body is `moon-5-1` / Caelum-4361 f-A. The proof selector is deterministic and consumes no RNG.
+
+Airless profiles disable fog, weather/cloud/wind presentation and anomaly sites while retaining the canonical rotating surface observer, star catalog, finite celestial disks/phases/eclipses, local save state and landing lifecycle. Surface session serialization adds optional profile/model identity while save schema remains 1.
+
+Moon takeoff is a special integration boundary: the legacy 5-radius planet return can exceed a small moon's Hill region, so moon takeoff reuses `frameOrbitInsertionPlan()` for a Hill-screened circular local orbit. Its planning radius vector is reconstructed from the active surface session's current rotated body-fixed anchor, so landed N-body motion cannot leave takeoff geometry tied to a stale inertial ship coordinate. Home-world takeoff is unchanged.
+
+---
 
 ## Planetary-environment authority boundary
 

@@ -29,13 +29,14 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=150';
-import { Hud } from '../ui/hud.js?v=150';
-import { SystemMapController } from '../ui/systemMap.js?v=150';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=151';
+import { Hud } from '../ui/hud.js?v=151';
+import { SystemMapController } from '../ui/systemMap.js?v=151';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
-import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
+import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
 import { stepSurfaceWeather, surfaceWeatherReading } from '../surface/surfaceWeather.js';
+import { surfaceEngineSupport } from '../surface/surfaceProfiles.js';
 
 function safeNumber(value, fallback) {
   const n = Number(value);
@@ -335,7 +336,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.0 online. NAV now exposes the canonical planetary-environment model: derived gravity/escape/stellar-flux/equilibrium-temperature science plus explicitly labeled seeded atmosphere/volatile proxies. Existing N-body gravity, appearance/eclipses, observation planning, FRAME, impacts, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build ENVSCI-150.`);
+    this.hud.notify(`v0.1.5.1 online. Multi-world surface architecture is active: the accepted atmospheric home world is preserved and one qualifying airless rocky moon can use the new vacuum/regolith proof profile. Other solid worlds remain landing-disabled. Existing N-body gravity, environment science, appearance/eclipses, observation planning, FRAME, impacts, and WebKit renderer remain protected. Active backend: ${backend}. Build SURFARCH-151.`);
   }
 
   newSystem(seed) {
@@ -412,10 +413,11 @@ export class UniverseLabApp {
 
 
   landingEligibility(body = this.target) {
-    if (!body) return { ok: false, reason: 'Select a planetary target first.' };
+    if (!body) return { ok: false, reason: 'Select a solid planetary or moon target first.' };
     if (!canEnterSurface(this.surfaceTransition) || this.surfaceSession?.active) return { ok: false, reason: `Surface transition is ${this.surfaceTransition?.phase ?? 'active'}.` };
-    if (body.kind !== BODY_KIND.PLANET || body.planetType === 'gas') return { ok: false, reason: 'This target has no solid landing foundation.' };
-    if (!body.landable || body.surfaceProfile !== 'anomalous-showcase-v1') return { ok: false, reason: 'Detailed surface generation is not enabled for this world yet.' };
+    const support = surfaceEngineSupport(body, this.bodies);
+    if (!support.environment?.physicalSurfaceExists) return { ok: false, reason: support.environment?.landingReason ?? 'This target has no solid landing foundation.' };
+    if (!support.enabled) return { ok: false, reason: support.reason ?? 'Detailed surface generation is not enabled for this world yet.' };
     if (this.transitState.active) return { ok: false, reason: 'Disengage FRAME DRIVE before descent.' };
     if (this.particleExperiments.activeParticles > 0) return { ok: false, reason: 'Clear or finish the active particle experiment before changing into a local surface scene.' };
     const dx = this.ship.position[0] - body.position[0], dy = this.ship.position[1] - body.position[1], dz = this.ship.position[2] - body.position[2];
@@ -424,19 +426,20 @@ export class UniverseLabApp {
     const relativeSpeed = Math.hypot(this.ship.velocity[0] - body.velocity[0], this.ship.velocity[1] - body.velocity[1], this.ship.velocity[2] - body.velocity[2]);
     if (altitude > body.radius * 6.5) return { ok: false, reason: `Move closer before descent. Current altitude is ${(altitude / 1e6).toFixed(1)} Mm; the first landing transition is available from near-orbital space.` };
     if (relativeSpeed > 80_000) return { ok: false, reason: `Relative speed ${(relativeSpeed / 1000).toFixed(1)} km/s is outside the scripted descent envelope. STOP RELATIVE first.` };
-    return { ok: true, body, altitudeMeters: altitude, relativeSpeedMps: relativeSpeed };
+    return { ok: true, body, support, altitudeMeters: altitude, relativeSpeedMps: relativeSpeed };
   }
 
   updateSurfaceRegionUi(body = this.target) {
     const select = this.root.querySelector('#surfaceRegionSelect');
     const label = this.root.querySelector('#surfaceRegionLabel');
     if (!select) return;
-    const bodyKey = body?.landable ? body.id : '';
+    const support = body ? surfaceEngineSupport(body, this.bodies) : null;
+    const bodyKey = support?.enabled ? `${body.id}:${support.profileId}` : '';
     if (select.dataset.bodyId === bodyKey && select.options.length) {
       if ([...select.options].some((option) => option.value === this.selectedSurfaceRegionId)) select.value = this.selectedSurfaceRegionId;
       return;
     }
-    const regions = body?.landable ? availableSurfaceRegions(this.system, body) : [];
+    const regions = support?.enabled ? availableSurfaceRegions(this.system, body, this.bodies) : [];
     const previous = this.selectedSurfaceRegionId;
     select.replaceChildren();
     select.dataset.bodyId = bodyKey;
@@ -460,21 +463,34 @@ export class UniverseLabApp {
       const button = this.root.querySelector(selector);
       if (!button) continue;
       button.disabled = !eligibility.ok;
-      button.textContent = eligibility.ok ? 'LAND / DESCEND' : (this.target?.landable ? 'LAND LOCKED' : 'LAND TARGET');
+      const targetSupport = this.target ? surfaceEngineSupport(this.target, this.bodies) : null;
+      button.textContent = eligibility.ok ? 'LAND / DESCEND' : (targetSupport?.environment?.physicalSurfaceExists ? 'LAND LOCKED' : 'LAND TARGET');
       button.title = eligibility.ok ? `Enter ${this.selectedSurfaceRegionId || 'the selected seeded region'}.` : eligibility.reason;
     }
   }
 
   placeShipInSurfaceReturnOrbit(body) {
     if (!body) return;
-    const distance = body.radius * 5;
-    this.ship.position[0] = body.position[0];
-    this.ship.position[1] = body.position[1] + distance;
-    this.ship.position[2] = body.position[2];
-    const orbital = Math.sqrt(PHYSICS.G * body.mass / distance);
-    this.ship.velocity[0] = body.velocity[0] + orbital;
-    this.ship.velocity[1] = body.velocity[1];
-    this.ship.velocity[2] = body.velocity[2];
+    let distance = body.radius * 5;
+    if (body.kind === BODY_KIND.MOON) {
+      // The legacy 5-radius return orbit can sit outside a small moon's conservative Hill
+      // window. Reuse the already-tested circular-orbit insertion planner for proof moons so
+      // takeoff hands back to a physically local prograde orbit without changing home-world behavior.
+      const takeoffReference = surfaceTakeoffReferencePosition(this.surfaceSession, body, this.clock.elapsedSimSeconds);
+      const planningShip = takeoffReference ? { position: takeoffReference } : this.ship;
+      const plan = frameOrbitInsertionPlan(planningShip, body, this.bodies);
+      if (!plan.ok) throw new Error(`No safe moon return orbit: ${plan.reason ?? 'unknown'}`);
+      applyFrameOrbitInsertion(this.ship, body, plan);
+      distance = plan.radiusMeters;
+    } else {
+      this.ship.position[0] = body.position[0];
+      this.ship.position[1] = body.position[1] + distance;
+      this.ship.position[2] = body.position[2];
+      const orbital = Math.sqrt(PHYSICS.G * body.mass / distance);
+      this.ship.velocity[0] = body.velocity[0] + orbital;
+      this.ship.velocity[1] = body.velocity[1];
+      this.ship.velocity[2] = body.velocity[2];
+    }
     this.ship.yaw = 0; this.ship.pitch = 0; this.ship.roll = 0;
     this.ship.throttle = 0; this.ship.reverseThrottle = 0; this.ship.strafe = 0; this.ship.lift = 0; this.ship.braking = false;
     this.ship.clearNavigationAcceleration();
@@ -612,9 +628,12 @@ export class UniverseLabApp {
     if (!options.fromLoad) {
       const eligibility = this.landingEligibility(body);
       if (!eligibility.ok) { this.hud.notify(`LANDING LOCKED: ${eligibility.reason}`); return false; }
-    } else if (!body.landable || body.surfaceProfile !== 'anomalous-showcase-v1') {
-      this.hud.notify('Saved surface session no longer matches a landable world in this build. Remaining in orbit.');
-      return false;
+    } else {
+      const support = surfaceEngineSupport(body, this.bodies);
+      if (!support.enabled) {
+        this.hud.notify('Saved surface session no longer matches a surface enabled in this build. Remaining in orbit.');
+        return false;
+      }
     }
 
     this._surfaceOrbitHandoffPending = null;
@@ -636,10 +655,11 @@ export class UniverseLabApp {
       this.running = previousRunning;
       const pauseButton = this.root.querySelector('#pauseToggle'); if (pauseButton) pauseButton.textContent = this.running ? 'PAUSE' : 'RESUME';
 
+      const support = surfaceEngineSupport(body, this.bodies);
       const savedRegionId = options.snapshot?.regionId;
       const savedRegionKey = typeof savedRegionId === 'string' && savedRegionId.startsWith(`${body.id}:`) ? savedRegionId.slice(body.id.length + 1) : null;
-      const regionKey = options.regionId ?? savedRegionKey ?? this.selectedSurfaceRegionId ?? body.surfaceRegionId ?? 'shatterfall-basin';
-      this.surfaceRegion = generateSurfaceRegion(this.system, body, regionKey);
+      const regionKey = options.regionId ?? savedRegionKey ?? this.selectedSurfaceRegionId ?? support.regionId ?? body.surfaceRegionId ?? 'shatterfall-basin';
+      this.surfaceRegion = generateSurfaceRegion(this.system, body, regionKey, this.bodies);
       this.selectedSurfaceRegionId = this.surfaceRegion.regionKey ?? regionKey;
       this.surfaceSession = createSurfaceSession(this.surfaceRegion, options.snapshot ?? null);
       const existingAnchor = this.surfaceSession.bodyFixedAnchor;
@@ -972,8 +992,10 @@ export class UniverseLabApp {
     set('#surfaceBiome', region.palette.name.toUpperCase());
     set('#surfaceGravity', `${region.gravityMps2.toFixed(2)} m/s²`);
     const weatherNow = surfaceWeatherReading(this.surfaceSession.weather);
-    set('#surfaceTemperature', `${(region.temperatureK - 273.15 + weatherNow.temperatureOffsetC).toFixed(0)} °C`);
-    set('#surfaceAtmosphere', `${region.atmosphereAtmProxy.toFixed(2)} atm PROXY`);
+    set('#surfaceTemperature', `${(region.temperatureK - 273.15 + weatherNow.temperatureOffsetC).toFixed(0)} °C${region.atmosphereMode === 'airless' ? ' EQ' : ''}`);
+    set('#surfaceAtmosphere', region.atmosphereMode === 'airless'
+      ? `${Math.max(0, Number(region.atmospherePressurePa) || 0).toExponential(2)} Pa PROXY`
+      : `${region.atmosphereAtmProxy.toFixed(2)} atm PROXY`);
     set('#surfaceCoords', `${this.surfaceSession.x.toFixed(0)}, ${this.surfaceSession.z.toFixed(0)} m`);
     const weather = weatherNow;
     set('#surfaceWeather', `${weather.label.toUpperCase()}${weather.realityClass === 'impossible' ? ' ⚠' : ''}`);
@@ -1052,9 +1074,13 @@ export class UniverseLabApp {
     set('#surfaceDiscoveries', `${this.surfaceSession.scannedPoiIds.size}/${surfacePois(region).length}`);
     const weatherStatus = this.root.querySelector('#surfaceWeatherStatus');
     if (weatherStatus) {
-      const boundary = weather.realityClass === 'impossible' ? 'IMPOSSIBLE / VISUAL-ONLY' : weather.realityClass === 'speculative' ? 'SPECULATIVE WEATHER' : 'MODELED ENVIRONMENT';
-      const timing = weather.type === 'clear' ? (Number.isFinite(weather.nextEventSeconds) ? `Next seeded change ~${weather.nextEventSeconds.toFixed(0)} s.` : 'Stable interval.') : `Event remaining ~${weather.secondsRemaining.toFixed(0)} s.`;
-      weatherStatus.textContent = `${boundary} · ${weather.label} · wind ${weather.windSpeedMps.toFixed(0)} m/s. ${timing} Weather changes visibility/presentation only; no aerodynamic force or damage is applied.`;
+      if (region.weatherEnabled === false) {
+        weatherStatus.textContent = `VACUUM ENVIRONMENT · No atmospheric weather or wind is simulated because the canonical pressure proxy is effectively airless. Surface lighting and celestial sky remain live.`;
+      } else {
+        const boundary = weather.realityClass === 'impossible' ? 'IMPOSSIBLE / VISUAL-ONLY' : weather.realityClass === 'speculative' ? 'SPECULATIVE WEATHER' : 'MODELED ENVIRONMENT';
+        const timing = weather.type === 'clear' ? (Number.isFinite(weather.nextEventSeconds) ? `Next seeded change ~${weather.nextEventSeconds.toFixed(0)} s.` : 'Stable interval.') : `Event remaining ~${weather.secondsRemaining.toFixed(0)} s.`;
+        weatherStatus.textContent = `${boundary} · ${weather.label} · wind ${weather.windSpeedMps.toFixed(0)} m/s. ${timing} Weather changes visibility/presentation only; no aerodynamic force or damage is applied.`;
+      }
     }
     if (nearest) {
       const scanned = this.surfaceSession.scannedPoiIds.has(nearest.poi.id);
@@ -1065,7 +1091,9 @@ export class UniverseLabApp {
     const status = this.root.querySelector('#surfaceScanStatus');
     if (status) status.textContent = selected
       ? `${SURFACE_REALITY_LABELS[selected.realityClass] ?? selected.realityClass}: ${selected.signal}. ${selected.summary} ${selected.archive}`
-      : `${region.name} mixes conventional terrain with ${region.anomalies?.length ?? 0} seeded anomaly sites. Surface weather and anomaly visuals are presentation/discovery layers only: no hidden gravity, teleportation, time manipulation or aerodynamic damage is applied.`;
+      : (region.atmosphereMode === 'airless'
+        ? `${region.name} is a deterministic airless geology proof surface. No wind, atmospheric weather, sky glow or hidden force is applied; regolith appearance remains a procedural geology proxy.`
+        : `${region.name} mixes conventional terrain with ${region.anomalies?.length ?? 0} seeded anomaly sites. Surface weather and anomaly visuals are presentation/discovery layers only: no hidden gravity, teleportation, time manipulation or aerodynamic damage is applied.`);
   }
 
   addBody(definition) {

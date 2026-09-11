@@ -1,5 +1,6 @@
 import { surfaceHeightAt, surfacePois } from './surfaceGenerator.js';
 import { createSurfaceWeatherState, serializeSurfaceWeather } from './surfaceWeather.js';
+import { bodyFixedDirectionToInertial } from '../core/planetaryRotation.js';
 
 export function createSurfaceSession(region, snapshot = null) {
   const landing = region?.landing ?? { x: 0, z: 0, yaw: 0 };
@@ -8,6 +9,8 @@ export function createSurfaceSession(region, snapshot = null) {
     active: true,
     bodyId: region.bodyId,
     regionId: region.id,
+    surfaceProfileId: snapshot?.surfaceProfileId ?? region.surfaceEngineProfile ?? null,
+    surfaceModelVersion: Number.isFinite(Number(snapshot?.surfaceModelVersion)) ? Math.max(1, Math.floor(Number(snapshot.surfaceModelVersion))) : (Number(region.surfaceModelVersion) || 1),
     x: Number.isFinite(snapshot?.x) ? snapshot.x : landing.x,
     z: Number.isFinite(snapshot?.z) ? snapshot.z : landing.z,
     yaw: Number.isFinite(snapshot?.yaw) ? snapshot.yaw : landing.yaw,
@@ -27,12 +30,29 @@ export function createSurfaceSession(region, snapshot = null) {
   };
 }
 
+
+export function surfaceTakeoffReferencePosition(session, body, simulationTimeSeconds = 0, radiusScale = 1.2) {
+  if (!session?.active || !body?.position || !(Number(body.radius) > 0)) return null;
+  const anchor = session.bodyFixedAnchor;
+  if (!Array.isArray(anchor) || anchor.length < 3 || !anchor.slice(0, 3).every((value) => Number.isFinite(Number(value)))) return null;
+  const direction = bodyFixedDirectionToInertial(body, anchor, simulationTimeSeconds, new Float64Array(3));
+  const scale = Number.isFinite(Number(radiusScale)) && Number(radiusScale) > 1 ? Number(radiusScale) : 1.2;
+  const radius = Number(body.radius) * scale;
+  return new Float64Array([
+    Number(body.position[0]) + direction[0] * radius,
+    Number(body.position[1]) + direction[1] * radius,
+    Number(body.position[2]) + direction[2] * radius,
+  ]);
+}
+
 export function serializeSurfaceSession(session) {
   if (!session?.active) return null;
   return {
     active: true,
     bodyId: session.bodyId,
     regionId: session.regionId,
+    surfaceProfileId: session.surfaceProfileId ?? null,
+    surfaceModelVersion: Number.isFinite(Number(session.surfaceModelVersion)) ? Math.max(1, Math.floor(Number(session.surfaceModelVersion))) : 1,
     x: session.x,
     z: session.z,
     yaw: session.yaw,

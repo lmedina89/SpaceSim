@@ -1,5 +1,7 @@
 import { PHYSICS } from '../core/constants.js';
 import { createRng, hashSeed } from '../util/prng.js';
+import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
+import { SURFACE_ENGINE_PROFILES, surfaceEngineSupport } from './surfaceProfiles.js';
 
 const TAU = Math.PI * 2;
 
@@ -179,6 +181,13 @@ export function surfaceZoneWeights(region, x, z) {
 
 export function surfaceColorAt(region, x, z, height = surfaceHeightAt(region, x, z)) {
   const base = region.palette.ground;
+  if (region.surfaceEngineProfile === SURFACE_ENGINE_PROFILES.AIRLESS_ROCKY) {
+    const micro = fbm(x / 88 + 3.1, z / 88 - 5.7, region.seedHash ^ 0x4f1bbcdc);
+    const broad = fbm(x / 410 - 8.2, z / 410 + 2.9, region.seedHash ^ 0xa533d49b);
+    const high = clamp01((height + 70) / 230);
+    const shade = Math.max(0.62, Math.min(1.25, 0.94 + micro * 0.11 + broad * 0.08 + high * 0.08));
+    return [clamp01(base[0] * shade), clamp01(base[1] * shade), clamp01(base[2] * shade)];
+  }
   const w = surfaceZoneWeights(region, x, z);
   const high = clamp01((height + 40) / 190);
   let r = base[0] + high * 0.055, g = base[1] + high * 0.045, b = base[2] + high * 0.04;
@@ -211,8 +220,95 @@ function makeAnomalyPoi(template, i, rng) {
   };
 }
 
-export function availableSurfaceRegions(system, body) {
+function generateAirlessRockyRegion(system, body, environment) {
+  const regionKey = 'airless-regolith';
+  const regionSeed = `${system.seed}:${body.id}:surface:${regionKey}:surface-architecture-v1`;
+  const rng = createRng(regionSeed);
+  const seedHash = hashSeed(regionSeed);
+  const albedo = Math.max(0.02, Math.min(0.9, Number(environment?.bondAlbedo) || 0.16));
+  const tone = 0.13 + albedo * 0.24;
+  const warmBias = rng.range(-0.015, 0.018);
+  const palette = {
+    name: 'Airless regolith highland',
+    skyTop: 0x000000, skyHorizon: 0x000000, fog: 0x000000,
+    ground: [clamp01(tone + warmBias), clamp01(tone + warmBias * 0.45), clamp01(tone - warmBias * 0.25)],
+    rock: 0x5a5857, accent: 0xaaa8a2, atmosphere: Math.max(0, Number(environment?.atmospherePressureProxyAtm) || 0),
+  };
+  const terrainSizeMeters = 2600;
+  const craterRadius = rng.range(230, 330);
+  const landingYaw = rng.range(-0.35, 0.35);
+  const craterAngle = rng.range(0, TAU);
+  const craterDistance = rng.range(430, 620);
+  const crater = {
+    x: Math.cos(craterAngle) * craterDistance,
+    z: Math.sin(craterAngle) * craterDistance,
+    radius: craterRadius,
+    depth: craterRadius * rng.range(0.20, 0.34),
+  };
+  const ridgeAngle = craterAngle + rng.range(1.4, 2.7);
+  const ridge = { x: Math.cos(ridgeAngle) * rng.range(420, 650), z: Math.sin(ridgeAngle) * rng.range(420, 650) };
+  const depressionAngle = ridgeAngle + rng.range(1.2, 2.3);
+  const glassBasin = { x: Math.cos(depressionAngle) * rng.range(360, 560), z: Math.sin(depressionAngle) * rng.range(360, 560) };
+  const landedShip = { x: -18, z: -20, yaw: landingYaw + 0.18 };
+  const gravityMps2 = Number(environment?.surfaceGravityMps2) || (PHYSICS.G * body.mass / Math.max(1, body.radius * body.radius));
+  const temperatureK = Number(environment?.currentEquilibriumTemperatureK ?? environment?.equilibriumTemperatureK) || equilibriumTemperatureK(system, body);
+
+  return {
+    version: 3,
+    surfaceModelVersion: 1,
+    surfaceEngineProfile: SURFACE_ENGINE_PROFILES.AIRLESS_ROCKY,
+    surfaceArchitectureFamily: 'AIRLESS_ROCKY',
+    atmosphereMode: 'airless',
+    weatherEnabled: false,
+    anomalyVisualsEnabled: false,
+    skyMode: 'vacuum',
+    id: `${body.id}:${regionKey}`,
+    regionKey,
+    seed: regionSeed,
+    seedHash,
+    bodyId: body.id,
+    bodyName: body.name,
+    name: 'Regolith Survey Site',
+    subtitle: 'Airless rocky moon proof surface',
+    planetType: body.planetType ?? 'rocky',
+    gravityMps2,
+    temperatureK,
+    atmospherePressurePa: Math.max(0, Number(environment?.atmospherePressureProxyPa) || 0),
+    atmosphereAtmProxy: Math.max(0, Number(environment?.atmospherePressureProxyAtm) || 0),
+    terrainSizeMeters,
+    terrainResolution: 76,
+    palette,
+    landing: { x: 0, z: 0, yaw: landingYaw },
+    landedShip,
+    terrain: {
+      roughness: 0.74 + rng.range(-0.06, 0.08),
+      crater,
+      ridge,
+      glassBasin,
+    },
+    zones: {
+      frost: { x: 20_000, z: 20_000, radius: 1 },
+      ember: { x: 20_100, z: 20_100, radius: 1 },
+      glass: { x: 20_200, z: 20_200, radius: 1 },
+      mineral: { x: 20_300, z: 20_300, radius: 1 },
+    },
+    weatherProfile: { enabled: false, anomalyChance: 0, preferred: [], firstEventMinSeconds: 1e12, firstEventMaxSeconds: 1e12, calmMinSeconds: 1e12, calmMaxSeconds: 1e12 },
+    normalPois: [
+      { id: `${regionKey}:crater-rim`, type: 'geology', name: 'Primary Crater Rim', realityClass: 'known', x: crater.x, z: crater.z, scanRadiusMeters: 100, signal: 'Excavated regolith / impact structure', summary: 'A conventional impact basin cut into the airless regolith.', archive: 'Procedural geology proxy only; impact age and mineral chemistry are not yet solved.' },
+      { id: `${regionKey}:ejecta-ridge`, type: 'geology', name: 'Ejecta Ridge', realityClass: 'known', x: ridge.x, z: ridge.z, scanRadiusMeters: 95, signal: 'Blocky high-albedo ejecta proxy', summary: 'A raised ridge of impact-processed surface material.', archive: 'Brightness and texture are generated from the environment/profile model, not spectroscopy.' },
+    ],
+    anomalies: [],
+    scientificStatus: 'Multi-world surface architecture proof. This body uses the canonical planetary environment record to drive an airless profile: no atmosphere fog, no wind, no weather events and a black sky. Terrain/albedo/geology remain deterministic procedural proxies; no mineral chemistry, regolith mechanics or thermal-inertia model is solved yet.',
+  };
+}
+
+export function availableSurfaceRegions(system, body, bodies = system?.bodies ?? []) {
   if (!system?.seed || !body?.id) return [];
+  const support = surfaceEngineSupport(body, bodies);
+  if (!support.enabled) return [];
+  if (support.profileId === SURFACE_ENGINE_PROFILES.AIRLESS_ROCKY) {
+    return [{ id: 'airless-regolith', name: 'Regolith Survey Site', subtitle: 'Airless rocky moon proof surface' }];
+  }
   return Object.values(SURFACE_REGION_PROFILES).map((profile) => ({
     id: profile.id,
     name: profile.name,
@@ -220,8 +316,13 @@ export function availableSurfaceRegions(system, body) {
   }));
 }
 
-export function generateSurfaceRegion(system, body, requestedRegionId = 'shatterfall-basin') {
+export function generateSurfaceRegion(system, body, requestedRegionId = 'shatterfall-basin', bodies = system?.bodies ?? []) {
   if (!system?.seed || !body?.id) throw new Error('Surface generation requires a system seed and body.');
+  const support = surfaceEngineSupport(body, bodies);
+  if (!support.enabled) throw new Error(`Surface engine is not enabled for ${body.name ?? body.id}.`);
+  if (support.profileId === SURFACE_ENGINE_PROFILES.AIRLESS_ROCKY) {
+    return generateAirlessRockyRegion(system, body, support.environment ?? derivePlanetaryEnvironment(body, bodies));
+  }
   const profile = SURFACE_REGION_PROFILES[requestedRegionId] ?? SURFACE_REGION_PROFILES['shatterfall-basin'];
   const regionSeed = `${system.seed}:${body.id}:surface:${profile.id}:environment-v2`;
   const rng = createRng(regionSeed);
@@ -238,6 +339,13 @@ export function generateSurfaceRegion(system, body, requestedRegionId = 'shatter
 
   return {
     version: 2,
+    surfaceModelVersion: 1,
+    surfaceEngineProfile: SURFACE_ENGINE_PROFILES.LEGACY_HOME,
+    surfaceArchitectureFamily: 'ATMOSPHERIC_ROCKY',
+    atmosphereMode: 'atmospheric',
+    weatherEnabled: true,
+    anomalyVisualsEnabled: true,
+    skyMode: 'atmospheric-proxy',
     id: `${body.id}:${profile.id}`,
     regionKey: profile.id,
     seed: regionSeed,

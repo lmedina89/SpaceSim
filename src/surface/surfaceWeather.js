@@ -83,8 +83,10 @@ function clearEvent(state, region) {
 }
 
 export function createSurfaceWeatherState(region, snapshot = null) {
+  const disabled = region?.weatherEnabled === false;
   const state = {
     version: 1,
+    disabled,
     regionId: region?.id ?? null,
     elapsedSeconds: Math.max(0, finite(snapshot?.elapsedSeconds, 0)),
     rngState: (Number(snapshot?.rngState) >>> 0) || (hashSeed(`${region?.seed ?? 'surface'}:surface-weather-v1`) >>> 0) || 1,
@@ -93,7 +95,10 @@ export function createSurfaceWeatherState(region, snapshot = null) {
     current: null,
   };
 
-  if (snapshot?.current && SURFACE_WEATHER_TYPES[snapshot.current.type]) {
+  if (disabled) {
+    state.current = { type: 'clear', startedAtSeconds: state.elapsedSeconds, endsAtSeconds: Infinity, intensity: 0, windHeadingRad: 0, windSpeedMps: 0, eventSerial: state.eventSerial };
+    state.nextEventAtSeconds = Infinity;
+  } else if (snapshot?.current && SURFACE_WEATHER_TYPES[snapshot.current.type]) {
     state.current = {
       type: snapshot.current.type,
       startedAtSeconds: finite(snapshot.current.startedAtSeconds, state.elapsedSeconds),
@@ -114,8 +119,10 @@ export function createSurfaceWeatherState(region, snapshot = null) {
 
 export function stepSurfaceWeather(state, region, dtSeconds) {
   if (!state || !region || !(dtSeconds > 0)) return state;
-  // Bound progression after a background/resume hitch so a tab wake does not skip an entire showcase event.
+  // The local surface clock still advances on airless bodies, but weather state is physically disabled.
   state.elapsedSeconds += Math.min(0.25, dtSeconds);
+  if (state.disabled || region?.weatherEnabled === false) return state;
+  // Bound progression after a background/resume hitch so a tab wake does not skip an entire showcase event.
   if (state.current?.type !== 'clear' && state.elapsedSeconds >= state.current.endsAtSeconds) clearEvent(state, region);
   if (state.current?.type === 'clear' && state.elapsedSeconds >= state.nextEventAtSeconds) startEvent(state, region);
   return state;
@@ -125,6 +132,7 @@ export function serializeSurfaceWeather(state) {
   if (!state) return null;
   return {
     version: 1,
+    disabled: state.disabled === true,
     regionId: state.regionId ?? null,
     elapsedSeconds: Math.max(0, finite(state.elapsedSeconds, 0)),
     rngState: Number(state.rngState) >>> 0,
@@ -143,6 +151,7 @@ export function serializeSurfaceWeather(state) {
 }
 
 export function surfaceWeatherReading(state) {
+  if (state?.disabled) return { type: 'vacuum', label: 'Vacuum / no weather', realityClass: 'known', intensity: 0, windHeadingRad: 0, windSpeedMps: 0, temperatureOffsetC: 0, secondsRemaining: Infinity, nextEventSeconds: Infinity };
   if (!state?.current) return { type: 'clear', label: 'Clear interval', realityClass: 'known', intensity: 0, windHeadingRad: 0, windSpeedMps: 0, temperatureOffsetC: 0, secondsRemaining: Infinity, nextEventSeconds: Infinity };
   const def = SURFACE_WEATHER_TYPES[state.current.type] ?? SURFACE_WEATHER_TYPES.clear;
   return {

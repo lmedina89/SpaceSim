@@ -7,20 +7,20 @@ const required = [
   'src/physics/trajectoryPredictor.js','src/physics/planetaryProperties.js','src/physics/planetaryEnvironment.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/frameOrbitInsertion.js','src/physics/massivePairStepControl.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
   'src/cosmic/phenomenonRegistry.js','src/cosmic/phenomenonGenerator.js','src/cosmic/anomalyGenerator.js','src/cosmic/spaceWeather.js','src/cosmic/scientificOverlays.js','src/render/cosmicPhenomena.js','src/render/spaceWeatherVisuals.js','src/render/scientificOverlayVisuals.js',
-  'src/core/astronomicalObserver.js','src/core/celestialAppearance.js','src/core/planetaryRotation.js','src/core/generatedBodyCompatibility.js','src/core/inertialStarCatalog.js','src/navigation/systemNavigation.js','src/navigation/frameGuardRoute.js','src/navigation/observationPlanner.js','src/render/starfield.js','src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/surfaceWorld.js','src/render/cockpitView.js','src/surface/surfaceGenerator.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
+  'src/core/astronomicalObserver.js','src/core/celestialAppearance.js','src/core/planetaryRotation.js','src/core/generatedBodyCompatibility.js','src/core/inertialStarCatalog.js','src/navigation/systemNavigation.js','src/navigation/frameGuardRoute.js','src/navigation/observationPlanner.js','src/render/starfield.js','src/render/threeRenderer.js','src/render/backendPolicy.js','src/render/observationCamera.js','src/render/stellarPerception.js','src/render/surfaceWorld.js','src/render/cockpitView.js','src/surface/surfaceGenerator.js','src/surface/surfaceProfiles.js','src/surface/surfaceSession.js','src/surface/surfaceWeather.js','src/surface/landingTransition.js','src/ui/systemMap.js','README.md','ARCHITECTURE.md','SCIENTIFIC-NOTES.md'
 ];
 for (const file of required) await access(new URL(`../${file}`, import.meta.url), constants.R_OK);
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.5.0')) throw new Error('Shell version is not v0.1.5.0.');
-if (!html.includes('ENVSCI-150')) throw new Error('ENVSCI-150 build marker missing.');
-if (pkg.version !== '0.1.5.0') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.5.1')) throw new Error('Shell version is not v0.1.5.1.');
+if (!html.includes('SURFARCH-151')) throw new Error('SURFARCH-151 build marker missing.');
+if (pkg.version !== '0.1.5.1') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Flight/System control drawer missing.');
 if (!html.includes('id="engineeringPanel"') || !html.includes('id="engineeringClose"')) throw new Error('Dedicated Engineering/Diagnostics drawer missing.');
-if (!html.includes('./styles.css?v=150') || !html.includes('./src/main.js?v=150')) throw new Error('Build-version cache-busting tags missing.');
+if (!html.includes('./styles.css?v=151') || !html.includes('./src/main.js?v=151')) throw new Error('Build-version cache-busting tags missing.');
 if (html.includes('id="moreToggle"')) throw new Error('Redundant bottom MORE launcher must remain removed.');
 if (!html.includes('id="cockpitRestore"')) throw new Error('Cockpit restore failsafe missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -103,9 +103,9 @@ for (const token of ['enterObservation','currentCameraView','rendezvousExperimen
 const backendPolicy = await readFile(new URL('../src/render/backendPolicy.js', import.meta.url), 'utf8');
 for (const token of ['isAppleMobileWebKit','rendererBackendPolicy','MacIntel','maxTouchPoints','ios-webkit-presentation-isolation']) if (!backendPolicy.includes(token)) throw new Error(`Renderer backend policy token missing: ${token}`);
 const renderer = await readFile(new URL('../src/render/threeRenderer.js', import.meta.url), 'utf8');
-if (!main.includes("./app/app.js?v=150")) throw new Error('Main-to-app cache-busting import missing.');
-if (!app.includes("../render/threeRenderer.js?v=150") || !app.includes("../ui/hud.js?v=150") || !app.includes("../ui/systemMap.js?v=150")) throw new Error('App cache-busting imports missing.');
-if (!renderer.includes("./cockpitView.js?v=150")) throw new Error('Cockpit renderer cache-busting import missing.');
+if (!main.includes("./app/app.js?v=151")) throw new Error('Main-to-app cache-busting import missing.');
+if (!app.includes("../render/threeRenderer.js?v=151") || !app.includes("../ui/hud.js?v=151") || !app.includes("../ui/systemMap.js?v=151")) throw new Error('App cache-busting imports missing.');
+if (!renderer.includes("./cockpitView.js?v=151")) throw new Error('Cockpit renderer cache-busting import missing.');
 const cockpit = await readFile(new URL('../src/render/cockpitView.js', import.meta.url), 'utf8');
 for (const token of ['class CockpitView','NAVIGATION','FLIGHT','SCIENCE','SYSTEM DIAGNOSTICS','diagnostics-screen','drawDiagnosticsScreen','pick(clientX','cockpitAction','MAP','APPR','ENG','SCAN','OVR']) if (!cockpit.includes(token)) throw new Error(`3D cockpit token missing: ${token}`);
 for (const token of ['experimentVisuals','syncParticleExperiments','cosmicVisuals','syncCosmicPhenomena','PointsMaterial','particleExperiments = []','cosmicPhenomena = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(observer?.inertialPosition ?? ship.position)','centerStarfieldOnCamera']) if (!renderer.includes(token)) throw new Error(`Renderer integration token missing: ${token}`);
@@ -131,7 +131,7 @@ if (!css.includes('.ship-cockpit-enabled .top-hud .stat{display:none}') || !css.
 if (!app.includes('toggleCockpit') || !app.includes('updateCockpitUi') || !app.includes('syncViewClasses') || !app.includes('cockpitEnabled') || !app.includes('handleCockpitAction') || !app.includes('cockpitTelemetry')) throw new Error('Interactive cockpit app integration missing.');
 for (const token of ['rendererBackend: this.rendererBackend','physicsMs: this.physicsMs','renderMs: this.renderMs','drawCalls: runtime.drawCalls','predictionMs: this.predictionMs','experimentParticles: this.particleExperiments.activeParticles']) if (!app.includes(token)) throw new Error(`Cockpit diagnostics telemetry missing: ${token}`);
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'ENVSCI-150') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'SURFARCH-151') throw new Error('VERSION.json build marker mismatch.');
 if (!String(versionJson.collisionDetection || '').includes('first relative-motion intersection root')) throw new Error('VERSION.json swept-contact capability missing.');
 if (!String(versionJson.impactConservation || '').includes('linear momentum') || !String(versionJson.impactConservation || '').includes('COM impact energy')) throw new Error('VERSION.json impact-conservation capability missing.');
 if (!String(versionJson.blackHoleAccretion || '').includes('mandatory collision sink')) throw new Error('VERSION.json black-hole sink capability missing.');
@@ -190,7 +190,8 @@ const frameOrbitInsertion = await readFile(new URL('../src/physics/frameOrbitIns
 for (const token of ['frameOrbitInsertionPlan','applyFrameOrbitInsertion','PROGRADE_HILL_STABILITY_FRACTION','instantaneous-newtonian-circular-orbit-v1']) if (!frameOrbitInsertion.includes(token)) throw new Error(`FRAME orbit insertion token missing: ${token}`);
 if (!String(versionJson.systemMap || '').includes('star → planet → moon') || !String(versionJson.systemMap || '').includes('TRUE SYSTEM')) throw new Error('VERSION.json planetary navigation map capability missing.');
 if (!String(versionJson.frameOrbitArrival || '').includes('circular osculating orbit') || !String(versionJson.frameOrbitArrival || '').includes('47%')) throw new Error('VERSION.json FRAME orbit-arrival capability missing.');
-if (!String(versionJson.landabilityFoundation || '').includes('gas giants') || !String(versionJson.landabilityFoundation || '').includes('only the already-shipping home-world detailed surface')) throw new Error('VERSION.json landability foundation missing.');
+if (!String(versionJson.landabilityFoundation || '').includes('airless-rocky moon proof surface') || !String(versionJson.landabilityFoundation || '').includes('gas giants')) throw new Error('VERSION.json landability foundation missing.');
+if (!String(versionJson.surfaceArchitecture || '').includes('AIRLESS_ROCKY') || !String(versionJson.surfaceProofWorld || '').includes('Caelum-4361 f-A') || !String(versionJson.surfaceVacuumModel || '').includes('disable fog')) throw new Error('VERSION.json multi-world surface architecture boundary missing.');
 const frameGuardRoute = await readFile(new URL('../src/navigation/frameGuardRoute.js', import.meta.url), 'utf8');
 for (const token of ['planFrameGuardRoute','resolveFrameGuardWaypoint','live-body-anchored-swept-detour-v1','firstTransitGuardHit']) if (!frameGuardRoute.includes(token)) throw new Error(`FRAME guard-route token missing: ${token}`);
 if (!String(versionJson.frameSafetyRouting || '').includes('live-body-anchored') || !String(versionJson.frameSafetyRouting || '').includes('never reduced')) throw new Error('VERSION.json FRAME safety-routing capability missing.');

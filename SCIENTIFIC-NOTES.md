@@ -1,4 +1,15 @@
-# Universe Lab Scientific Notes — v0.1.5.0 Planetary Environment Model
+# Universe Lab Scientific Notes — v0.1.5.1 Multi-World Surface Architecture
+
+The surface engine now consumes the canonical planetary-environment record through a separate architectural profile layer. This does **not** make procedural terrain a new physical authority: body mass/radius/orbit/rotation/atmosphere proxy remain authoritative upstream inputs, while local terrain, regolith color and geology are deterministic presentation/proxy outputs.
+
+For an `AIRLESS_ROCKY` profile, a pressure proxy below 1 Pa is treated as vacuum for surface presentation: no aerodynamic weather, fog, clouds or wind are rendered/scheduled. The black daytime sky is an optical vacuum boundary, while direct stellar illumination and the inertial star/celestial catalog remain active. This is not a thermal-inertia, regolith photometry or shadow-map model.
+
+
+Moon proof-surface takeoff derives its orbit-planning radial direction from the current rotated body-fixed landing anchor, then reuses the existing Hill-screened circular insertion planner. The accepted home-world return path is unchanged.
+
+The first ORIGIN proof world is Caelum-4361 f-A. Its selection is based on its canonical airless-rocky moon classification and moderate equilibrium-temperature range, not hardcoded visual color. Other solid bodies remain landing-disabled even if their architecture family is known.
+
+---
 
 ## What is physical vs modeled
 

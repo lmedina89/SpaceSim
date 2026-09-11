@@ -1,3 +1,41 @@
+# Universe Lab v0.1.5.1 — Multi-World Surface Architecture QA Report
+
+## Release identity
+- Version: **0.1.5.1**
+- Build marker: **SURFARCH-151**
+- Save schema: **1 (unchanged)**
+- Three.js: **0.185.0 (unchanged)**
+- Baseline: exact v0.1.5.0 `ENVSCI-150` release
+
+## Scope
+This release generalizes the accepted surface stack around read-only canonical environment/profile records without widening landing access indiscriminately. The existing detailed atmospheric home world remains the regression baseline. At most one deterministic qualifying airless rocky moon per generated system is enabled as a proof surface; `ORIGIN-001` selects **Caelum-4361 f-A / moon-5-1**. Other solid bodies remain profile-classified but landing-disabled.
+
+The airless proof profile uses deterministic regolith/crater terrain, a black vacuum sky, no atmospheric fog/clouds/wind/weather scheduling, no anomaly sites, and conventional geology POIs while retaining canonical rotating-surface astronomy, phases/eclipses, save/load and landing lifecycle.
+
+## Moon takeoff safety
+The legacy home-world 5-radius takeoff path is unchanged. A small moon can have a 5-radius point outside its conservative Hill region, so enabled moon surfaces reuse the existing Hill-screened circular-orbit insertion planner. The planning radial direction is reconstructed from the active surface session's **current rotated body-fixed landing anchor** at the current simulation epoch, preventing a stale pre-landing inertial spacecraft coordinate from selecting the takeoff plane.
+
+For `ORIGIN-001` f-A, the current planner resolves an orbit about **48.32 km** above the surface with conservative Hill radius about **3.363 Mm**.
+
+## Regression / compatibility validation
+- Final versioned worktree `npm run qa`: **PASS** — static structure **53 required files**, all JS/MJS syntax valid, **248/248 tests passing**.
+- `ORIGIN-001` home `shatterfall-basin` legacy payload, after removing only new architecture metadata, is byte-identical to v0.1.5.0: SHA-256 `c8ac739d60d0b0ab639c00b4cc135973a5287da8efc26b2bf3a95762b95753e7`.
+- Home-world deterministic weather state after 60 simulated seconds at 60 Hz is byte-identical to the v0.1.5.0 core state: SHA-256 `6c6197a3e1475e7dbf140a4e50415e4609d1ed5ca952f348029b72bc9e1017d3` after excluding the new explicit `disabled:false` field.
+- Independent **1,000-seed** v0.1.5.0 vs v0.1.5.1 orbital compatibility sweep: **17,112 bodies, zero mismatches** across identity/kind, mass/radius, parent/orbital metadata, Float64 positions/velocities and rotation metadata.
+- Independent **3,000-system** proof-surface population sweep: **2,809** systems had a qualifying airless proof moon, **191** had none, **0** selected proof moons lacked a safe circular insertion plan, and **no system enabled more than two surfaces** (home + one proof moon).
+- SHA-256 protected-source comparison: **22 protected scientific/runtime modules, zero mismatches** versus the exact v0.1.5.0 baseline. Protected modules include system generation/environment/properties/rotation/save, direct gravity, velocity-Verlet, ShipDynamics, FRAME/transit/insertion/routing, massive-pair/collision/impact hardening, celestial appearance/observer, Observation Planner, WebKit backend and landing-transition logic.
+
+## Release-package gate
+- Release-candidate ZIP integrity: **PASS**.
+- Clean-unzip `npm run qa`: **248/248 PASS** with static structure **53 required files** and all JS/MJS syntax valid.
+- Local static HTTP smoke: **15/15 HTTP 200** across the shell, versioned CSS/main/app/renderer/cockpit/HUD/map chain, new surface profile/generator/session/world modules, planetary environment, Observation Planner and `VERSION.json`.
+- `.github/workflows/*`: **absent**.
+- Extracted candidate archive: **135 files, zero byte mismatches** versus the frozen worktree.
+
+Physical iPhone Safari remains the final release gate for home-world regression, airless moon presentation, save/load, rotating-sky pause/resume and Hill-safe body-fixed-anchor moon takeoff.
+
+---
+
 # Universe Lab v0.1.5.0 — Planetary Environment Model Foundation QA Report
 
 ## Release identity

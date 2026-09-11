@@ -1,5 +1,6 @@
 import { BODY_KIND, PHYSICS } from '../core/constants.js';
 import { derivePlanetaryEnvironment, surfaceGravityMps2FromMassRadius } from '../physics/planetaryEnvironment.js';
+import { surfaceCapabilityForBuild } from '../surface/surfaceProfiles.js';
 
 function finite(value, fallback = null) {
   const n = Number(value);
@@ -31,6 +32,8 @@ export function bodyClassLabel(body, bodies = []) {
 
 export function surfaceCapabilityLabel(body, bodies = []) {
   if (!body) return '—';
+  const buildCapability = surfaceCapabilityForBuild(body, bodies);
+  if (buildCapability) return buildCapability;
   const environment = derivePlanetaryEnvironment(body, bodies);
   if (environment?.surfaceCapability) return environment.surfaceCapability;
   return 'NOT APPLICABLE';
@@ -115,7 +118,7 @@ export function navigationBodySnapshot(body, bodies = [], ship = null) {
     parent,
     environment,
     classLabel: environment?.classLabel ?? bodyClassLabel(body, bodies),
-    surfaceCapability: environment?.surfaceCapability ?? surfaceCapabilityLabel(body, bodies),
+    surfaceCapability: surfaceCapabilityLabel(body, bodies),
     atmosphereModel: environment?.atmosphereLabel ?? atmosphereModelLabel(body, bodies),
     shipRangeMeters: shipRangeMeters(ship, body),
     starRangeMeters: starRangeMeters(body, bodies),

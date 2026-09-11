@@ -193,6 +193,24 @@ function createScatter(region, rng) {
   group.name = 'surface-scatter';
   const dummy = new THREE.Object3D();
 
+  if (region.atmosphereMode === 'airless') {
+    const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
+    const rockMaterial = new THREE.MeshStandardMaterial({ color: region.palette.rock, roughness: 1, metalness: 0.01 });
+    const rocks = new THREE.InstancedMesh(rockGeometry, rockMaterial, 230);
+    for (let i = 0; i < rocks.count; i += 1) {
+      const x = rng.range(-region.terrainSizeMeters * 0.48, region.terrainSizeMeters * 0.48);
+      const z = rng.range(-region.terrainSizeMeters * 0.48, region.terrainSizeMeters * 0.48);
+      const y = surfaceHeightAt(region, x, z);
+      const s = rng.range(0.45, 3.8) * (rng.random() < 0.06 ? 2.4 : 1);
+      dummy.position.set(x, y + s * 0.22, z);
+      dummy.rotation.set(rng.range(0, Math.PI), rng.range(0, Math.PI), rng.range(0, Math.PI));
+      dummy.scale.set(s * rng.range(0.65, 1.5), s * rng.range(0.38, 0.9), s * rng.range(0.65, 1.5));
+      dummy.updateMatrix(); rocks.setMatrixAt(i, dummy.matrix);
+    }
+    group.add(rocks);
+    return group;
+  }
+
   const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
   const rockMaterial = new THREE.MeshStandardMaterial({ color: region.palette.rock, roughness: 0.98, metalness: 0.03 });
   const rocks = new THREE.InstancedMesh(rockGeometry, rockMaterial, 190);
@@ -635,8 +653,9 @@ export class SurfaceWorldVisual {
     this._baseBackgroundColor = new THREE.Color(region.palette.skyTop);
     this._baseFogColor = new THREE.Color(region.palette.fog);
     this.scene.background = this._baseBackgroundColor.clone();
-    this._baseFogDensity = 0.00115 / Math.max(0.3, region.atmosphereAtmProxy);
-    this.scene.fog = new THREE.FogExp2(this._baseFogColor.clone(), this._baseFogDensity);
+    this.isAirless = region.atmosphereMode === 'airless';
+    this._baseFogDensity = this.isAirless ? 0 : (0.00115 / Math.max(0.3, region.atmosphereAtmProxy));
+    this.scene.fog = this.isAirless ? null : new THREE.FogExp2(this._baseFogColor.clone(), this._baseFogDensity);
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.08, 6200);
     this.rng = createRng(`${region.seed}:render`);
     this.poiGroups = new Map();
@@ -646,7 +665,7 @@ export class SurfaceWorldVisual {
     const sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 28, 18), new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide, depthWrite: false }));
     sky.position.y = 260; this.scene.add(sky); this.sky = sky;
 
-    const hemi = new THREE.HemisphereLight(region.palette.skyHorizon, 0x17120f, 1.55); this.scene.add(hemi); this.hemi = hemi;
+    const hemi = new THREE.HemisphereLight(region.palette.skyHorizon, 0x17120f, this.isAirless ? 0.025 : 1.55); this.scene.add(hemi); this.hemi = hemi;
     const sunColor = new THREE.Color(star?.color ?? 0xffe1b0);
     this.sun = new THREE.DirectionalLight(sunColor, 3.2);
     this.sun.target.position.set(0, 0, 0);
@@ -655,12 +674,13 @@ export class SurfaceWorldVisual {
 
     this.terrain = createTerrain(region); this.scene.add(this.terrain);
     this.scatter = createScatter(region, this.rng); this.scene.add(this.scatter);
-    this.emberFissures = createEmberFissures(region, this.rng); this.scene.add(this.emberFissures);
-    this.dust = createDust(region, this.rng); this.scene.add(this.dust);
+    this.emberFissures = this.isAirless ? new THREE.Group() : createEmberFissures(region, this.rng); this.scene.add(this.emberFissures);
+    this.dust = this.isAirless ? new THREE.Group() : createDust(region, this.rng); this.scene.add(this.dust);
     this.landingBeacon = createLandingBeacon(region); this.scene.add(this.landingBeacon);
     this.landedShip = createLandedShip(region); this.scene.add(this.landedShip);
     this.shipTransitionFx = createShipTransitionFx(region); this.scene.add(this.shipTransitionFx);
-    this.weatherRig = createWeatherRig(region, createRng(`${region.seed}:weather-visuals`)); this.scene.add(this.weatherRig.group);
+    this.weatherRig = region.weatherEnabled === false ? null : createWeatherRig(region, createRng(`${region.seed}:weather-visuals`));
+    if (this.weatherRig) this.scene.add(this.weatherRig.group);
 
     for (const poi of surfacePois(region)) {
       const beacon = createBeacon(poi, region); this.scene.add(beacon); this.poiGroups.set(`${poi.id}:beacon`, beacon);
@@ -717,10 +737,10 @@ export class SurfaceWorldVisual {
     // This is a bounded presentation proxy, not an atmospheric scattering solver. The physically
     // derived star altitude controls whether the local sky is day/twilight/night; weather then
     // attenuates visibility separately. The underlying celestial directions remain untouched.
-    const daylightFactor = this.region.atmosphereAtmProxy > 0.01 ? 0.075 + exposure.daylight * 0.925 : 0.025;
-    if (this.sky?.material?.color) this.sky.material.color.setScalar(daylightFactor);
-    if (this.hemi) this.hemi.intensity = 0.12 + exposure.daylight * 1.43;
-    if (this.scene.background?.copy) this.scene.background.copy(this._baseBackgroundColor).multiplyScalar(Math.max(0.04, daylightFactor));
+    const daylightFactor = this.isAirless ? 0 : (this.region.atmosphereAtmProxy > 0.01 ? 0.075 + exposure.daylight * 0.925 : 0.025);
+    if (this.sky?.material?.color) this.sky.material.color.setScalar(this.isAirless ? 0 : daylightFactor);
+    if (this.hemi) this.hemi.intensity = this.isAirless ? 0.025 : (0.12 + exposure.daylight * 1.43);
+    if (this.scene.background?.copy) this.scene.background.copy(this._baseBackgroundColor).multiplyScalar(this.isAirless ? 0 : Math.max(0.04, daylightFactor));
     if (this.scene.fog?.color?.copy) this.scene.fog.color.copy(this._baseFogColor).multiplyScalar(Math.max(0.10, daylightFactor));
     this.astronomicalSky?.traverse((node) => {
       if (!node.material) return;
@@ -895,8 +915,8 @@ export class SurfaceWorldVisual {
 
   animate(timeSeconds) {
     const t = Number(timeSeconds) || 0;
-    this.emberFissures.material.opacity = 0.64 + Math.sin(t * 2.2) * 0.16;
-    this.dust.rotation.y = t * 0.006;
+    if (this.emberFissures?.material) this.emberFissures.material.opacity = 0.64 + Math.sin(t * 2.2) * 0.16;
+    if (this.dust) this.dust.rotation.y = t * 0.006;
     this.landingBeacon.rotation.y = t * 0.18;
     if (this.landedShip?.userData?.strobe) this.landedShip.userData.strobe.intensity = Math.sin(t * 4.2) > 0.965 ? 42 : 0;
     for (const group of this.animated) {

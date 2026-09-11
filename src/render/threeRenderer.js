@@ -10,7 +10,7 @@ import { computeObservationCameraPose } from './observationCamera.js';
 import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPerception.js';
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
-import { CockpitView } from './cockpitView.js?v=150';
+import { CockpitView } from './cockpitView.js?v=151';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {

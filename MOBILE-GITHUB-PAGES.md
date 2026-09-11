@@ -1,3 +1,20 @@
+# Universe Lab v0.1.5.1 — Multi-World Surface Architecture iPhone Gate
+
+Before physically accepting `SURFARCH-151` on iPhone Safari/WebKit:
+
+1. Hard reload and confirm **v0.1.5.1**, build **SURFARCH-151**, and **WebGL2 iOS**.
+2. Regress the home world first: LAND → walk/scan → DETAILS/PAUSE SKY → SAVE/LOAD → TAKEOFF. Its terrain/weather/anomaly presentation should match v0.1.5.0.
+3. NAV to **Caelum-4361 f-A**. Surface capability should report **AIRLESS PROOF SURFACE · CURRENT BUILD**. FRAME into its normal orbit, then LAND / DESCEND.
+4. On f-A verify: black sky in daylight, visible stars/celestial bodies, no atmospheric fog/clouds/weather, **VACUUM / NO WEATHER**, zero wind, finite local gravity (~0.76 m/s² for ORIGIN), and atmosphere around **4.47e-2 Pa proxy**.
+5. Walk/scan conventional geology sites, SAVE/LOAD on the moon, PAUSE/RESUME SKY, then TAKEOFF. Takeoff must return to a local circular moon orbit without a Hill-sphere dropout; its orbital handoff should be oriented from the current rotating landing-site anchor rather than an old inertial position.
+6. Return to the home world and land again; moon vacuum state must not leak into atmospheric fog/weather/profile state.
+7. Confirm other solid planets/moons remain landing-disabled and gas giants remain no-solid-surface.
+8. Regress Observation Planner, FRAME `b-A` SAFE BYPASS, phases/eclipses, and several minutes of FPS/thermals. Airless surfaces should be cheaper than the atmospheric weather profile, not heavier.
+
+Scientific boundary: local terrain/albedo/geology are deterministic proxies driven by the environment/profile layer; no mineral chemistry, regolith mechanics, atmospheric entry/aerodynamics or physical atmosphere scattering is added here.
+
+---
+
 # Universe Lab v0.1.5.0 — Planetary Environment Model iPhone Gate
 
 Before physically accepting `ENVSCI-150` on iPhone Safari/WebKit:

@@ -465,9 +465,9 @@ export class SystemMapController {
         : 'INERTIAL FRAME MATCH');
       const landing = this.app.landingEligibility(body);
       if (landButton) { landButton.disabled = !landing.ok; landButton.title = landing.ok ? 'Enter the selected seeded surface region.' : landing.reason; }
-      if (status) status.textContent = body.scientificWarning || (body.landable
-        ? `Physical N-body target with the current detailed surface. ${landing.ok ? 'LAND / DESCEND is available now.' : landing.reason} ${environment?.scientificBoundary ?? ''}`
-        : `${snapshot.classLabel}. ${environment?.landingReason ?? 'NAV and FRAME use this live body directly.'} ${environment?.scientificBoundary ?? ''}`);
+      if (status) status.textContent = body.scientificWarning || (landing.ok
+        ? `${snapshot.classLabel}. Surface engine enabled for this body; LAND / DESCEND is available now. ${environment?.scientificBoundary ?? ''}`
+        : `${snapshot.classLabel}. ${landing.reason ?? environment?.landingReason ?? 'NAV and FRAME use this live body directly.'} ${environment?.scientificBoundary ?? ''}`);
       return;
     }
 

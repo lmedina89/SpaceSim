@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.5.1 — Multi-World Surface Architecture
+
+- Added `src/surface/surfaceProfiles.js`, a read-only profile/access layer over the canonical planetary-environment model.
+- Added architectural families for atmospheric rocky, airless rocky and ice/volatile surfaces without making every solid body landable.
+- Preserved the accepted home-world generation/weather path; ORIGIN home-region legacy payload (excluding new profile metadata) remains byte-identical to v0.1.5.0.
+- Enabled at most one deterministic qualifying airless-rocky moon proof surface per system; ORIGIN selects Caelum-4361 f-A (`moon-5-1`).
+- Added deterministic airless regolith terrain with black vacuum sky, no fog/cloud/wind/weather scheduler, no anomaly sites and conventional geology POIs.
+- Added optional schema-1 `surfaceProfileId` / `surfaceModelVersion` session persistence.
+- Generalized landing eligibility/region selection from planet-only flags to the surface-profile capability layer.
+- Moon takeoff now uses the existing Hill-screened circular orbit insertion planner; its insertion plane is seeded from the current rotated body-fixed landing anchor instead of a stale pre-landing inertial ship coordinate. Home-world takeoff remains unchanged.
+- Added multi-world architecture regressions for proof selection, deterministic vacuum generation, disabled weather, home-world byte compatibility, session persistence, NAV capability and Hill-safe moon return orbit.
+- Updated Safari/GitHub Pages cache tags to `?v=151`.
+
 ## v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix
 
 - Fixed iPhone Safari short-landscape Observation Planner result cards overlapping after WebKit text autosizing enlarged 7–9 px button text without matching control geometry.
