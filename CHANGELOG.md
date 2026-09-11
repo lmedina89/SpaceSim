@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.5.1.2 — Portrait HUD Transparency & Visual Weight Hotfix
+
+- Removed the opaque physical FLIGHT MFD bezel only in portrait compact-flight-deck mode.
+- Added portrait-only low-alpha smoked-glass drawing for the FLIGHT MFD while keeping telemetry text fully opaque.
+- Softened the portrait `NAV / FLIGHT / SCI / SYS` shortcut tray and buttons with lower alpha and Safari-compatible backdrop blur.
+- Landscape cockpit transforms, bezel and four-MFD presentation remain unchanged.
+- Added focused regressions for portrait glass alpha, bezel restoration and shortcut transparency.
+- Save schema remains 1; Three.js remains 0.185.0; iPhone/iPad WebKit remains forced WebGL2.
+
 ## v0.1.5.1.1 — Portrait Flight UX & Responsive Cockpit Hotfix
 
 - Added aspect-responsive 3D cockpit layout for portrait ship view.

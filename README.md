@@ -1,10 +1,15 @@
-# Universe Lab v0.1.5.1.1 — Portrait Flight UX & Responsive Cockpit Hotfix
+# Universe Lab v0.1.5.1.2 — Portrait HUD Transparency & Visual Weight Hotfix
 
-**Build marker:** `PORTRAIT-1511`  
+**Build marker:** `PORTHUD-1512`  
 **Save schema:** 1 (unchanged)  
 **Three.js:** 0.185.0 (unchanged)
 
-## v0.1.5.1.1 portrait flight UX
+## v0.1.5.1.2 portrait HUD glass
+
+This is a presentation-only follow-up to v0.1.5.1.1. In portrait ship view, the central FLIGHT MFD now removes its opaque physical bezel and renders only the smoked-glass background at reduced alpha; telemetry text remains fully opaque and readable. The `NAV / FLIGHT / SCI / SYS` shortcut strip is also substantially more translucent. Landscape cockpit geometry and styling are retained.
+
+No N-body physics, FRAME behavior, celestial appearance, planetary environment, surface architecture, landing/takeoff, save schema, or WebKit backend policy changes are part of this hotfix.
+
 
 This is a presentation-only hotfix over the accepted v0.1.5.1 multi-world surface architecture. Portrait ship view now becomes an intentional compact flight deck instead of cropping the landscape cockpit: the wide canopy and central FLIGHT MFD remain, landscape side MFDs/diagnostics mount/physical key row are hidden, and direct `NAV / FLIGHT / SCI / SYS` shortcuts dispatch the same existing cockpit actions. LOOK, thrust/reverse/brake and the six-button bottom bar are recomposed around iPhone safe areas. Rotating back to landscape restores the accepted four-MFD cockpit transforms.
 

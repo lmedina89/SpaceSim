@@ -45,22 +45,25 @@ function canvasTexture(width, height) {
   return { canvas, ctx: canvas.getContext('2d'), texture };
 }
 
-function drawScreenFrame(ctx, width, height, title, accent = '#8edcff') {
+function drawScreenFrame(ctx, width, height, title, accent = '#8edcff', { hudGlass = false } = {}) {
   ctx.clearRect(0, 0, width, height);
   const g = ctx.createLinearGradient(0, 0, 0, height);
   // Semi-transparent smoked-glass MFD background. Text stays fully opaque so
   // the outside universe can remain visible through all four cockpit screens.
-  g.addColorStop(0, 'rgba(7,19,28,.82)');
-  g.addColorStop(1, 'rgba(2,7,13,.74)');
+  // Portrait keeps telemetry fully opaque while lowering only the smoked-glass
+  // background alpha. This preserves readability without turning the central MFD
+  // into an opaque slab over the outside universe.
+  g.addColorStop(0, hudGlass ? 'rgba(7,19,28,.36)' : 'rgba(7,19,28,.82)');
+  g.addColorStop(1, hudGlass ? 'rgba(2,7,13,.24)' : 'rgba(2,7,13,.74)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = 'rgba(150,210,235,.22)';
+  ctx.strokeStyle = hudGlass ? 'rgba(150,225,245,.42)' : 'rgba(150,210,235,.22)';
   ctx.lineWidth = 2;
   ctx.strokeRect(3, 3, width - 6, height - 6);
   ctx.fillStyle = accent;
   ctx.font = '700 30px ui-monospace, SFMono-Regular, Menlo, monospace';
   ctx.fillText(title, 18, 34);
-  ctx.fillStyle = 'rgba(142,220,255,.25)';
+  ctx.fillStyle = hudGlass ? 'rgba(142,220,255,.38)' : 'rgba(142,220,255,.25)';
   ctx.fillRect(18, 45, width - 36, 2);
 }
 
@@ -448,7 +451,9 @@ export class CockpitView {
     for (const [id, entry] of this.screenEntries) {
       const visible = !portrait || id === 'flight';
       entry.screen.visible = visible;
-      entry.bezel.visible = visible;
+      // Portrait uses the canvas border as a light HUD frame. Hiding the opaque
+      // physical bezel removes the heavy black rectangle visible on narrow phones.
+      entry.bezel.visible = visible && !(portrait && id === 'flight');
       if (portrait && id === 'flight') {
         // Narrow-view compact flight deck: one readable central instrument instead of
         // squeezing four landscape MFDs into a portrait viewport.
@@ -484,8 +489,9 @@ export class CockpitView {
     nav.texture.needsUpdate = true;
 
     const flight = this.screenEntries.get('flight');
+    const portraitFlightHud = this.viewportMode === 'portrait';
     if (t.frameActive) {
-      drawScreenFrame(flight.ctx, flight.canvas.width, flight.canvas.height, 'FRAME DRIVE', '#c7a9ff');
+      drawScreenFrame(flight.ctx, flight.canvas.width, flight.canvas.height, 'FRAME DRIVE', '#c7a9ff', { hudGlass: portraitFlightHud });
       drawLine(flight.ctx, 'RANGE', formatDistance(t.targetDistanceMeters), 72, flight.canvas.width, '#ffffff');
       drawLine(flight.ctx, 'FRAME RATE', `${fmt(t.frameMultipleC ?? 0, 0)} c`, 105, flight.canvas.width, '#dcc8ff');
       const frameArrival = t.frameArrivalMode === 'orbit'
@@ -496,7 +502,7 @@ export class CockpitView {
       drawLine(flight.ctx, 'ETA', Number.isFinite(t.frameEtaSeconds) ? `${fmt(t.frameEtaSeconds, 1)} s` : '—', 204, flight.canvas.width, '#ffd383');
       flight.ctx.fillStyle = '#c7a9ff'; flight.ctx.font = '600 16px ui-monospace, monospace'; flight.ctx.fillText('SPACECRAFT-ONLY · TAP FRAME TO EXIT', 18, 250);
     } else {
-      drawScreenFrame(flight.ctx, flight.canvas.width, flight.canvas.height, flight.title, flight.accent);
+      drawScreenFrame(flight.ctx, flight.canvas.width, flight.canvas.height, flight.title, flight.accent, { hudGlass: portraitFlightHud });
       drawLine(flight.ctx, 'SPEED', formatSpeed(t.shipSpeedMps), 72, flight.canvas.width, '#ffffff');
       drawLine(flight.ctx, 'ENGINE', String(t.engineMode || 'FLIGHT').toUpperCase(), 105, flight.canvas.width, t.engineMode === 'boost' ? '#ffb66f' : '#b8f5ff');
       drawLine(flight.ctx, 'THRUST CAP', `${fmt(t.mainAccelerationMps2, 0)} m/s²`, 138, flight.canvas.width);

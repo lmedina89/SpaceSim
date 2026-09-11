@@ -29,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=1511';
-import { Hud } from '../ui/hud.js?v=1511';
-import { SystemMapController } from '../ui/systemMap.js?v=1511';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1512';
+import { Hud } from '../ui/hud.js?v=1512';
+import { SystemMapController } from '../ui/systemMap.js?v=1512';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -336,7 +336,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.1.1 online. Portrait flight UX hotfix is active: portrait ship view uses a compact single-MFD cockpit layout while landscape restores the accepted four-MFD deck. Multi-world surface architecture, N-body gravity, environment science, appearance/eclipses, observation planning, FRAME, impacts, saves, and the WebKit renderer remain protected. Active backend: ${backend}. Build PORTRAIT-1511.`);
+    this.hud.notify(`v0.1.5.1.2 online. Portrait HUD glass hotfix is active: portrait keeps the compact single-MFD flight deck but removes the opaque FLIGHT bezel and lowers only the glass/background alpha so telemetry stays crisp while space remains visible. Landscape restores the accepted four-MFD deck. Multi-world surfaces, N-body gravity, environment science, appearance/eclipses, observation planning, FRAME, impacts, saves, and the WebKit renderer remain protected. Active backend: ${backend}. Build PORTHUD-1512.`);
   }
 
   newSystem(seed) {

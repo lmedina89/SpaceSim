@@ -21,6 +21,7 @@ test('portrait cockpit keeps only the central FLIGHT MFD and restores accepted l
   assert.match(cockpit, /\[0, -0\.145, -1\.12\]/);
   assert.match(cockpit, /this\.applyScreenTransform\(entry, entry\.basePosition, entry\.baseRotation, 1\)/);
   assert.match(cockpit, /entry\.group\.visible = !portrait/);
+  assert.match(cockpit, /entry\.bezel\.visible = visible && !\(portrait && id === 'flight'\)/);
 });
 
 test('hidden portrait cockpit objects cannot remain invisible ray-pick targets', async () => {
@@ -41,9 +42,25 @@ test('portrait cockpit exposes direct NAV FLIGHT SCI SYS shortcuts through exist
   assert.match(app, /#portraitSystemMfd'.*handleCockpitAction\('diagnostics-screen'\)/s);
 });
 
+test('portrait FLIGHT MFD lowers only glass background alpha while keeping telemetry texture opacity intact', async () => {
+  const cockpit = await cockpitSource();
+  assert.match(cockpit, /hudGlass \? 'rgba\(7,19,28,\.36\)' : 'rgba\(7,19,28,\.82\)'/);
+  assert.match(cockpit, /hudGlass \? 'rgba\(2,7,13,\.24\)' : 'rgba\(2,7,13,\.74\)'/);
+  assert.match(cockpit, /const portraitFlightHud = this\.viewportMode === 'portrait'/);
+  assert.match(cockpit, /\{ hudGlass: portraitFlightHud \}/);
+  assert.doesNotMatch(cockpit, /screen\.material\.opacity\s*=/);
+});
+
+test('portrait shortcut glass is deliberately translucent instead of an opaque center bar', async () => {
+  const css = await cssSource();
+  assert.match(css, /background:rgba\(2,8,15,\.38\)/);
+  assert.match(css, /background:rgba\(5,15,25,\.40\)/);
+  assert.match(css, /-webkit-backdrop-filter:blur\(7px\)/);
+});
+
 test('portrait CSS intentionally recomposes controls while landscape rules remain separate', async () => {
   const css = await cssSource();
-  assert.match(css, /v0\.1\.5\.1\.1 portrait cockpit/);
+  assert.match(css, /v0\.1\.5\.1\.2 portrait cockpit HUD glass/);
   assert.match(css, /@media \(orientation:portrait\)[\s\S]*\.ship-cockpit-enabled \.portrait-cockpit-tabs/s);
   assert.match(css, /\.ship-cockpit-enabled \.cockpit-live-status,.ship-cockpit-enabled \.cockpit-touch-hint\{display:none\}/);
   assert.match(css, /\.look-pad\{left:max\(8px,env\(safe-area-inset-left\)\);bottom:max\(70px/);

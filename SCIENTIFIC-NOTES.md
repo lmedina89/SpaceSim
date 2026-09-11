@@ -1,4 +1,9 @@
-# Universe Lab Scientific Notes — v0.1.5.1.1 Portrait Flight UX Hotfix
+# Universe Lab Scientific Notes — v0.1.5.1.2 Portrait HUD Transparency Hotfix
+
+## v0.1.5.1.2 scientific boundary
+
+This release changes only portrait cockpit presentation. No scientific model, body state, integrator, environment value, observer geometry, landing state, FRAME state, or save field is changed. Reduced portrait MFD opacity is a renderer/UI composition choice only.
+
 
 The surface engine now consumes the canonical planetary-environment record through a separate architectural profile layer. This does **not** make procedural terrain a new physical authority: body mass/radius/orbit/rotation/atmosphere proxy remain authoritative upstream inputs, while local terrain, regolith color and geology are deterministic presentation/proxy outputs.
 

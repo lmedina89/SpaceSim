@@ -1,4 +1,13 @@
-# Universe Lab Architecture — v0.1.5.1.1
+# Universe Lab Architecture — v0.1.5.1.2
+
+## v0.1.5.1.2 portrait HUD transparency boundary
+
+- Portrait FLIGHT MFD glass alpha is selected only by `CockpitView.viewportMode`; telemetry content and simulation telemetry remain unchanged.
+- The portrait FLIGHT physical bezel is hidden while the canvas border remains as a light HUD frame.
+- Landscape restores the accepted v0.1.5.1.1 bezel and MFD presentation.
+- Portrait shortcut translucency is CSS-only and routes to the same existing actions.
+- Orientation remains presentation state only and is not serialized.
+
 
 ## Multi-world surface boundary
 
