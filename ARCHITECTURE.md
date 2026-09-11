@@ -1,12 +1,4 @@
-# Architecture — Universe Lab v0.1.4.7.1
-
-## v0.1.4.7.1 surface diagnostic/control boundary
-
-The v0.1.4.7.1 surface diagnostics are a **read-only projection of existing authoritative state**. `frameSurface()` solves `AstronomicalObserverModel` once after the current surface movement/weather update, passes that same solution to `updateSurfaceHud(astronomy)`, then passes it to `renderer.renderSurface(...)`. Primary-star ALT/AZ therefore describes the exact observer frame rendered on screen; no parallel astronomy state is maintained.
-
-Body-fixed latitude/longitude is derived from the canonical observer's current inertial surface position transformed back into the existing rotation basis, so local walking offsets are represented rather than mislabeled as the touchdown anchor. Rotation phase comes from `rotationAngleAt()`. Geometric local solar time is derived from the difference between observer body-fixed longitude and primary-star substellar longitude. The body-fixed zero-meridian is procedural; this is an internal coordinate frame, not a real-cartography claim.
-
-`PAUSE SKY / RESUME SKY` toggles the existing `UniverseLabApp.running` gate only while `SURFACE_PHASE.LANDED`. Because `frameSurface()` already gates `SimulationClock.advance()` on that flag while `updateSurface(realDt)` continues independently, pausing holds celestial N-body time without stopping local walking/weather. Descent/ascent keep the control disabled, leaving the accepted lifecycle and forced-live takeoff handoff unchanged.
+# Architecture — Universe Lab v0.1.4.7
 
 ## v0.1.4.7 continuous landed astronomy
 

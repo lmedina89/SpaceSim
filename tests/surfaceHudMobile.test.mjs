@@ -25,7 +25,7 @@ test('compact surface shell keeps scan and sprint visible while save and takeoff
     const at = html.indexOf(`id="${id}"`);
     assert.ok(at > compactStart && at < detailsStart, `${id} should remain in compact controls`);
   }
-  for (const id of ['surfaceSaveButton', 'surfaceTakeoffButton', 'surfaceAstronomyPause']) {
+  for (const id of ['surfaceSaveButton', 'surfaceTakeoffButton']) {
     assert.ok(html.indexOf(`id="${id}"`) > detailsStart, `${id} should be details-only`);
   }
 });

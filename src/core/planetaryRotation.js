@@ -124,16 +124,6 @@ export function surfaceLatitudeLongitude(bodyFixedDirection) {
   };
 }
 
-export function localSolarTimeHours(body, bodyFixedObserverDirection, starInertialDirection, simulationTimeSeconds = 0) {
-  const observerCoordinates = surfaceLatitudeLongitude(bodyFixedObserverDirection);
-  const starBodyFixed = inertialDirectionToBodyFixed(body, starInertialDirection, simulationTimeSeconds);
-  const substellarCoordinates = surfaceLatitudeLongitude(starBodyFixed);
-  let hourAngle = observerCoordinates.longitudeRad - substellarCoordinates.longitudeRad;
-  hourAngle = ((hourAngle + Math.PI) % TAU + TAU) % TAU - Math.PI;
-  const hours = 12 + hourAngle * (12 / Math.PI);
-  return ((hours % 24) + 24) % 24;
-}
-
 export function hasPhysicalRotationModel(body) {
   return Number.isFinite(Number(body?.rotationPeriodSeconds))
     && Math.abs(Number(body.rotationPeriodSeconds)) > EPSILON

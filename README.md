@@ -1,24 +1,14 @@
-# Universe Lab v0.1.4.7.1 — Surface Astronomy Diagnostics & Pause Control Hotfix
+# Universe Lab v0.1.4.7 — Planetary Rotation & Continuous Surface Astronomy Foundation
 
 Universe Lab is a mobile-first scientific/experimental space sandbox for static GitHub Pages. Authoritative orbital simulation remains SI-unit Float64 state with direct Newtonian major-body gravity, velocity-Verlet integration, floating-origin rendering, and pinned Three.js 0.185.0 presentation.
 
-**Build marker:** `ASTROHUD-1471`
+**Build marker:** `ROTASTRO-147`
 **Save schema:** 1 (unchanged; landing/session/weather/cockpit fields remain optional backward-compatible payload fields)
 **Three.js:** 0.185.0 (unchanged)
 **Deployment:** GitHub Pages → `main` → `/(root)`
 **Release gate:** physical iPhone Safari
 
 
-
-## v0.1.4.7.1 surface astronomy diagnostics & pause control
-
-v0.1.4.7.1 is a deliberately surgical follow-up to the physically accepted v0.1.4.7 rotating-surface foundation. It adds no new celestial force, integrator, renderer backend, spacecraft flight behavior, save schema, or star catalog.
-
-Surface **DETAILS** now exposes read-only body-fixed latitude/longitude, current rigid-body rotation phase, primary-star altitude/azimuth, and geometric local solar time. ALT/AZ comes from the same canonical `AstronomicalObserverModel` solution passed to the surface renderer. Local solar time is computed from the body-fixed observer longitude and the primary star's substellar longitude; the longitude zero-meridian is procedural and is not a claim about a real named planetary prime meridian.
-
-A new landed-only **PAUSE SKY / RESUME SKY** control exposes the pause path that already existed underneath v0.1.4.7. It toggles the same simulation-running flag used by the main pause control. While paused, celestial N-body time is held, while local walking and deterministic surface weather remain responsive. The control is disabled during descent/ascent so it cannot complicate the accepted landing handoff lifecycle.
-
-The surface HUD refresh now consumes the same already-solved astronomy frame used for rendering, avoiding a duplicate observer solution in the normal render loop. Save schema remains `1`; Three.js remains `0.185.0`; iPhone/iPad WebKit remains forced to WebGL2; FRAME, ordinary ShipDynamics, direct Newtonian gravity, velocity-Verlet, surface save/load, and the accepted takeoff recovery path are unchanged.
 
 ## v0.1.4.7 planetary rotation & continuous surface astronomy
 

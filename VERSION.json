@@ -1,6 +1,6 @@
 {
-  "version": "0.1.4.7.1",
-  "name": "Surface Astronomy Diagnostics & Pause Control Hotfix",
+  "version": "0.1.4.7",
+  "name": "Planetary Rotation & Continuous Surface Astronomy Foundation",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,7 @@
   "navigationNumerics": "adaptive strong-gravity physics substeps + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "ASTROHUD-1471",
+  "buildMarker": "ROTASTRO-147",
   "spaceWeather": "directional kinematic CME cones with explicit speed, arrival geometry, automatic seeded events, no MHD/radiation damage model, and save/load timeline continuity",
   "scientificOverlays": "target-centric approximate L1-L5 + Hill sphere + Roche limit + instantaneous orbital plane + live Newtonian gravity-vector samples",
   "transitDrive": "legacy internal module now presented as FRAME DRIVE: explicitly fictional 1c/10c/100c/500c/1000c spacecraft-only reference-frame translation; the ship is isolated from local Newtonian acceleration only while FRAME is active; normal exit matches the locked target inertial velocity; celestial gravity/body integration remain unchanged",
@@ -71,7 +71,7 @@
     "glasswind-flats",
     "frostscar-rise"
   ],
-  "surfaceHud": "compact-by-default mobile exploration HUD with persistent expanded/collapsed state, always-available scan/sprint controls, details-only save/takeoff controls, and landed-only SKY PAUSE/RESUME plus body-fixed lat/lon, rotation phase, primary-star altitude/azimuth and geometric local solar-time diagnostics",
+  "surfaceHud": "compact-by-default mobile exploration HUD with persistent expanded/collapsed state, always-available scan/sprint controls, details-only save/takeoff controls, and reduced WALK-pad footprint",
   "landingLifecycle": "explicit ORBIT -> DESCENDING -> LANDED -> ASCENDING -> ORBIT state machine with transition locking, near-ship boarding requirement, scripted VTOL descent/ascent visuals, cleanup-before-ORBIT commit, forced live-flight restoration, prograde return attitude, held-input reset, multi-frame orbital render verification and recovery fallback instead of half-transitioned states",
   "landingRecovery": "surface entry/ascent failures clean up renderer/UI/session state and fall back to a valid orbital state; successful takeoff force-restores running 1x ship flight, neutral input state and prograde attitude, then requires multiple verified orbital render frames before success",
   "ascentHandoff": "surface renderer ownership detaches before disposal; ASCENDING cleanup commits ORBIT only after local state is gone; held pointer controls are force-released; the ship returns in body-relative prograde attitude; three orbital frames render at zero simulation dt before ASCENT COMPLETE is announced; invariant misses recover without tripping the animation-loop fault latch",
@@ -80,14 +80,13 @@
   "astronomicalObserver": "one read-only canonical observer derives inertial position, look/local horizon bases, parent/anchor/altitude, simulation time and live major-body directions for ship, descent and surface modes; landed local-up/east/north now derive from a rotating body-fixed landing anchor when rotation metadata is available",
   "skyContinuity": "one deterministic inertial star catalog is reused in space and on surfaces; landed horizon projection is dynamically reprojected against the rotating body-fixed observer without reseeding or deleting catalog entries; atmospheric/daylight/weather visibility remains presentation-only",
   "celestialApparentSize": "physical range and apparent angular radius remain separate from bounded rendering proxy size",
-  "surfaceSkyTime": "landed major-body celestial time advances at forced 1\u00d7 when running and can now be explicitly paused/resumed from the surface DETAILS HUD; local exploration/weather remain separate and responsive while paused",
+  "surfaceSkyTime": "celestial N-body simulation and astronomical time continue at forced 1\u00d7 while a surface session is active when simulation running is enabled; pause may stop celestial time while local exploration/weather presentation continues, and surface time-warp above 1\u00d7 is intentionally blocked in this foundation build",
   "magnetarPlacement": "repeated LAB magnetars use deterministic golden-angle collision-safe offsets; gravity remains Newtonian and magnetic/MHD forces remain unmodeled",
   "cockpitInteraction": "every visible cockpit screen and physical key is functional; NAV opens the System Map, FLIGHT opens the existing Flight/System controls, SCIENCE opens Science, and SYSTEM DIAGNOSTICS now opens a dedicated read-only Engineering/Diagnostics drawer instead of duplicating Flight/System; cockpit inputs dispatch existing app actions without duplicating simulation authority",
   "cockpitAssetStrategy": "procedural modular shell carried forward from v0.1.4.6.1.2; the diagnostics MFD is procedural CanvasTexture/geometry with no external cockpit asset, and presentation/control interfaces remain isolated so a later optimized GLB cockpit can replace the shell without rewriting flight/science systems",
   "cockpitLighting": "mobile-safe emissive-only panel accents plus live POWER/TARGET/NAV/PROPULSION/CAUTION indicators; no additional dynamic cockpit lights or physics state",
   "cockpitDiagnostics": "live renderer, FPS, physics/render time, ship speed, simulation time, seed, major/test counts, draw calls, prediction time and experiment telemetry are mirrored into the right-side translucent ship-mounted MFD and a dedicated read-only Engineering/Diagnostics drawer; the values remain sourced from existing app/renderer state and own no simulation authority",
   "frameDrive": "tap-toggle speculative spacecraft-only translation toward a locked body/COSMOS target; real-time frame rate tiers step down near arrival; world N-body/particle simulation authority is untouched; local ship acceleration is suspended while active; normal exit matches the target inertial velocity before ordinary ShipDynamics/gravity resume",
-  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build tag 1471; main/app/renderer module hops are also version-tagged so Safari/GitHub Pages do not mix the v0.1.4.7.1 shell with stale cockpit or astronomy JavaScript.",
-  "planetaryRotation": "deterministic body-fixed rigid rotation foundation for generated planets/moons using independent per-body RNG streams, inertial spin axes, periods, phases/epochs and body-fixed landing anchors; rotation metadata does not consume or perturb the legacy orbital-system RNG sequence",
-  "surfaceAstronomyDiagnostics": "read-only surface DETAILS diagnostics derive from the same canonical astronomical observer and rotation model used by rendering: procedural body-fixed latitude/longitude, rotation phase, primary-star altitude/azimuth, and geometric local solar time from primary-star hour angle; no independent sky model or physics authority"
+  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build tag 147; main/app/renderer module hops are also version-tagged so Safari/GitHub Pages do not mix the v0.1.4.7 shell with stale cockpit or astronomy JavaScript.",
+  "planetaryRotation": "deterministic body-fixed rigid rotation foundation for generated planets/moons using independent per-body RNG streams, inertial spin axes, periods, phases/epochs and body-fixed landing anchors; rotation metadata does not consume or perturb the legacy orbital-system RNG sequence"
 }

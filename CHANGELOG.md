@@ -1,16 +1,5 @@
 # Changelog
 
-## v0.1.4.7.1 — Surface Astronomy Diagnostics & Pause Control Hotfix
-
-- Built directly from the physically accepted v0.1.4.7 `ROTASTRO-147` baseline.
-- Added surface DETAILS readouts for procedural body-fixed latitude/longitude, current rotation phase, primary-star altitude/azimuth, and geometric local solar time.
-- Added `localSolarTimeHours()` to the rotation model using observer longitude versus the primary star's substellar longitude; it has no simulation authority.
-- Added a landed-only **PAUSE SKY / RESUME SKY** control wired to the existing simulation-running flag; local walking/weather remain active while celestial time is paused.
-- Disabled the new sky-pause control outside the LANDED phase so descent/ascent lifecycle behavior is untouched.
-- Reused the same canonical astronomical solution for diagnostics and surface rendering in each frame; no duplicate sky or observer model was introduced.
-- Preserved save schema 1, Three.js 0.185.0, direct Newtonian gravity, velocity-Verlet, ShipDynamics isolation on the surface, FRAME behavior, iPhone/iPad forced-WebGL2 policy, and accepted save/load/takeoff behavior.
-- Updated Safari/GitHub Pages cache tags to `?v=1471`.
-
 ## v0.1.4.7 — Planetary Rotation & Continuous Surface Astronomy Foundation
 
 - Added deterministic rigid planetary/moon rotation metadata using independent per-body RNG streams; existing seeded orbital positions/velocities are preserved.
