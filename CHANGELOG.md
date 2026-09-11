@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix
+
+- Fixed iPhone Safari short-landscape Observation Planner result cards overlapping after WebKit text autosizing enlarged 7–9 px button text without matching control geometry.
+- Scoped `-webkit-text-size-adjust:100%` / `text-size-adjust:100%` to the planner only; no global typography behavior changed.
+- Event cards now use content-sized grid rows, explicit readable line heights, normal wrapping, and 68–72 px minimum card height.
+- Results now have a dedicated momentum-scrolling area with stable short-landscape height, so large event sets scroll instead of compressing/overlapping.
+- Added focused mobile-layout regression tests. Observation-planner ephemeris/search math, gravity, appearance/eclipse geometry, NAV/FRAME, surface and save behavior are unchanged.
+- Save schema remains 1. Safari/GitHub Pages cache tags updated to `?v=14911`.
+
 ## v0.1.4.9.1 — Observation Planning & Astronomy Validation
 
 - Added `src/navigation/observationPlanner.js`, a read-only forward ephemeris search using cloned gravity-source body state, the existing direct Newtonian gravity solver, velocity-Verlet integration, close-pair timestep ceiling and canonical finite-disk occultation math.

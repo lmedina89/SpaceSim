@@ -1,3 +1,18 @@
+# Universe Lab v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix iPhone Gate
+
+Before physically accepting `OBSUI-14911` on iPhone Safari/WebKit:
+
+1. Hard reload and confirm **v0.1.4.9.1.1**, build **OBSUI-14911**, and **WebGL2 iOS**.
+2. NAV → select a planet/moon → **PLAN OBSERVATIONS** → run the default 30-day search. Event cards must stack vertically with no text overlap or border collapse.
+3. Scroll the event-results region independently. Momentum scrolling should be smooth and card text must wrap inside each card.
+4. Rotate/reload in short landscape and repeat with a result set of several events; Safari must not enlarge card text beyond its geometry.
+5. Tap an event card and confirm ordinary NAV target selection still works; planner math/state must remain read-only.
+6. Regress 90/180-day search/cancel and surface **PLAN SKY EVENTS**, plus FRAME, save/load and takeoff.
+
+This is a presentation-only hotfix; no observation math or simulation physics is changed.
+
+---
+
 # Universe Lab v0.1.4.9.1 — Observation Planner iPhone Gate
 
 Before physically accepting `OBSPLAN-1491` on iPhone Safari/WebKit:

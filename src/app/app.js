@@ -28,9 +28,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=1491';
-import { Hud } from '../ui/hud.js?v=1491';
-import { SystemMapController } from '../ui/systemMap.js?v=1491';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=14911';
+import { Hud } from '../ui/hud.js?v=14911';
+import { SystemMapController } from '../ui/systemMap.js?v=14911';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -331,7 +331,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.4.9.1 online. NAV now includes a read-only observation planner that forward-propagates a cloned N-body ephemeris to find stellar conjunctions/transits/eclipses without moving the live universe. Landed searches can use the exact current body-fixed site; body-center searches are explicitly labeled approximations. Core gravity, celestial appearance, impacts, NAV/FRAME, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build OBSPLAN-1491.`);
+    this.hud.notify(`v0.1.4.9.1.1 online. NAV now includes a read-only observation planner that forward-propagates a cloned N-body ephemeris to find stellar conjunctions/transits/eclipses without moving the live universe. Landed searches can use the exact current body-fixed site; body-center searches are explicitly labeled approximations. Core gravity, celestial appearance, impacts, NAV/FRAME, landing lifecycle, and WebKit renderer remain protected. Active backend: ${backend}. Build OBSUI-14911.`);
   }
 
   newSystem(seed) {

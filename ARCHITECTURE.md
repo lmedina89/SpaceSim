@@ -1,4 +1,4 @@
-# Universe Lab Architecture — v0.1.4.9.1
+# Universe Lab Architecture — v0.1.4.9.1.1
 
 ## Observation-planner authority boundary
 
@@ -234,3 +234,7 @@ Mobile-conscious choices include:
 - existing VisualViewport/safe-area shell and hardened pointer-release handling reused for surface controls.
 
 This gives the project a scalable scene boundary before world streaming, weather, caves, oceans, vehicles or biology are attempted.
+
+
+## v0.1.4.9.1.1 planner UI boundary
+The mobile planner hotfix changes CSS/layout only. Planner propagation, finite-disk astronomy, and all authoritative simulation state remain unchanged. iOS text autosizing suppression is scoped to `.event-planner-panel` rather than applied globally.

@@ -1,3 +1,17 @@
+# Universe Lab v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix
+
+**Build marker:** `OBSUI-14911`  
+**Save schema:** 1 (unchanged)  
+**Three.js:** 0.185.0 (unchanged)
+
+## v0.1.4.9.1.1 mobile planner fix
+
+This hotfix changes planner presentation only. Physical iPhone testing of v0.1.4.9.1 exposed WebKit landscape text autosizing that enlarged event-card text without expanding the button/card geometry, causing rows to overlap. The planner now suppresses text autosizing inside its own drawer, uses content-sized result cards with explicit line-height/wrapping, and gives the event list its own inertial scroll region.
+
+The observation-planner N-body clone, 300 s coarse propagation, ~10 s local refinement, finite-disk eclipse geometry, live-state isolation, numerical budget, NAV targeting, and landed-site reference behavior are unchanged. Gravity, integration, FRAME, landing, appearance, impacts, and save schema are unchanged.
+
+---
+
 # Universe Lab v0.1.4.9.1 — Observation Planning & Astronomy Validation
 
 **Build marker:** `OBSPLAN-1491`  

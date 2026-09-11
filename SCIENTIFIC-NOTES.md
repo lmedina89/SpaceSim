@@ -1,4 +1,4 @@
-# Scientific Notes — v0.1.4.9.1 Observation Planning
+# Scientific Notes — v0.1.4.9.1.1 Observation Planner Mobile Layout Hotfix
 
 The observation planner predicts **geometric stellar alignments**, not scripted events. It begins from a snapshot of the current authoritative N-body state, then advances a temporary clone with the same Newtonian force law and velocity-Verlet update used by the live major bodies. Ordinary search samples are no farther apart than 300 s; candidate local minima in apparent star-body angular separation are re-integrated over the surrounding window at a 10 s ceiling before the canonical finite apparent-disk overlap calculation is evaluated.
 
@@ -131,3 +131,7 @@ Local weather time advances only while the surface session is actively rendered.
 The landed spacecraft exterior is a visual proxy. No rigid-body landing gear, mass distribution, aerodynamic entry, fuel, structural stress or terrain collision is solved in this release.
 
 The upgraded surface spacecraft, VTOL plumes, landing glow and ascent/descent motion are presentation only. They do not model thrust mass flow, aerodynamics, rigid-body landing gear loads, terrain contact dynamics or real atmospheric ascent.
+
+
+## v0.1.4.9.1.1 scientific boundary
+No scientific model changes. This release only corrects iPhone Safari planner layout/text sizing and event-list scrolling.

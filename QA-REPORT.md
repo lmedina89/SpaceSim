@@ -1,3 +1,20 @@
+# Universe Lab v0.1.4.9.1.1 — Observation Planner Mobile Layout Hotfix QA Report
+
+## Release identity
+- Version: **0.1.4.9.1.1**
+- Build marker: **OBSUI-14911**
+- Save schema: **1 (unchanged)**
+- Three.js: **0.185.0 (unchanged)**
+- Baseline: exact v0.1.4.9.1 `OBSPLAN-1491` release ZIP
+
+## Scope
+Presentation-only correction for physical iPhone Safari short-landscape planner overlap. Planner-local text autosizing is fixed at 100%; event cards are content-sized with explicit wrapping/line-height/minimum height; the event-results region has independent inertial vertical scrolling. Observation math and simulation authority are unchanged.
+
+## Focused regression
+`tests/observationPlannerMobileLayout.test.mjs` asserts planner-scoped WebKit text-size control, content-sized result cards, short-landscape minimum card geometry, and independent event-results scrolling.
+
+---
+
 # Universe Lab v0.1.4.9.1 — Observation Planning & Astronomy Validation QA Report
 
 ## Release identity
@@ -136,3 +153,17 @@ Release-candidate verification from the frozen v0.1.4.8.2 worktree:
 The final archive is rebuilt from this same frozen tree after recording this report, then the clean-unzip QA, HTTP smoke, archive integrity, workflow absence, and byte-for-byte tree comparison are repeated before handoff.
 
 Physical iPhone Safari/WebKit remains the final presentation/performance gate.
+
+## v0.1.4.9.1.1 automated gate
+
+- Frozen worktree `npm run qa`: **PASS** — static structure **51 required files**, all JS/MJS syntax valid, **228/228** Node tests passing.
+- Baseline diff against exact v0.1.4.9.1: 15 changed/new files, limited to planner CSS, one focused layout regression test, release/cache identity strings, and release documentation. No planner numerical code or protected scientific/physics module changed.
+- Physical release gate remains iPhone Safari short-landscape: event cards must stack without text/border overlap and the result region must scroll independently.
+
+## Final package verification
+
+- Release ZIP integrity: **PASS** (`unzip -t`).
+- Clean-unzip `npm run qa`: **PASS — 228/228 tests**.
+- Extracted archive file tree: **130 files**, byte-for-byte identical to the frozen worktree before final QA-report recording.
+- Static HTTP smoke: **14/14** shell/versioned module/science-module paths returned HTTP 200.
+- No `.github/workflows/*` files.

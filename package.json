@@ -1,6 +1,6 @@
 {
   "name": "universe-lab",
-  "version": "0.1.4.9.1",
+  "version": "0.1.4.9.1.1",
   "private": true,
   "type": "module",
   "description": "Scientific mobile-first seeded universe laboratory with Newtonian N-body gravity, canonical celestial appearance geometry, physically sized planet/moon phase rendering, finite-disk eclipse diagnostics, live star/planet/moon navigation, and an isolated speculative FRAME drive.",

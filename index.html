@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.4.9.1</title>
-  <link rel="stylesheet" href="./styles.css?v=1491">
+  <title>Universe Lab v0.1.4.9.1.1</title>
+  <link rel="stylesheet" href="./styles.css?v=14911">
   <script type="importmap">
   {
     "imports": {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.4.9.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.4.9.1.1</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -148,7 +148,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and manual FRAME disengage matches the locked target inertial velocity; completed planet/moon travel uses a calculated circular osculating-orbit handoff when a resolved stability window exists. Surface sky directions use a rotating body-fixed observer while the same celestial N-body universe continues at 1×; physical apparent disks, phases and finite-disk stellar occultations derive from the same authoritative geometry; NAV observation planning propagates only a cloned ephemeris and never advances live bodies. FRAME remains isolated from celestial gravity. Build marker: <b>OBSPLAN-1491</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. APPROACH, STOP RELATIVE and TURN &amp; BURN use bounded thrust. FRAME DRIVE is a separate explicitly fictional spacecraft-only reference-frame translation layer. It does not alter celestial gravity or body integration, and manual FRAME disengage matches the locked target inertial velocity; completed planet/moon travel uses a calculated circular osculating-orbit handoff when a resolved stability window exists. Surface sky directions use a rotating body-fixed observer while the same celestial N-body universe continues at 1×; physical apparent disks, phases and finite-disk stellar occultations derive from the same authoritative geometry; NAV observation planning propagates only a cloned ephemeris and never advances live bodies. FRAME remains isolated from celestial gravity. Build marker: <b>OBSUI-14911</b>.</p>
     </aside>
 
     <aside id="engineeringPanel" class="drawer engineering-panel" hidden>
@@ -174,7 +174,7 @@
           <b>MODEL BOUNDARY</b>
           <span>These values mirror existing runtime telemetry only. This panel does not change gravity, integration, FRAME behavior, navigation, save state, or renderer-backend policy.</span>
         </div>
-        <p class="engineering-build">BUILD <b>OBSPLAN-1491</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
+        <p class="engineering-build">BUILD <b>OBSUI-14911</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
       </div>
     </aside>
 
@@ -434,6 +434,6 @@
       </div>
     </aside>
   </main>
-  <script type="module" src="./src/main.js?v=1491"></script>
+  <script type="module" src="./src/main.js?v=14911"></script>
 </body>
 </html>
