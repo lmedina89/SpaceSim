@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { createRng } from '../util/prng.js';
 import { createStarfieldView, updateStarfieldViewBasis } from './starfield.js';
 import { surfaceSkyExposure } from '../core/astronomicalObserver.js';
+import { solveSurfaceAtmosphericOptics } from '../physics/atmosphericOptics.js';
 import { surfaceColorAt, surfaceHeightAt, surfaceZoneWeights, surfacePois } from '../surface/surfaceGenerator.js';
 import { surfaceEyePosition } from '../surface/surfaceSession.js';
 import { surfaceWeatherReading } from '../surface/surfaceWeather.js';
@@ -24,6 +25,39 @@ function cssHex(hex) {
   return `#${(Number(hex) >>> 0).toString(16).padStart(6, '0').slice(-6)}`;
 }
 
+function hexRgb01(hex = 0xffffff) {
+  const value = Number(hex) >>> 0;
+  return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
+}
+
+function rgbCss(rgb = [0, 0, 0]) {
+  const channel = (value) => Math.max(0, Math.min(255, Math.round((Number(value) || 0) * 255)));
+  return `rgb(${channel(rgb[0])},${channel(rgb[1])},${channel(rgb[2])})`;
+}
+
+function updateSkyTexture(texture, topRgb, horizonRgb) {
+  const canvas = texture?.userData?.skyCanvas;
+  const ctx = texture?.userData?.skyContext;
+  if (!canvas || !ctx) return;
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, rgbCss(topRgb));
+  gradient.addColorStop(0.56, rgbCss(topRgb));
+  gradient.addColorStop(0.84, rgbCss(horizonRgb));
+  gradient.addColorStop(1, rgbCss(horizonRgb));
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  texture.needsUpdate = true;
+}
+
+function weatherAerosolOpticalDepth(weather) {
+  const intensity = Math.max(0, Math.min(1, Number(weather?.intensity) || 0));
+  if (weather?.type === 'dust-front') return 0.12 + intensity * 0.75;
+  if (weather?.type === 'fog-bank' || weather?.type === 'shadow-fog') return 0.08 + intensity * 0.46;
+  if (weather?.type === 'frost-squall') return 0.035 + intensity * 0.20;
+  if (weather?.type === 'electrostatic-storm' || weather?.type === 'suspended-lightning') return 0.025 + intensity * 0.12;
+  return null;
+}
+
 function makeSkyTexture(topHex, horizonHex) {
   const canvas = document.createElement('canvas');
   canvas.width = 64; canvas.height = 512;
@@ -38,6 +72,8 @@ function makeSkyTexture(topHex, horizonHex) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.userData.surfaceOwned = true;
+  texture.userData.skyCanvas = canvas;
+  texture.userData.skyContext = ctx;
   return texture;
 }
 
@@ -686,6 +722,9 @@ export class SurfaceWorldVisual {
     this._baseFogColor = new THREE.Color(region.palette.fog);
     this.scene.background = this._baseBackgroundColor.clone();
     this.isAirless = region.atmosphereMode === 'airless';
+    this._atmospherePressurePa = Math.max(0, Number(region.atmospherePressurePa) || (Math.max(0, Number(region.atmosphereAtmProxy) || 0) * 101325));
+    this._atmosphereMolecularMassAmu = Math.max(1, Number(body?.environmentFormation?.representativeAtmosphereMolecularMassAmu) || 28.97);
+    this._lastSkyOpticsKey = '';
     this._baseFogDensity = this.isAirless ? 0 : (Number.isFinite(Number(region.fogDensityProxy)) ? Math.max(0, Number(region.fogDensityProxy)) : (0.00115 / Math.max(0.3, region.atmosphereAtmProxy)));
     this.scene.fog = this.isAirless ? null : new THREE.FogExp2(this._baseFogColor.clone(), this._baseFogDensity);
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.08, 6200);
@@ -762,22 +801,50 @@ export class SurfaceWorldVisual {
     const transmission = weather?.type === 'shadow-fog' ? 0.12
       : weather?.type === 'dust-front' ? Math.max(0.25, 1 - weather.intensity * 0.65)
         : weather?.type === 'fog-bank' ? Math.max(0.35, 1 - weather.intensity * 0.5) : 1;
-    const exposure = surfaceSkyExposure({
+    // Retain the accepted exposure helper as a bounded compatibility diagnostic; v0.1.5.3 uses
+    // the wavelength-dependent optics solution below for actual sky/star presentation.
+    surfaceSkyExposure({
       starAltitudeRad: starObservation?.centerAltitudeRad,
       atmosphereAtmProxy: this.region.atmosphereAtmProxy,
       weatherTransmission: transmission,
       starVisibleFraction: starObservation?.observerStarVisibleFraction ?? 1,
     });
-    // This is a bounded presentation proxy, not an atmospheric scattering solver. The physically
-    // derived star altitude controls whether the local sky is day/twilight/night; weather then
-    // attenuates visibility separately. The underlying celestial directions remain untouched.
-    const daylightFactor = this.isAirless ? 0 : (this.region.atmosphereAtmProxy > 0.01 ? 0.075 + exposure.daylight * 0.925 : 0.025);
-    if (this.sky?.material?.color) this.sky.material.color.setScalar(this.isAirless ? 0 : daylightFactor);
-    if (this.hemi) this.hemi.intensity = this._profileHemiIntensity != null
-      ? (this.isAirless ? this._profileHemiIntensity : this._profileHemiIntensity * (0.34 + exposure.daylight * 0.66))
-      : (this.isAirless ? 0.025 : (0.12 + exposure.daylight * 1.43));
-    if (this.scene.background?.copy) this.scene.background.copy(this._baseBackgroundColor).multiplyScalar(this.isAirless ? 0 : Math.max(0.04, daylightFactor));
-    if (this.scene.fog?.color?.copy) this.scene.fog.color.copy(this._baseFogColor).multiplyScalar(Math.max(0.10, daylightFactor));
+    const exposure = solveSurfaceAtmosphericOptics({
+      pressurePa: this.isAirless ? 0 : this._atmospherePressurePa,
+      temperatureK: this.region.temperatureK,
+      gravityMps2: this.region.gravityMps2,
+      molecularMassAmu: this._atmosphereMolecularMassAmu,
+      starAltitudeRad: starObservation?.centerAltitudeRad,
+      starVisibleFraction: starObservation?.observerStarVisibleFraction ?? 1,
+      starRgb: hexRgb01(starObservation?.color ?? this.star?.color ?? 0xffffff),
+      aerosolOpticalDepth550: weatherAerosolOpticalDepth(weather),
+      weatherTransmission: transmission,
+    });
+    const skyKey = [
+      ...exposure.topSkyColorRgb, ...exposure.horizonSkyColorRgb,
+    ].map((value) => Math.round(value * 255)).join(':');
+    if (skyKey !== this._lastSkyOpticsKey && this.sky?.material?.map) {
+      updateSkyTexture(this.sky.material.map, exposure.topSkyColorRgb, exposure.horizonSkyColorRgb);
+      this._lastSkyOpticsKey = skyKey;
+    }
+    if (this.sky?.material?.color) this.sky.material.color.setScalar(this.isAirless ? 0 : 1);
+    if (this.hemi) this.hemi.intensity = this.isAirless
+      ? (this._profileHemiIntensity ?? 0.025)
+      : (this._profileHemiIntensity != null
+          ? this._profileHemiIntensity * (0.12 + exposure.diffuseSkyLight * 0.88)
+          : 0.04 + exposure.diffuseSkyLight * 1.48);
+    if (this.scene.background?.setRGB) this.scene.background.setRGB(...(this.isAirless ? [0, 0, 0] : exposure.topSkyColorRgb));
+    if (this.scene.fog?.color?.setRGB) {
+      const haze = exposure.horizonSkyColorRgb;
+      this.scene.fog.color.setRGB(Math.max(0.015, haze[0]), Math.max(0.015, haze[1]), Math.max(0.015, haze[2]));
+    }
+    if (this.scene.fog) {
+      // FogExp2 is used here as a cheap local extinction renderer. Its density is recomputed from
+      // the wavelength-dependent optical column every frame instead of inheriting a generic
+      // planet-colored haze. Weather aerosol optical depth therefore thickens visibility loss
+      // without changing the underlying atmosphere or celestial geometry.
+      this.scene.fog.density = Math.max(0, Math.min(0.0012, exposure.extinctionCoefficient550PerMeter));
+    }
     this.astronomicalSky?.traverse((node) => {
       if (!node.material) return;
       const base = node.material.userData?.baseOpacity ?? node.material.opacity ?? 1;
@@ -821,19 +888,22 @@ export class SurfaceWorldVisual {
         const glow = visual.userData.glow;
         if (disk) {
           disk.scale.set(physicalDiameter, physicalDiameter, 1);
-          disk.material.opacity = Math.max(0.03, exposure.weatherTransmission) * 0.98;
+          disk.material.opacity = Math.max(0.015, exposure.directStellarTransmission) * 0.98;
+          disk.material.color.setRGB(...exposure.starColorAtObserverRgb);
         }
         if (glow) {
           const glowDiameter = physicalDiameter * 2.8;
           glow.scale.set(glowDiameter, glowDiameter, 1);
-          glow.material.opacity = 0.22 * Math.max(0.05, exposure.weatherTransmission) * Math.max(0.16, Number(observed.observerStarVisibleFraction ?? 1));
+          glow.material.opacity = 0.22 * Math.max(0.03, exposure.directStellarTransmission) * Math.max(0.10, Number(observed.observerStarVisibleFraction ?? 1));
+          glow.material.color.setRGB(...exposure.starColorAtObserverRgb);
         }
         if (observed === starObservation) {
           this.sun.position.set(eye[0] + direction[0] * 900, eye[1] + direction[1] * 900, eye[2] + direction[2] * 900);
           this.sun.target.position.set(eye[0], eye[1], eye[2]);
           this.sun.visible = observed.visibleAboveHorizon;
+          this.sun.color.setRGB(...exposure.starColorAtObserverRgb);
           this.sun.intensity = observed.visibleAboveHorizon
-            ? 3.2 * Math.max(0.18, exposure.weatherTransmission) * Math.max(0, Math.min(1, Number(observed.observerStarVisibleFraction ?? 1)))
+            ? 3.2 * exposure.directStellarTransmission
             : 0;
         }
       } else {

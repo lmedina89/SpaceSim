@@ -1,3 +1,26 @@
+# v0.1.5.3 scientific boundary notes — atmosphere & sky optics
+
+## What is physically derived
+
+- Molecular Rayleigh optical depth follows a standard dry-air-like wavelength law at representative red/green/blue wavelengths and scales with the canonical pressure column.
+- Hydrostatic scale height uses `H = kT/(mg)` from canonical equilibrium-temperature proxy, surface gravity and representative molecular mass.
+- Direct stellar extinction follows Beer-Lambert transmission through a bounded Kasten-Young-style optical air mass above the apparent solar horizon.
+- Finite-disk eclipse visibility from the existing celestial-appearance solver attenuates direct and diffuse illumination; no eclipse geometry is recomputed here.
+- Orbital limb scale is tied to hydrostatic scale height and a spherical tangent-column approximation.
+
+## Explicit proxies / limits
+
+- The environment model does not yet know full atmospheric composition. Rayleigh refractivity therefore uses a **dry-air-like reference**, not a claim that every atmosphere is Earth air.
+- Aerosol/Mie extinction uses a weakly wavelength-dependent generic optical-depth proxy; surface weather can increase it. Particle chemistry/size distributions are not solved.
+- Twilight below the geometric horizon uses a bounded exponential single-scattering presentation approximation; multiple scattering and refraction are not solved.
+- `FogExp2` is used as a local GPU-efficient extinction presentation from the derived 550-nm coefficient; it is not a volumetric radiative-transfer solver.
+- Orbital atmosphere shells are bounded visual approximations and do not modify physical radius or atmospheric mass.
+- Clouds, absorption bands, ozone/chemistry, polarization, radiative-convective equilibrium, greenhouse warming, fluid circulation and cloud microphysics are outside this milestone.
+
+The canonical v0.1.5.0 atmosphere-pressure and radiative-equilibrium-temperature model boundaries remain unchanged.
+
+---
+
 # v0.1.5.2 scientific boundary notes
 
 The new surface worlds are presentations derived from the canonical planetary-environment model; they do not upgrade that model into a climate/geochemistry solver.

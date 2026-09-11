@@ -1,3 +1,27 @@
+# v0.1.5.3 architecture delta — atmospheric optics presentation layer
+
+v0.1.5.3 adds optics beside the existing simulation/environment architecture; it does not move atmospheric rendering into simulation authority.
+
+## Read-only optics model
+
+`src/physics/atmosphericOptics.js` is a pure derivation module. `solveSurfaceAtmosphericOptics()` consumes canonical pressure/temperature/gravity/representative molecular mass plus live star altitude, star color, finite-disk visible fraction and bounded weather aerosol/transmission. It returns Rayleigh/Mie proxy optical depths, direct spectral transmission, top/horizon sky color, twilight, star/galactic visibility, diffuse-light proxy, hydrostatic scale height and local 550-nm extinction. It owns no body or save state.
+
+`solveOrbitalAtmosphereLimb()` consumes the same environment quantities plus physical radius and returns a bounded atmosphere-shell presentation profile. The visual shell is separate from physical body geometry.
+
+## Surface integration
+
+`src/render/surfaceWorld.js` remains a consumer of the canonical astronomical observer. Star direction, finite disk, phase/eclipses and body-fixed horizon geometry remain authoritative outside the optics model. The optics layer only changes presentation from those existing inputs: dynamic sky gradient, stellar spectral attenuation, diffuse hemispheric light, starfield/galactic washout and clear-air FogExp2 density. Weather can supply additional aerosol depth but cannot rewrite atmosphere/environment state.
+
+Airless profiles explicitly pass zero pressure to the optics model and retain no FogExp2 atmosphere. Their canonical stars/celestial disks and direct stellar geometry remain visible against a black sky.
+
+## Orbital limb integration
+
+`src/render/celestialFactory.js` owns a presentation-only `planetary-atmosphere-limb` child for supported solid bodies. `src/render/threeRenderer.js` derives the already-canonical environment record read-only when creating a visual and synchronizes that shell. The body mesh radius, observer apparent disk geometry, collision radius and physics state are unchanged.
+
+The limb is intentionally a mobile-safe approximation rather than a second volumetric atmosphere scene. Full spherical multiple-scattering/refraction remains deferred.
+
+---
+
 # v0.1.5.2 architecture delta — bounded multi-world exploration
 
 v0.1.5.2 keeps the existing simulation architecture and expands only the surface-access/profile layer.

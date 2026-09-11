@@ -1,3 +1,23 @@
+# Universe Lab v0.1.5.3 — Physical Atmosphere & Sky Optics
+
+**Build marker:** `ATMOSKY-153`  
+**Save schema:** 1 (unchanged)  
+**Three.js:** 0.185.0 (unchanged)
+
+## v0.1.5.3 atmosphere / sky optics
+
+This release adds one canonical **read-only atmospheric optics presentation layer** on top of the v0.1.5.0 planetary-environment model and the v0.1.5.2 multi-world exploration loop. It does not change body mass, radius, orbit, gravity, FRAME, landing geometry, environment formation state, or save authority.
+
+`src/physics/atmosphericOptics.js` consumes canonical atmosphere pressure proxy, radiative-equilibrium temperature, surface gravity and representative molecular mass together with the live primary-star altitude/color and finite-disk eclipse visibility. It derives a pressure-scaled dry-air-like Rayleigh reference spectrum, a generic aerosol/Mie optical-depth proxy, hydrostatic scale height, direct stellar transmission, twilight/horizon reddening, diffuse sky brightness, stellar/galactic washout and clear-air extinction.
+
+Surface rendering now uses that current optical state rather than a fixed palette/daylight multiplier. Dense atmospheric worlds can show a bright wavelength-dependent sky and reddened low star; the ~573 Pa atmosphere on Caelum-4361 e remains optically dark rather than becoming a fake Earth-blue sky; f-A and h-A pass zero atmospheric pressure through the surface profile and remain black-sky with no fog. Weather may add bounded aerosol optical depth/transmission without changing canonical atmosphere mass or astronomy.
+
+Space rendering may add a thin atmosphere limb to solid planets/moons when the modeled column is optically meaningful. Limb thickness is derived from hydrostatic scale height and bounded for rendering; color/opacity use a Rayleigh tangent-column proxy. Trace/vacuum worlds receive no fake limb. The shell does not change the physical body radius, collision surface, apparent angular-size science, or landing state.
+
+Scientific boundary: this is **not** a composition-specific radiative-transfer/climate solver. It does not solve line absorption, multiple scattering, refraction, polarization, cloud microphysics, greenhouse feedback, atmospheric circulation, or terrain-shadow radiative transfer. Atmosphere pressure and equilibrium temperature retain their existing canonical proxy/model meanings.
+
+---
+
 # Universe Lab v0.1.5.2 — Multi-World Landing & Exploration
 
 **Build marker:** `SURFEXP-152`  

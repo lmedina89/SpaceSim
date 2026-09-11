@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { BODY_KIND, SIMULATION } from '../core/constants.js';
 import { createRng } from '../util/prng.js';
+import { solveOrbitalAtmosphereLimb } from '../physics/atmosphericOptics.js';
 
 function renderRadius(body) {
   const strictPhysicalDisk = body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ROGUE_PLANET;
@@ -602,6 +603,60 @@ export function createCelestialVisual(body) {
   group.userData.visualVersion = body.visualVersion ?? 0;
   group.userData.bodyColor = body.color ?? null;
   return group;
+}
+
+function hexRgb01(hex = 0xffffff) {
+  const value = Number(hex) >>> 0;
+  return [((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255];
+}
+
+export function syncPlanetaryAtmosphereVisual(visual, body, environment, starBody = null) {
+  if (!visual || !body) return null;
+  const existing = visual.children.find((child) => child.userData?.role === 'planetary-atmosphere-limb');
+  const solidBody = body.kind === BODY_KIND.PLANET || body.kind === BODY_KIND.MOON || body.kind === BODY_KIND.ROGUE_PLANET;
+  if (!solidBody || body.planetType === 'gas' || !environment?.physicalSurfaceExists) {
+    if (existing) { visual.remove(existing); existing.geometry?.dispose?.(); existing.material?.dispose?.(); }
+    return null;
+  }
+  const optics = solveOrbitalAtmosphereLimb({
+    pressurePa: environment.atmospherePressureProxyPa,
+    temperatureK: environment.currentEquilibriumTemperatureK ?? environment.equilibriumTemperatureK,
+    gravityMps2: environment.surfaceGravityMps2,
+    molecularMassAmu: environment.representativeAtmosphereMolecularMassAmu,
+    radiusMeters: body.radius,
+    starRgb: hexRgb01(starBody?.color ?? 0xffffff),
+  });
+  if (!optics.visible) {
+    if (existing) { visual.remove(existing); existing.geometry?.dispose?.(); existing.material?.dispose?.(); }
+    visual.userData.atmosphericOptics = optics;
+    return optics;
+  }
+  const radius = Math.max(1e-9, Number(visual.userData.renderRadius) || renderRadius(body));
+  let shell = existing;
+  if (!shell) {
+    shell = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 32, 20),
+      new THREE.MeshBasicMaterial({
+        color: 0x7ab9ff,
+        transparent: true,
+        opacity: optics.opacity,
+        depthWrite: false,
+        depthTest: true,
+        side: THREE.BackSide,
+        blending: THREE.NormalBlending,
+      }),
+    );
+    shell.userData.role = 'planetary-atmosphere-limb';
+    shell.renderOrder = 3;
+    visual.add(shell);
+  }
+  shell.scale.setScalar(optics.shellRadiusScale);
+  shell.material.opacity = optics.opacity;
+  shell.material.color.setRGB(...optics.colorRgb);
+  shell.visible = true;
+  visual.userData.atmosphericOptics = optics;
+  visual.userData.visualScientificStatusAtmosphere = optics.scientificBoundary;
+  return optics;
 }
 
 export function updateCelestialVisual(visual, body, starBody, realDt = 0.016, elapsedSimSeconds = 0, appearanceObservation = null) {

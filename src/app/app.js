@@ -29,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=152';
-import { Hud } from '../ui/hud.js?v=152';
-import { SystemMapController } from '../ui/systemMap.js?v=152';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=153';
+import { Hud } from '../ui/hud.js?v=153';
+import { SystemMapController } from '../ui/systemMap.js?v=153';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -336,7 +336,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.2 online. Multi-world landing and exploration is active: the accepted home world and airless reference moon remain available, while the bounded environment-driven set now adds a contrasting rocky world and an ice/volatile world when suitable candidates exist. ORIGIN-001 enables Caelum-4361 d, f-A, e, and h-A. Surface saves are body/profile isolated, generalized takeoff returns through the existing Hill-screened circular-orbit planner, and protected N-body/FRAME/astronomy/impact/WebKit systems remain unchanged. Active backend: ${backend}. Build SURFEXP-152.`);
+    this.hud.notify(`v0.1.5.3 online. Physical atmosphere and sky optics are active: surface sky color, direct stellar extinction, twilight/horizon reddening, weather aerosol extinction, clear-air visibility, and orbital atmosphere limbs now derive from the canonical environment pressure/temperature/gravity plus live stellar geometry. Airless worlds remain black-sky and limb-free. This is a bounded Rayleigh + generic aerosol/Mie presentation model, not solved atmospheric chemistry, multiple scattering, refraction, clouds, or climate. Active backend: ${backend}. Build ATMOSKY-153.`);
   }
 
   newSystem(seed) {

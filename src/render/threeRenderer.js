@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { createStarfieldView } from './starfield.js';
 import { createInertialStarCatalog } from '../core/inertialStarCatalog.js';
-import { createCelestialVisual, updateCelestialVisual, applyStellarPerceptualProfile } from './celestialFactory.js';
+import { createCelestialVisual, updateCelestialVisual, applyStellarPerceptualProfile, syncPlanetaryAtmosphereVisual } from './celestialFactory.js';
 import { createCosmicPhenomenonVisual, updateCosmicPhenomenonVisual } from './cosmicPhenomena.js';
 import { syncSpaceWeatherVisuals } from './spaceWeatherVisuals.js';
 import { updateScientificOverlayVisual } from './scientificOverlayVisuals.js';
@@ -10,7 +10,8 @@ import { computeObservationCameraPose } from './observationCamera.js';
 import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPerception.js';
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
-import { CockpitView } from './cockpitView.js?v=152';
+import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
+import { CockpitView } from './cockpitView.js?v=153';
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
@@ -196,6 +197,7 @@ export class UniverseRenderer {
 
   syncBodies(bodies) {
     const ids = new Set(bodies.map((b) => b.id));
+    const primaryStar = bodies.find((body) => body.kind === BODY_KIND.STAR) ?? null;
     for (const [id, visual] of this.bodyVisuals) {
       if (!ids.has(id)) { this.scene.remove(visual); disposeObject(visual); this.bodyVisuals.delete(id); }
     }
@@ -208,6 +210,8 @@ export class UniverseRenderer {
       }
       if (!this.bodyVisuals.has(body.id)) {
         const visual = createCelestialVisual(body);
+        const environment = derivePlanetaryEnvironment(body, bodies);
+        syncPlanetaryAtmosphereVisual(visual, body, environment, primaryStar);
         this.bodyVisuals.set(body.id, visual);
         this.scene.add(visual);
       }

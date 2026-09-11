@@ -1,3 +1,16 @@
+## v0.1.5.3 — Physical Atmosphere & Sky Optics
+
+- Added pure `src/physics/atmosphericOptics.js` with pressure-scaled dry-air-like Rayleigh reference optical depth, generic aerosol/Mie proxy, optical air mass, hydrostatic scale height, surface sky/direct-star solution and orbital limb solution.
+- Replaced fixed surface palette/daylight exposure with live optics driven by canonical pressure/temperature/gravity/molecular-mass proxies plus primary-star altitude/color and finite-disk eclipse visibility.
+- Added dynamic top/horizon sky color, low-star reddening, direct stellar extinction, daylight star/galactic washout, diffuse sky-light proxy and physically scaled clear-air extinction; weather only supplies bounded aerosol/transmission presentation inputs.
+- Added presentation-only solid-world atmosphere limbs in orbit, with scale-height thickness and Rayleigh tangent-column color/opacity. Trace/vacuum worlds receive no limb.
+- Preserved airless black-sky/no-fog behavior for f-A/h-A and kept Caelum-4361 e optically thin/dark rather than Earth-like.
+- No save-schema, N-body, FRAME, environment-generation, rotation, landing/takeoff, impact, planner or WebKit-backend changes.
+- Added atmosphere optics unit/integration/property tests and updated stale surface static assertions for the new optical authority boundary.
+- Safari/GitHub Pages cache tags updated to `?v=153`; build marker `ATMOSKY-153`.
+
+---
+
 ## v0.1.5.2 — Multi-World Landing & Exploration
 
 - Expanded the v0.1.5.1 bounded surface architecture into a deterministic multi-world exploration set without unlocking every solid body.

@@ -1,3 +1,20 @@
+# Universe Lab v0.1.5.3 — Atmosphere/Sky Optics iPhone Gate
+
+Before physically accepting `ATMOSKY-153` on iPhone Safari/WebKit:
+
+1. Hard reload and confirm **v0.1.5.3**, build **ATMOSKY-153**, and **WebGL2 iOS**.
+2. In orbit around **Caelum-4361 d**, confirm a visible but thin atmospheric limb. Around **e**, expect a much subtler limb. **f-A** and **h-A** must not gain a fake atmosphere limb.
+3. Land on **d**: daylight sky should be wavelength-dependent rather than a fixed palette; lower primary-star altitude should redden direct light/horizon; daylight should strongly wash out stars without deleting them; an eclipse should dim direct star and diffuse sky together.
+4. Land on **e**: its ~573 Pa atmosphere should remain **very dark/thin**, with stars much more visible than on d. Dust/frost weather may increase extinction, but it must not suddenly become an Earth-blue sky.
+5. Land on **f-A** and **h-A**: black daylight sky, no atmospheric fog, no wind/weather regression.
+6. Rotate portrait ↔ landscape during flight and regress the v0.1.5.1.2 HUD layout.
+7. Regress d → f-A → e → h-A → d LAND / SAVE / LOAD / PAUSE SKY / TAKEOFF. No atmosphere/fog state may leak between worlds.
+8. Regress Observation Planner, phases/eclipses, FRAME, close-orbit body rendering, impacts and compact objects. This release does not intentionally change those systems.
+
+Physical iPhone Safari remains the final visual/performance release gate. Automated tests cannot certify exact mobile color/exposure composition.
+
+---
+
 # Universe Lab v0.1.5.2 — Multi-World Exploration iPhone Gate
 
 Before physically accepting `SURFEXP-152` on iPhone Safari/WebKit:

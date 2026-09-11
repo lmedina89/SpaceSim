@@ -43,11 +43,12 @@ test('surface atmosphere changes visibility without deleting astronomical record
   assert.doesNotMatch(source, /astronomy\.bodies\.splice/);
 });
 
-test('surface daylight exposure is recomputed from immutable base colors instead of accumulating darkness', async () => {
+test('surface atmospheric color/extinction is recomputed from the current optics solution instead of accumulating frame-to-frame darkness', async () => {
   const source = await readFile(new URL('../src/render/surfaceWorld.js', import.meta.url), 'utf8');
-  assert.match(source, /_baseBackgroundColor/);
-  assert.match(source, /_baseFogColor/);
-  assert.match(source, /background\.copy\(this\._baseBackgroundColor\)\.multiplyScalar/);
-  assert.match(source, /fog\.color\.copy\(this\._baseFogColor\)\.multiplyScalar/);
+  assert.match(source, /solveSurfaceAtmosphericOptics/);
+  assert.match(source, /scene\.background\.setRGB/);
+  assert.match(source, /scene\.fog\.color\.setRGB/);
+  assert.match(source, /scene\.fog\.density = Math\.max/);
   assert.doesNotMatch(source, /background\?\.multiplyScalar/);
+  assert.doesNotMatch(source, /fog\.color\?\.multiplyScalar/);
 });
