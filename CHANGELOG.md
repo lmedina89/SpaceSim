@@ -1,3 +1,13 @@
+## v0.1.5.5.2 — Deep-Space FRAME Travel Polish
+
+- Added an optional `5,000 c · DEEP` spacecraft-only FRAME tier.
+- Restricted 5,000c translation to more than 50 AU remaining; it automatically caps to 1,000c inside 50 AU.
+- Preserved the existing 500c / 100c / 10c / 1c close-arrival ramp, swept-body collision guards, live detours, exit policy and no-overshoot movement.
+- Recorded the iPhone pitch test as ordinary vertical field-of-view exit/return; the roughly 32 AU world-camera far plane is unchanged pending a dedicated long-range point/proxy design.
+- Updated Safari/GitHub Pages cache tags to `1552`; save schema, Three.js version, universe generation, physics and WebKit backend policy remain unchanged.
+
+---
+
 ## v0.1.5.5.1 — Cockpit Depth Isolation Hotfix
 
 - Assigned all camera-mounted cockpit descendants to a dedicated Three.js render layer.

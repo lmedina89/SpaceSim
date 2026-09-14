@@ -29,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=1551';
-import { Hud } from '../ui/hud.js?v=1551';
-import { SystemMapController } from '../ui/systemMap.js?v=1551';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1552';
+import { Hud } from '../ui/hud.js?v=1552';
+import { SystemMapController } from '../ui/systemMap.js?v=1552';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -339,7 +339,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.5.1 online. Cockpit depth isolation renders the astronomical world first and composites the camera-mounted deck after a depth-only clear, preventing close planets from covering the cockpit while preserving canopy visibility and touch picking. Active backend: ${backend}. Build DEPTH-1551.`);
+    this.hud.notify(`v0.1.5.5.2 online. DEEP FRAME adds a 5,000 c spacecraft-only tier beyond 50 AU, then automatically returns to the established 1,000 c and close-arrival ramp without changing world physics or clearance guards. Active backend: ${backend}. Build DEEPFRAME-1552.`);
   }
 
   newSystem(seed, generationProfileId = 'origin') {

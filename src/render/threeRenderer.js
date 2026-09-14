@@ -11,7 +11,7 @@ import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPercep
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
 import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
-import { CockpitView, COCKPIT_RENDER_LAYER } from './cockpitView.js?v=1551';
+import { CockpitView, COCKPIT_RENDER_LAYER } from './cockpitView.js?v=1552';
 
 const WORLD_RENDER_LAYER = 0;
 

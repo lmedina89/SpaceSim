@@ -18,6 +18,19 @@ const v=(x,y,z)=>new Float64Array([x,y,z]);
 test('frame tiers are explicitly coordinate-rate multiples of c, not local ship velocity',()=>{
   assert.equal(normalizeTransitMultiple(87),100);
   assert.equal(transitSpeedMps(100),100*PHYSICS.C);
+  assert.equal(normalizeTransitMultiple(4200),5000);
+  assert.equal(transitSpeedMps(5000),5000*PHYSICS.C);
+});
+
+test('DEEP FRAME is available only beyond 50 AU and preserves the established inner ramp',()=>{
+  const arrival=1e8;
+  assert.equal(effectiveTransitMultiple(5000,420*PHYSICS.AU,arrival),5000);
+  assert.equal(effectiveTransitMultiple(5000,50*PHYSICS.AU,arrival),1000);
+  assert.equal(effectiveTransitMultiple(5000,20*PHYSICS.AU,arrival),1000);
+  assert.equal(effectiveTransitMultiple(5000,5*PHYSICS.AU,arrival),500);
+  assert.equal(effectiveTransitMultiple(5000,1*PHYSICS.AU,arrival),100);
+  assert.equal(effectiveTransitMultiple(5000,.2*PHYSICS.AU,arrival),10);
+  assert.equal(effectiveTransitMultiple(5000,.05*PHYSICS.AU,arrival),1);
 });
 
 test('frame arrival envelope is based on safe stand-off rather than pre-entry Newtonian delta-v',()=>{

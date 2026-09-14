@@ -254,6 +254,16 @@ Portrait cockpit adaptation changes only presentation geometry and HTML control 
 - Origin remains the scientific regression reference. The new profile mechanism does not reinterpret older saves or silently convert ordinary seeds into Abyssal systems.
 
 ---
+# v0.1.5.5.2 DEEP FRAME and visibility boundary
+
+- 5,000c DEEP FRAME is fictional coordinate translation isolated to the spacecraft; it is not a Newtonian velocity or a claim of physical faster-than-light travel.
+- The tier is active only above 50 AU remaining. All closer distance bands preserve the established automatic ramp and massive-body clearance checks.
+- The Abyssal Sentinel remains a physical 420 AU initialized wide companion; no body position, orbit, gravity or generation profile changes.
+- In the supplied iPhone recording, the bright distant body follows camera pitch across the vertical field boundary and returns when pitch reverses. That behavior is normal perspective-camera framing.
+- A separate fixed far plane currently limits full 3D world geometry to roughly 32 AU from the camera. It is not expanded here because a very large far/near ratio would reduce depth precision; future remote bodies should use explicitly labeled camera-relative directional proxies.
+
+---
+
 # v0.1.5.5.1 cockpit-depth boundary
 
 - The second cockpit pass changes presentation ordering only. It does not move the spacecraft, camera observer, target body or collision surface.

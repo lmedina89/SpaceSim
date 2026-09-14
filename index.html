@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.5.5.1</title>
-  <link rel="stylesheet" href="./styles.css?v=1551">
+  <title>Universe Lab v0.1.5.5.2</title>
+  <link rel="stylesheet" href="./styles.css?v=1552">
   <script type="importmap">
   {
     "imports": {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.5.5.1</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.5.5.2</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -154,7 +154,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. FRAME DRIVE remains a separate fictional spacecraft-only translation layer and never rewrites celestial gravity. Origin and Abyssal generation remain unchanged. v0.1.5.5.1 renders the astronomical world first, clears only world depth, then composites the camera-mounted cockpit so nearby planets remain outside the canopy instead of covering the ship interior. Build marker: <b>DEPTH-1551</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. FRAME DRIVE remains a separate fictional spacecraft-only translation layer and never rewrites celestial gravity. The 5,000c DEEP tier is available beyond 50 AU and automatically falls back to the established inner-system arrival ramp. Origin and Abyssal generation remain unchanged. Build marker: <b>DEEPFRAME-1552</b>.</p>
     </aside>
 
     <aside id="engineeringPanel" class="drawer engineering-panel" hidden>
@@ -180,7 +180,7 @@
           <b>MODEL BOUNDARY</b>
           <span>These values mirror existing runtime telemetry only. This panel does not change gravity, integration, FRAME behavior, navigation, save state, or renderer-backend policy.</span>
         </div>
-        <p class="engineering-build">BUILD <b>DEPTH-1551</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
+        <p class="engineering-build">BUILD <b>DEEPFRAME-1552</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
       </div>
     </aside>
 
@@ -263,7 +263,7 @@
       <header><div><b>SPECULATIVE FRAME DRIVE</b><small>Spacecraft-only reference-frame travel · world physics continues unchanged</small></div><button id="transitClose" type="button" aria-label="Close frame drive">×</button></header>
       <div class="science-copy">
         <label>Frame target<select id="transitTargetSource"><option value="body" selected>Current celestial TARGET</option><option value="cosmic">Selected COSMOS source</option></select></label>
-        <label>Maximum frame rate<select id="transitTier"><option value="1">1 c</option><option value="10">10 c</option><option value="100" selected>100 c</option><option value="500">500 c</option><option value="1000">1,000 c</option></select></label>
+        <label>Maximum frame rate<select id="transitTier"><option value="1">1 c</option><option value="10">10 c</option><option value="100" selected>100 c</option><option value="500">500 c</option><option value="1000">1,000 c</option><option value="5000">5,000 c · DEEP</option></select></label>
         <div class="frame-rule"><b>ARRIVAL RULE</b><span>Planet/moon normal arrivals hand back to Newtonian flight in an instantaneous circular osculating orbit when a resolved Hill-stable window exists. Other targets and manual disengage retain inertial-frame matching. Celestial bodies, gravity and the N-body integrator are never rewritten by FRAME.</span></div>
         <div class="scan-grid"><span>Target</span><b id="transitTargetName">—</b><span>Distance</span><b id="transitDistance">—</b><span>Local relative velocity</span><b id="transitLocalVelocity">—</b><span>Normal arrival</span><b id="transitArrivalProfile">—</b><span>Route</span><b id="transitRouteProfile">AUTO · SWEPT-GUARD</b><span>Effective frame rate</span><b id="transitEffectiveSpeed">—</b><span>ETA</span><b id="transitEta">—</b></div>
         <button id="transitEngage" class="void" type="button">ENGAGE FRAME</button>
@@ -450,6 +450,6 @@
       </div>
     </aside>
   </main>
-  <script type="module" src="./src/main.js?v=1551"></script>
+  <script type="module" src="./src/main.js?v=1552"></script>
 </body>
 </html>

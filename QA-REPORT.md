@@ -1,3 +1,20 @@
+# v0.1.5.5.2 QA — Deep-Space FRAME Travel Polish
+
+## v0.1.5.5.2 gates
+
+- Authoritative input: v0.1.5.5.1 / `DEPTH-1551` / save schema 1 / Three.js 0.185.0.
+- 5,000c is a selectable spacecraft-only FRAME coordinate tier and is effective only beyond 50 AU remaining.
+- Inside 50 AU the new selection caps to 1,000c; the established 500c / 100c / 10c / 1c close-arrival ramp remains exact.
+- Existing swept massive-body guards, live route detours, no-overshoot advance and arrival/exit policies remain on the same code paths.
+- User-supplied physical iPhone recording reviewed: reported pitch-linked disappearance is consistent with ordinary vertical field-of-view exit/return.
+- Fixed approximately 32 AU world-camera far plane remains unchanged; long-range proxy rendering is explicitly deferred.
+- Worktree `npm run qa`: **309/309 PASS**.
+- Release-candidate ZIP integrity: **PASS**.
+- Clean-unzip `npm run qa`: **309/309 PASS**.
+- Local static HTTP smoke: **8/8 PASS** for the shell, release identity, stylesheet, cache-busted module hops, FRAME module, renderer and cockpit module.
+
+---
+
 # v0.1.5.5.1 QA — Cockpit Depth Isolation Hotfix
 
 ## Baseline recovery
