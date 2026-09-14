@@ -254,3 +254,11 @@ Portrait cockpit adaptation changes only presentation geometry and HTML control 
 - Origin remains the scientific regression reference. The new profile mechanism does not reinterpret older saves or silently convert ordinary seeds into Abyssal systems.
 
 ---
+# v0.1.5.5.1 cockpit-depth boundary
+
+- The second cockpit pass changes presentation ordering only. It does not move the spacecraft, camera observer, target body or collision surface.
+- Nearby planets retain their canonical position, physical radius and apparent angular size. They may fill the canopy when geometrically close but cannot cover the interior cockpit layer.
+- Clearing depth between world and cockpit is not a claim that the cockpit lacks physical depth. Cockpit components still depth-test against one another inside the fresh overlay pass.
+- Observation and planetary-surface modes retain their existing render ownership and do not receive the cockpit overlay pass.
+
+---

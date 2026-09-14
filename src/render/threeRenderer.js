@@ -11,7 +11,9 @@ import { apparentAngularRadius, stellarPerceptualProfile } from './stellarPercep
 import { SurfaceWorldVisual } from './surfaceWorld.js';
 import { rendererBackendPolicy } from './backendPolicy.js';
 import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
-import { CockpitView } from './cockpitView.js?v=155';
+import { CockpitView, COCKPIT_RENDER_LAYER } from './cockpitView.js?v=1551';
+
+const WORLD_RENDER_LAYER = 0;
 
 function disposeObject(root) {
   const disposeMaterial = (material) => {
@@ -101,8 +103,11 @@ export class UniverseRenderer {
     this.systemSeed = null;
     this.starCatalog = null;
     this.sunLight = new THREE.PointLight(0xffffff, 5.5, 0, 0);
+    this.sunLight.layers.enable(COCKPIT_RENDER_LAYER);
     this.scene.add(this.sunLight);
-    this.scene.add(new THREE.AmbientLight(0x263149, 0.055));
+    this.ambientLight = new THREE.AmbientLight(0x263149, 0.055);
+    this.ambientLight.layers.enable(COCKPIT_RENDER_LAYER);
+    this.scene.add(this.ambientLight);
     this.trajectories = new Map();
     this.targetBodyId = null;
     this.targetMarker = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -147,6 +152,9 @@ export class UniverseRenderer {
 
   async init() {
     await this.renderer.init();
+    // Multiple render passes must contribute to one frame's diagnostics instead of the
+    // cockpit overlay replacing the world-pass draw-call count.
+    if (this.renderer.info) this.renderer.info.autoReset = false;
     this.resize();
     return this.backendName();
   }
@@ -582,6 +590,7 @@ export class UniverseRenderer {
 
   renderSurface({ session, transition = null, realTimeSeconds = 0, astronomy = null }) {
     if (!this.surfaceWorld || !session?.active) return false;
+    this.beginRenderFrame();
     this._motionLines.visible = false;
     this.targetMarker.visible = false;
     this.surfaceWorld.render(this.renderer, session, realTimeSeconds, transition, astronomy);
@@ -595,6 +604,32 @@ export class UniverseRenderer {
       drawCalls: Number.isFinite(render?.calls) ? render.calls : null,
       triangles: Number.isFinite(render?.triangles) ? render.triangles : null,
     };
+  }
+
+  beginRenderFrame() {
+    this.renderer.info?.reset?.();
+  }
+
+  renderWorldWithCockpitOverlay() {
+    const previousCameraLayerMask = this.camera.layers.mask;
+    const previousAutoClear = this.renderer.autoClear;
+    try {
+      this.camera.layers.set(WORLD_RENDER_LAYER);
+      this.renderer.render(this.scene, this.camera);
+      if (!this.cockpitView?.group?.visible) return;
+
+      // Preserve the finished color image, discard only world depth, then render the cockpit.
+      // Cockpit materials still depth-test against one another in this fresh pass, while no
+      // nearby planet/moon can cover the camera-mounted shell or translucent MFDs.
+      this.renderer.autoClear = false;
+      if (typeof this.renderer.clearDepth === 'function') this.renderer.clearDepth();
+      else this.renderer.clear(false, true, false);
+      this.camera.layers.set(COCKPIT_RENDER_LAYER);
+      this.renderer.render(this.scene, this.camera);
+    } finally {
+      this.camera.layers.mask = previousCameraLayerMask;
+      this.renderer.autoClear = previousAutoClear;
+    }
   }
 
   invalidateScientificOverlays() {
@@ -750,7 +785,8 @@ export class UniverseRenderer {
     this.updateCameraClipPlane();
     this.updatePlanetaryPerception();
     this.updateStellarPerception();
-    this.renderer.render(this.scene, this.camera);
+    this.beginRenderFrame();
+    this.renderWorldWithCockpitOverlay();
   }
 
   renderObservationView({ bodies, ship, referenceFrame, minorField, particleExperiments = [], cosmicPhenomena = [], spaceWeather = [], scientificOverlays = null, target = null, elapsedSimSeconds = 0, cameraView, astronomy = null }) {
@@ -776,6 +812,8 @@ export class UniverseRenderer {
     this.updateCameraClipPlane();
     this.updatePlanetaryPerception();
     this.updateStellarPerception();
+    this.beginRenderFrame();
+    this.camera.layers.set(WORLD_RENDER_LAYER);
     this.renderer.render(this.scene, this.camera);
   }
 

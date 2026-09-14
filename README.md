@@ -1,3 +1,17 @@
+# Universe Lab v0.1.5.5.1 — Cockpit Depth Isolation Hotfix
+
+**Build marker:** `DEPTH-1551`  
+**Save schema:** `1`  
+**Three.js:** `0.185.0`
+
+This focused rendering hotfix prevents nearby planets and moons from depth-testing over the camera-mounted 3D cockpit. Ship view now renders the astronomical world on layer 0, preserves its color buffer, clears only depth, and composites the cockpit on layer 1. The fresh cockpit pass retains ordinary depth testing between cockpit parts, so the shell, bezels and translucent MFDs remain internally ordered while the outside universe stays visible through the canopy and smoked glass.
+
+Cockpit ray picking uses the same dedicated layer only for the duration of a cockpit touch query and restores the shared raycaster afterward. World/body picking therefore remains isolated. World and cockpit draw calls are accumulated into one frame diagnostic. Observation and surface modes keep their existing single-world render paths.
+
+No body radius, apparent angular size, camera attitude/FOV, gravity, collision, FRAME, landing, universe profile, save data or WebKit backend policy is changed. A planet may correctly fill the canopy at close range, but it can no longer visually enter the dashboard or MFDs.
+
+---
+
 # Universe Lab v0.1.5.5 — Abyssal Universe Profile Foundation
 
 **Build marker:** `ABYSSAL-155`  

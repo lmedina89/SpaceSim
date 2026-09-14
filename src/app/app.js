@@ -29,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=155';
-import { Hud } from '../ui/hud.js?v=155';
-import { SystemMapController } from '../ui/systemMap.js?v=155';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=1551';
+import { Hud } from '../ui/hud.js?v=1551';
+import { SystemMapController } from '../ui/systemMap.js?v=1551';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -339,7 +339,7 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.5 online. Origin remains the accepted deterministic baseline; Abyssal adds a bounded extreme-system profile with a physical wide-orbit magnetar companion and enhanced explicitly labeled visual phenomena. Active backend: ${backend}. Build ABYSSAL-155.`);
+    this.hud.notify(`v0.1.5.5.1 online. Cockpit depth isolation renders the astronomical world first and composites the camera-mounted deck after a depth-only clear, preventing close planets from covering the cockpit while preserving canopy visibility and touch picking. Active backend: ${backend}. Build DEPTH-1551.`);
   }
 
   newSystem(seed, generationProfileId = 'origin') {

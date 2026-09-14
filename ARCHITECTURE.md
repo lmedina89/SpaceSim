@@ -1,3 +1,13 @@
+# v0.1.5.5.1 architecture delta — cockpit depth isolation
+
+The astronomical scene and camera-local cockpit retain one renderer and one ship-view camera but use separate Three.js layers. Every `CockpitView.group` descendant is assigned to layer 1 after construction; all ordinary world geometry remains on layer 0. Ship view renders layer 0 normally, disables automatic clearing only after that pass, clears depth without clearing color, then renders layer 1. The original camera layer mask and renderer `autoClear` value are restored in a `finally` boundary.
+
+This is a compositing boundary, not a second simulation or view model. Both passes use the same current projection and camera transform, so canopy alignment, portrait/landscape transforms and touchscreen coordinates remain consistent. Existing ambient/stellar lights opt into the cockpit layer; no additional dynamic light is created. MFD materials remain translucent with depth writing disabled, while depth testing stays enabled so cockpit geometry continues to occlude itself correctly.
+
+Renderer statistics disable per-pass auto-reset and explicitly reset once per displayed frame, allowing the diagnostics MFD to report the aggregate world-plus-cockpit draw count. Surface and observation paths reset once and render only their existing world view. Cockpit picking temporarily selects layer 1 and restores the raycaster mask before body picking can run.
+
+---
+
 # v0.1.5.5 architecture delta — universe profiles and bounded compact companion
 
 `src/data/generationProfiles.js` is the single profile registry. `generateSystem(seed, profileId)` resolves unknown/missing identifiers to `origin`, so existing callers and schema-1 saves retain the accepted generator. Origin leaves its prior RNG call sequence intact. Abyssal changes generation only through explicit configuration and uses separate namespaced RNG streams for profile-only compact-object state.

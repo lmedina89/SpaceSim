@@ -1,5 +1,7 @@
 import * as THREE from 'three/webgpu';
 
+export const COCKPIT_RENDER_LAYER = 1;
+
 const SCREEN_UPDATE_MS = 180;
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -248,6 +250,10 @@ export class CockpitView {
 
     this.buildShell();
     this.buildScreensAndControls();
+    // The cockpit is composited after the astronomical world with a fresh depth buffer.
+    // Keeping every descendant on one dedicated layer prevents nearby planet geometry from
+    // winning the world-depth test while preserving normal depth relationships inside the deck.
+    this.group.traverse((node) => node.layers.set(COCKPIT_RENDER_LAYER));
     this.drawScreens({});
   }
 
@@ -554,8 +560,15 @@ export class CockpitView {
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.camera.updateMatrixWorld(true);
     this.group.updateMatrixWorld(true);
-    raycaster.setFromCamera(pointer, this.camera);
-    const hits = raycaster.intersectObjects(this.interactives, true);
+    const previousLayerMask = raycaster.layers.mask;
+    let hits;
+    try {
+      raycaster.layers.set(COCKPIT_RENDER_LAYER);
+      raycaster.setFromCamera(pointer, this.camera);
+      hits = raycaster.intersectObjects(this.interactives, true);
+    } finally {
+      raycaster.layers.mask = previousLayerMask;
+    }
     for (const hit of hits) {
       let visibilityNode = hit.object;
       let visible = true;

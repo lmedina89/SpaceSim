@@ -1,3 +1,15 @@
+## v0.1.5.5.1 — Cockpit Depth Isolation Hotfix
+
+- Assigned all camera-mounted cockpit descendants to a dedicated Three.js render layer.
+- Added a ship-view world pass followed by a depth-only clear and cockpit overlay pass, preserving the finished space color image.
+- Retained cockpit self-depth and translucent MFD blending instead of disabling depth testing globally.
+- Added layer-isolated cockpit ray picking with guaranteed restoration before celestial body picking.
+- Aggregated world and cockpit render diagnostics by resetting renderer statistics once per displayed frame.
+- Kept observation and surface modes on their established single-world render paths.
+- Updated Safari/GitHub Pages cache tags to `1551`; save schema, Three.js version, physics, profiles and backend policy remain unchanged.
+
+---
+
 ## v0.1.5.5 — Abyssal Universe Profile Foundation
 
 - Added explicit Origin/Abyssal universe profiles with profile and seed kept separate.

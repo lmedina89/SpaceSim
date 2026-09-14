@@ -1,6 +1,6 @@
 {
-  "version": "0.1.5.5",
-  "name": "Abyssal Universe Profile Foundation",
+  "version": "0.1.5.5.1",
+  "name": "Cockpit Depth Isolation Hotfix",
   "saveSchema": 1,
   "threeVersion": "0.185.0",
   "authoritativeUnits": "SI",
@@ -46,7 +46,10 @@
   "navigationNumerics": "adaptive ship strong-gravity substeps + adaptive massive-body pair encounter/crossing timestep ceiling + 10% c Newtonian validity guard",
   "observationCamera": "massless experiment/cosmic frame-track-orbit views with ship-state isolation",
   "experimentNavigation": "selected experiment fields + physical bounded-thrust rendezvous",
-  "buildMarker": "ABYSSAL-155",
+  "buildMarker": "DEPTH-1551",
+  "cockpitDepthIsolation": "ship view renders world layer 0 first, clears depth only while preserving color, then renders cockpit layer 1; cockpit self-depth, translucent MFD blending and existing touch picking remain active",
+  "cockpitClipIsolation": "cockpit geometry remains camera-local behind the existing 0.002-0.02 near plane but no longer shares celestial depth; observation and surface modes remain world-only",
+  "multiPassDiagnostics": "renderer info auto-reset is disabled and reset explicitly once per displayed frame so world plus cockpit draw calls remain aggregated",
   "generationProfiles": [
     "origin",
     "abyssal"
@@ -97,7 +100,7 @@
   "cockpitLighting": "mobile-safe emissive-only panel accents plus live POWER/TARGET/NAV/PROPULSION/CAUTION indicators; no additional dynamic cockpit lights or physics state",
   "cockpitDiagnostics": "live renderer, FPS, physics/render time, ship speed, simulation time, seed, major/test counts, draw calls, prediction time and experiment telemetry are mirrored into the right-side translucent ship-mounted MFD and a dedicated read-only Engineering/Diagnostics drawer; the values remain sourced from existing app/renderer state and own no simulation authority",
   "frameDrive": "tap-toggle speculative spacecraft-only translation toward a locked body/COSMOS target; real-time frame-rate tiers step down near arrival; world N-body/particle simulation authority is untouched; local ship acceleration is suspended while active; manual disengage matches the target inertial velocity, while normal planet/moon/rogue-planet completion may hand off into a calculated circular osculating orbit before ordinary ShipDynamics/gravity resume",
-  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build tag 155; main/app/renderer/cockpit module hops are also version-tagged so Safari/GitHub Pages do not mix the v0.1.5.5 shell with stale JavaScript.",
+  "assetCachePolicy": "HTML shell version-tags styles.css and src/main.js with build tag 1551; main/app/renderer/cockpit module hops are also version-tagged so Safari/GitHub Pages do not mix the v0.1.5.5.1 shell with stale JavaScript.",
   "planetaryRotation": "fresh generated planets use orbital-relative v2 spin poles derived from parent-relative orbital angular momentum, with PRO/RETRO classification matching the physical spin pole; generated moons use parent+moon synchronous periods and face the parent at the rotation epoch. Existing schema-1 saves preserve serialized v1 rotation frames so body-fixed landing anchors do not move.",
   "surfaceAstronomyDiagnostics": "read-only surface DETAILS diagnostics derive from the same canonical astronomical observer and rotation model used by rendering: procedural body-fixed latitude/longitude, rotation phase, primary-star altitude/azimuth, and geometric local solar time from primary-star hour angle; no independent sky model or physics authority",
   "planetaryNavigation": "generated stars, planets and moons are first-class selectable NAV targets; planets/moons/rogues additionally expose canonical environment class, escape speed, stellar flux, radiative-equilibrium temperature, Bond albedo, atmosphere pressure/retention proxy, volatile/ice potential, surface family and tidal rotation state alongside existing live navigation diagnostics",

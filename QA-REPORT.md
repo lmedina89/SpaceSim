@@ -1,3 +1,29 @@
+# v0.1.5.5.1 QA — Cockpit Depth Isolation Hotfix
+
+## Baseline recovery
+
+- Authoritative input: `UniverseLab-v0.1.5.5-Abyssal-Universe-Profile-Foundation-GitHub.zip`.
+- Input SHA-256: `4b5efcf37b481dedc3f87323f3c4c6d5c54d6c8576ed0d195ad544f4e2499748`.
+- Input ZIP integrity: PASS.
+- Baseline identity: v0.1.5.5 / `ABYSSAL-155` / save schema 1 / Three.js 0.185.0.
+- Baseline was already validated at 302/302 tests.
+
+## v0.1.5.5.1 gates
+
+- Ship-view render order is statically gated as world pass → color preservation → depth-only clear → cockpit layer → cockpit pass.
+- Camera layer and renderer auto-clear state restore through a `finally` boundary.
+- Cockpit materials retain depth testing and translucent MFD blending; no global `depthTest:false` shortcut is used.
+- Cockpit ray picking selects layer 1 temporarily and restores the shared raycaster mask.
+- Renderer statistics reset once per displayed frame and aggregate the two ship-view passes.
+- Observation and surface paths remain single-world-pass owners.
+- Worktree `npm run qa`: **308/308 PASS**.
+- Release-candidate ZIP integrity: **PASS**.
+- Clean-unzip `npm run qa`: **308/308 PASS**.
+- Local static HTTP smoke: **7/7 PASS** for the shell, release identity, stylesheet, cache-busted startup/app hops, renderer and cockpit module.
+- Physical iPhone Safari/WebGL2 close-planet validation remains the acceptance gate.
+
+---
+
 # v0.1.5.5 QA — Abyssal Universe Profile Foundation
 
 ## Baseline recovery
