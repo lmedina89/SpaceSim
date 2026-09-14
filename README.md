@@ -1,3 +1,17 @@
+# Universe Lab v0.1.5.5 — Abyssal Universe Profile Foundation
+
+**Build marker:** `ABYSSAL-155`  
+**Save schema:** `1`  
+**Three.js:** `0.185.0`
+
+This release adds explicit, data-driven universe profiles without replacing the existing generator. **Origin** remains the default and preserves the established `ORIGIN-001` physical initial conditions, phenomenon ordering and independent environment/rotation RNG streams. **Abyssal** is an opt-in extreme profile selected separately from its editable seed.
+
+`ABYSSAL-001` generates a bounded nine-planet system with two physical high-eccentricity comets, one physical unbound rogue planet, enhanced belts/remnants/rings, 15–18 explicitly labeled anomalies, and **Abyssal Sentinel**: a 1.55-solar-mass physical magnetar companion initialized in a 420 AU circular two-body relative state before the complete system is shifted into its barycentric rest frame. Its mass, position and velocity participate in the existing direct Newtonian solver. Its enlarged disk, magnetic lobes, burst arcs and radiation cues remain presentation proxies; GR, MHD, plasma transport and radiation damage are not solved.
+
+The profile identifier is saved as an optional schema-1 payload field. Older saves have no such field and therefore restore through Origin. The selected profile and random-seed prefix are exposed in the existing Universe Lab drawer. Abyssal remains below the 128-body direct-solver ceiling and retains the existing 40,000-particle mobile budget; large persistent plasma/particle storms are deliberately deferred.
+
+---
+
 # Universe Lab v0.1.5.4.2 — Stellar Irradiance & Daylight Realism Polish
 
 **Build marker:** `IRRAD-1542`  

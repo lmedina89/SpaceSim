@@ -1,3 +1,30 @@
+# v0.1.5.5 QA — Abyssal Universe Profile Foundation
+
+## Baseline recovery
+
+- Authoritative input: `UniverseLab-v0.1.5.4.2-Stellar-Irradiance-Daylight-Realism-Polish-GitHub.zip`.
+- Input SHA-256: `730301779f18319daf82651693a76d02c76d4a259d4dd52b80e068e7e7df136a`.
+- Input ZIP integrity: PASS.
+- Baseline QA before edits: **296/296 PASS**.
+- Baseline identity: v0.1.5.4.2 / `IRRAD-1542` / save schema 1 / Three.js 0.185.0.
+
+## v0.1.5.5 gates
+
+- Build identity: v0.1.5.5 / `ABYSSAL-155`.
+- Origin explicit/default equivalence and historical position fingerprints: covered.
+- Abyssal determinism, compact companion physical initialization, barycentric residuals, body/phenomenon ID uniqueness and profile bounds: covered.
+- Seven simulated days of Abyssal velocity-Verlet integration at the normal 300 s maximum substep: finite with bounded barycentric residuals.
+- 250 generated Abyssal systems: finite bodies, unique IDs, fixed population guarantees and direct-solver ceiling compliance.
+- Optional schema-1 profile persistence and legacy Origin fallback: covered by integration/static contract tests.
+- Direct old/new `ORIGIN-001` comparison: **PASS** for all 19 bodies, all 16 phenomena, all 18 pre-existing metadata fields and the legacy top-level identity fields.
+- Worktree `npm run qa`: **302/302 PASS**.
+- Clean-unzip `npm run qa`: **302/302 PASS**.
+- Clean-unzip ZIP integrity: **PASS**.
+- Local static HTTP smoke: **7/7 PASS** for the shell, cache-busted module hops, profile registry, system generator, renderer and cockpit module.
+- Physical iPhone Safari/WebKit interaction and performance testing remains the release acceptance gate.
+
+---
+
 # v0.1.5.4.2 QA — Stellar Irradiance & Daylight Realism Polish
 
 ## Baseline recovery

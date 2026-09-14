@@ -29,9 +29,9 @@ import { TRANSIT_TIERS, normalizeTransitMultiple, transitArrivalDistanceMeters, 
 import { frameOrbitInsertionPlan, applyFrameOrbitInsertion } from '../physics/frameOrbitInsertion.js';
 import { planFrameGuardRoute, resolveFrameGuardWaypoint } from '../navigation/frameGuardRoute.js';
 import { ObservationPlannerSearch } from '../navigation/observationPlanner.js';
-import { UniverseRenderer } from '../render/threeRenderer.js?v=1542';
-import { Hud } from '../ui/hud.js?v=1542';
-import { SystemMapController } from '../ui/systemMap.js?v=1542';
+import { UniverseRenderer } from '../render/threeRenderer.js?v=155';
+import { Hud } from '../ui/hud.js?v=155';
+import { SystemMapController } from '../ui/systemMap.js?v=155';
 import { generateSurfaceRegion, availableSurfaceRegions, SURFACE_REALITY_LABELS, surfacePois, surfaceHeightAt } from '../surface/surfaceGenerator.js';
 import { createSurfaceSession, serializeSurfaceSession, stepSurfaceMovement, nearestSurfacePoi, scanNearestSurfacePoi, surfaceTakeoffReferencePosition } from '../surface/surfaceSession.js';
 import { SURFACE_PHASE, SURFACE_TRANSITION_SECONDS, createLandingTransition, beginLandingTransition, setLandingPhase, stepLandingTransition, transitionProgress, canEnterSurface, canWalkSurface, canRequestTakeoff, validateOrbitHandoff } from '../surface/landingTransition.js';
@@ -314,7 +314,10 @@ export class UniverseLabApp {
     this.rendererBackend = backend;
     this.hud.setRenderer(backend);
     this.bindUi();
-    this.newSystem(this.root.querySelector('#seedInput').value || 'ORIGIN-001');
+    this.newSystem(
+      this.root.querySelector('#seedInput').value || 'ORIGIN-001',
+      this.root.querySelector('#generationProfile')?.value || 'origin',
+    );
     this.updateCockpitUi();
     this.syncViewClasses();
     this._runtimeFaulted = false;
@@ -336,10 +339,10 @@ export class UniverseLabApp {
       this.running = false;
       this.hud.showRuntimeError(event.reason);
     });
-    this.hud.notify(`v0.1.5.4.2 online. Stellar Irradiance & Daylight Realism Polish is active: reflected planets/moons and landed daylight now consume live inverse-square stellar flux from modeled luminosity and distance, with a bounded square-root HDR display transform that preserves ordering without altering physical irradiance. Gravity, orbits, albedo, atmosphere science, landing, saves, and WebKit policy remain unchanged. Active backend: ${backend}. Build IRRAD-1542.`);
+    this.hud.notify(`v0.1.5.5 online. Origin remains the accepted deterministic baseline; Abyssal adds a bounded extreme-system profile with a physical wide-orbit magnetar companion and enhanced explicitly labeled visual phenomena. Active backend: ${backend}. Build ABYSSAL-155.`);
   }
 
-  newSystem(seed) {
+  newSystem(seed, generationProfileId = 'origin') {
     this.cancelObservationPlanner();
     this.selectedSurfaceRegionId = 'shatterfall-basin';
     this._surfaceOrbitHandoffPending = null;
@@ -359,7 +362,7 @@ export class UniverseLabApp {
     this.discoveredPhenomena.clear();
     this.discoveryScanDepth.clear();
     this.systemMap.selection = null;
-    this.system = generateSystem(seed);
+    this.system = generateSystem(seed, generationProfileId);
     this.cosmicPhenomena.reset(this.system.phenomena ?? []);
     this.spaceWeather.reset(this.system.seed, 0);
     this.registry.clear();
@@ -377,10 +380,11 @@ export class UniverseLabApp {
     this.placeShipNearHome();
     this.hud.setSeed(this.system.seed);
     this.root.querySelector('#seedInput').value = this.system.seed;
+    if (this.root.querySelector('#generationProfile')) this.root.querySelector('#generationProfile').value = this.system.generationProfileId;
     this.selectTarget(this.system.homeId);
     this.selectPhenomenon(this.cosmicPhenomena.values[0]?.id ?? null, false);
     this.invalidatePredictions();
-    this.hud.notify(`Generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class): ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons, ${this.system.metadata.cometCount ?? 0} comets, ${this.system.metadata.roguePlanetCount ?? 0} rogue planets, and ${this.system.metadata.anomalyCount ?? 0} seeded anomaly signals among ${this.system.metadata.phenomenonCount ?? 0} cosmic sources.`);
+    this.hud.notify(`${this.system.metadata.generationProfileLabel}: generated ${this.system.starName} (${this.system.metadata.starSpectralClass}-class) with ${this.system.metadata.planetCount} planets, ${this.system.metadata.moonCount} moons, ${this.system.metadata.cometCount ?? 0} comets, ${this.system.metadata.roguePlanetCount ?? 0} rogue planets, ${this.system.metadata.compactCompanionCount ?? 0} compact companions, and ${this.system.metadata.anomalyCount ?? 0} seeded anomaly signals among ${this.system.metadata.phenomenonCount ?? 0} cosmic sources.`);
     this.updateSpaceWeatherPanel();
     this.updateOverlayPanel();
     this.updateCockpitUi();
@@ -2598,6 +2602,7 @@ export class UniverseLabApp {
   serialize() {
     return {
       seed: this.system.seed,
+      generationProfileId: this.system.generationProfileId ?? 'origin',
       elapsedSimSeconds: this.clock.elapsedSimSeconds,
       timeScale: this.surfaceSession?.active ? this._surfacePreviousTimeScale : this.clock.timeScale,
       simulationRunning: this.running,
@@ -2632,7 +2637,7 @@ export class UniverseLabApp {
       this.hud.notify('No valid local save found.');
       return;
     }
-    this.system = generateSystem(payload.seed);
+    this.system = generateSystem(payload.seed, payload.generationProfileId ?? 'origin');
     this.cosmicPhenomena.reset(this.system.phenomena ?? []);
     this.particleExperiments.clear();
     this.returnToShipView(false);
@@ -2695,6 +2700,7 @@ export class UniverseLabApp {
     const pauseButton = this.root.querySelector('#pauseToggle'); if (pauseButton) pauseButton.textContent = this.running ? 'PAUSE' : 'RESUME';
     this.root.querySelector('#minorCount').value = String(this.minorField.count);
     this.root.querySelector('#seedInput').value = payload.seed;
+    if (this.root.querySelector('#generationProfile')) this.root.querySelector('#generationProfile').value = this.system.generationProfileId;
     if (payload.trajectoryHorizon) this.root.querySelector('#trajectoryHorizon').value = String(payload.trajectoryHorizon);
     this.userBodySerial = payload.userBodySerial ?? 1;
     this.selectedSurfaceRegionId = typeof payload.selectedSurfaceRegionId === 'string' ? payload.selectedSurfaceRegionId : 'shatterfall-basin';
@@ -2996,8 +3002,17 @@ export class UniverseLabApp {
     $('#engineModeButton').addEventListener('click', () => this.cycleEngineMode());
     $('#nextTarget').addEventListener('click', () => this.cycleTarget());
     $('#aimTarget').addEventListener('click', () => this.aimAtTarget());
-    $('#regenerate').addEventListener('click', () => this.newSystem($('#seedInput').value));
-    $('#randomSeed').addEventListener('click', () => this.newSystem(`SYS-${crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase()}`));
+    $('#regenerate').addEventListener('click', () => this.newSystem($('#seedInput').value, $('#generationProfile')?.value || 'origin'));
+    $('#generationProfile')?.addEventListener('change', (event) => {
+      const seedInput = $('#seedInput');
+      if (event.target.value === 'abyssal' && seedInput.value === 'ORIGIN-001') seedInput.value = 'ABYSSAL-001';
+      else if (event.target.value === 'origin' && seedInput.value === 'ABYSSAL-001') seedInput.value = 'ORIGIN-001';
+    });
+    $('#randomSeed').addEventListener('click', () => {
+      const profileId = $('#generationProfile')?.value || 'origin';
+      const prefix = profileId === 'abyssal' ? 'ABYSSAL' : 'SYS';
+      this.newSystem(`${prefix}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(16).toUpperCase()}`, profileId);
+    });
     $('#timeScale').addEventListener('change', (e) => this.requestTimeScale(e.target.value));
     $('#warpQuick').addEventListener('click', () => {
       if (this.transitState.active) { this.hud.notify('FRAME DRIVE is active. Simulation warp remains locked to 1×; change the frame rate in the FRAME DRIVE drawer instead.'); return; }

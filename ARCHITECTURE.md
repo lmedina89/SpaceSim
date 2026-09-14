@@ -1,3 +1,15 @@
+# v0.1.5.5 architecture delta — universe profiles and bounded compact companion
+
+`src/data/generationProfiles.js` is the single profile registry. `generateSystem(seed, profileId)` resolves unknown/missing identifiers to `origin`, so existing callers and schema-1 saves retain the accepted generator. Origin leaves its prior RNG call sequence intact. Abyssal changes generation only through explicit configuration and uses separate namespaced RNG streams for profile-only compact-object state.
+
+The Abyssal magnetar is inserted before `shiftToBarycentricFrame()`. Its relative separation and tangential speed satisfy the circular two-body relation for the primary-plus-magnetar mass; the final barycentric shift is then applied to every body together. Planet/moon states remain initialized relative to the primary star and subsequently evolve in the same direct Newtonian N-body solver as every other gravity source. No stationary compact mass, hidden force or second integrator is introduced.
+
+Profile-specific phenomenon counts are passed as bounded options to the existing cosmic/anomaly generators. They change population only; phenomenon registries, rendering ownership and explicit reality labels are unchanged. Abyssal anomalies and remnant/belt particles do not back-react gravitationally.
+
+Save schema remains 1. `generationProfileId` is an optional payload field; missing/unknown values resolve to Origin. The profile selector is app orchestration only and owns no simulation state beyond choosing a deterministic generator configuration.
+
+---
+
 # v0.1.5.4.2 architecture delta — stellar irradiance presentation bridge
 
 `src/render/stellarIrradiance.js` is a read-only presentation adapter. It imports the existing canonical `stellarFluxWm2()` equation rather than defining a second irradiance law. Inputs are modeled stellar luminosity plus live star-observer/body distance; outputs are physical flux, `S⊕`, and a bounded display gain. It owns no simulation state and writes no body/environment fields.

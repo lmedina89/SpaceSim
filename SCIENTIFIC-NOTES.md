@@ -245,3 +245,12 @@ No scientific model changes. This release only corrects iPhone Safari planner la
 ## Portrait layout scientific boundary
 
 Portrait cockpit adaptation changes only presentation geometry and HTML control placement. It does not change camera attitude mathematics, observer position, body state, gravity, time integration, navigation, celestial appearance, environment science, landing state, or save schema.
+# v0.1.5.5 Abyssal scientific boundary
+
+- Abyssal Sentinel is a physical Newtonian point/sphere gravity source with a preset 1.55-solar-mass, 12 km compact radius and a wide initialized binary state. Near-surface spacetime is not Newtonian; the existing model-limit guard remains authoritative.
+- The 420 AU companion orbit is an initial two-body circular approximation embedded in a live multi-body system. It is not a promise of indefinite secular stability, stellar-formation history or full galactic-environment realism.
+- Magnetosphere geometry, reconnection arcs, glow, bursts and radiation are visual proxies. There is no Maxwell/MHD, pair-plasma, radiation-transfer or biological/spacecraft damage model.
+- Enhanced supernova remnants, belts, rings and anomalies remain bounded visual/discovery records. They add no hidden mass or force.
+- Origin remains the scientific regression reference. The new profile mechanism does not reinterpret older saves or silently convert ordinary seeds into Abyssal systems.
+
+---

@@ -23,7 +23,7 @@ export function bodyClassLabel(body, bodies = []) {
   if (body.kind === BODY_KIND.STAR) return body.spectralClass ? `${body.spectralClass}-CLASS STAR` : 'STAR';
   if (body.kind === BODY_KIND.COMET) return 'COMET NUCLEUS';
   if (body.kind === BODY_KIND.BLACK_HOLE) return 'BLACK HOLE';
-  if (body.kind === BODY_KIND.NEUTRON_STAR) return 'NEUTRON STAR';
+  if (body.kind === BODY_KIND.NEUTRON_STAR) return body.compactType === 'magnetar' ? 'MAGNETAR' : 'NEUTRON STAR';
   if (body.kind === BODY_KIND.WHITE_DWARF) return 'WHITE DWARF';
   if (body.kind === BODY_KIND.BROWN_DWARF) return 'BROWN DWARF';
   if (body.kind === BODY_KIND.ASTEROID) return 'ASTEROID';

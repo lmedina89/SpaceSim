@@ -101,9 +101,11 @@ function anomalyRadius(rng, kind) {
   return PHYSICS.AU * (large ? rng.range(0.08, 0.42) : rng.range(0.018, 0.18));
 }
 
-export function generateAnomalies(seed, bodies = []) {
+export function generateAnomalies(seed, bodies = [], options = null) {
   const rng = createRng(`${seed}:anomaly-field-v1`);
-  const desired = rng.int(9, 15);
+  const minimum = Math.max(9, Math.min(24, Math.floor(Number(options?.minimum) || 9)));
+  const maximum = Math.max(minimum, Math.min(24, Math.floor(Number(options?.maximum) || 15)));
+  const desired = rng.int(minimum, maximum);
   const shuffled = [...ARCHETYPES];
   for (let i = shuffled.length - 1; i > 0; i -= 1) {
     const j = rng.int(0, i);

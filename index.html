@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#02050b">
-  <title>Universe Lab v0.1.5.4.2</title>
-  <link rel="stylesheet" href="./styles.css?v=1542">
+  <title>Universe Lab v0.1.5.5</title>
+  <link rel="stylesheet" href="./styles.css?v=155">
   <script type="importmap">
   {
     "imports": {
@@ -21,7 +21,7 @@
     <section id="viewport" class="viewport" aria-label="3D universe viewport. Tap a visible celestial body to target it."></section>
 
     <div class="hud top-hud" aria-live="polite">
-      <div class="brand">UNIVERSE LAB <span>v0.1.5.4.2</span></div>
+      <div class="brand">UNIVERSE LAB <span>v0.1.5.5</span></div>
       <div class="stat technical-stat"><b id="rendererValue">INIT</b><small>renderer</small></div>
       <div class="stat primary-stat"><b id="fpsValue">—</b><small>fps</small></div>
       <div class="stat technical-stat"><b id="physicsMsValue">—</b><small>physics</small></div>
@@ -154,7 +154,7 @@
         <button id="saveButton" type="button">SAVE</button>
         <button id="loadButton" type="button">LOAD</button>
       </div>
-      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. FRAME DRIVE remains a separate fictional spacecraft-only translation layer and never rewrites celestial gravity. Multi-world exploration, physical atmosphere/sky optics, close-orbit planet/moon material detail and compact-object visuals remain intact. v0.1.5.4.2 now drives reflected planet/moon brightness and landed direct/diffuse daylight from the canonical modeled stellar luminosity and live inverse-square star distance. The exact physical flux remains available scientifically; only the display gain is square-root HDR-compressed and bounded for mobile visibility. Build marker: <b>IRRAD-1542</b>.</p>
+      <p class="quick-note">ENGINE FLIGHT = 20 m/s²; CRUISE = 120 m/s²; BOOST = 5,000 m/s² speculative propulsion. FRAME DRIVE remains a separate fictional spacecraft-only translation layer and never rewrites celestial gravity. The Origin profile preserves the accepted deterministic scientific baseline. The new Abyssal profile adds a bounded dense system, guaranteed rogue/comet population, enhanced visual phenomena and Abyssal Sentinel as a physical wide-orbit Newtonian magnetar companion. Its magnetic field, radiation and burst structures remain visual proxies. Build marker: <b>ABYSSAL-155</b>.</p>
     </aside>
 
     <aside id="engineeringPanel" class="drawer engineering-panel" hidden>
@@ -180,7 +180,7 @@
           <b>MODEL BOUNDARY</b>
           <span>These values mirror existing runtime telemetry only. This panel does not change gravity, integration, FRAME behavior, navigation, save state, or renderer-backend policy.</span>
         </div>
-        <p class="engineering-build">BUILD <b>IRRAD-1542</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
+        <p class="engineering-build">BUILD <b>ABYSSAL-155</b> · SAVE SCHEMA 1 · THREE.JS 0.185.0</p>
       </div>
     </aside>
 
@@ -274,6 +274,7 @@
     <aside id="labPanel" class="drawer lab-panel" hidden>
       <header><div><b>UNIVERSE LAB</b><small>Seeded system + experiment launcher</small></div><button id="labClose" type="button" aria-label="Close lab">×</button></header>
       <div class="drawer-grid">
+        <label>Universe profile<select id="generationProfile"><option value="origin" selected>ORIGIN — scientific baseline</option><option value="abyssal">ABYSSAL — extreme universe</option></select></label>
         <label>System seed<input id="seedInput" value="ORIGIN-001" maxlength="64"></label>
         <div class="button-row"><button id="regenerate" type="button">GENERATE</button><button id="randomSeed" type="button">RANDOM</button></div>
         <label>Time warp<select id="timeScale"><option value="1">1× real seconds</option><option value="60" selected>60×</option><option value="600">600×</option><option value="3600">3,600×</option><option value="86400">86,400×</option></select></label>
@@ -449,6 +450,6 @@
       </div>
     </aside>
   </main>
-  <script type="module" src="./src/main.js?v=1542"></script>
+  <script type="module" src="./src/main.js?v=155"></script>
 </body>
 </html>

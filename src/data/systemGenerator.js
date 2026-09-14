@@ -5,6 +5,7 @@ import { generateCosmicPhenomena } from '../cosmic/phenomenonGenerator.js';
 import { generateAnomalies } from '../cosmic/anomalyGenerator.js';
 import { breakupPeriodSeconds, bulkDensityKgM3, gasGiantPropertiesFromSamples } from '../physics/planetaryProperties.js';
 import { derivePlanetaryEnvironment } from '../physics/planetaryEnvironment.js';
+import { GENERATION_PROFILE_IDS, resolveGenerationProfile } from './generationProfiles.js';
 
 const STAR_NAMES = ['Aster', 'Vesper', 'Orison', 'Nadir', 'Eidra', 'Khepri', 'Ilyon', 'Morrow', 'Sable', 'Caelum'];
 const PLANET_TYPES = [
@@ -321,6 +322,43 @@ function roguePlanetDefinition(rng, starName, starMass) {
   };
 }
 
+function compactCompanionDefinition(seed, starMass, definition) {
+  if (definition?.type !== 'magnetar') return null;
+  const rng = createRng(`${seed}:compact-companion-v1`);
+  const mass = Math.max(1.05, Math.min(2.35, Number(definition.solarMasses) || 1.55)) * PHYSICS.SOLAR_MASS;
+  const separation = Math.max(180, Math.min(1_200, Number(definition.separationAu) || 420)) * PHYSICS.AU;
+  const azimuth = rng.range(0, Math.PI * 2);
+  const inclination = rng.range(-0.22, 0.22);
+  const planar = Math.cos(inclination) * separation;
+  const position = vec3(Math.cos(azimuth) * planar, Math.sin(inclination) * separation, Math.sin(azimuth) * planar);
+  const tangent = normalized3([-Math.sin(azimuth), 0, Math.cos(azimuth)], [0, 0, 1]);
+  const relativeSpeed = Math.sqrt(PHYSICS.G * (starMass + mass) / separation);
+  return {
+    id: 'compact-companion-1',
+    kind: BODY_KIND.NEUTRON_STAR,
+    name: String(definition.name || 'Abyssal Sentinel'),
+    mass,
+    radius: 12_000,
+    visualRadiusMeters: 4.0e7,
+    color: 0xd8f6ff,
+    gravitySource: true,
+    generated: true,
+    compactType: 'magnetar',
+    spinPeriodSeconds: Math.max(0.02, Math.min(20, Number(definition.spinPeriodSeconds) || 4.8)),
+    magneticFieldTesla: Math.max(1e4, Math.min(1e11, Number(definition.magneticFieldTesla) || 5e10)),
+    companionOfId: 'star-0',
+    parentId: 'star-0',
+    semiMajorAxis: separation,
+    eccentricity: 0,
+    inclinationRad: inclination,
+    binarySeparationMeters: separation,
+    binaryInitializationModel: 'wide-circular-two-body-v1',
+    scientificWarning: 'Physical 1.55-solar-mass magnetar companion with live Newtonian gravity in a wide initialized binary state. Magnetosphere, burst arcs and radiation are visual proxies; general relativity, plasma transport and stellar evolution are not solved.',
+    position,
+    velocity: vec3(tangent[0] * relativeSpeed, tangent[1] * relativeSpeed, tangent[2] * relativeSpeed),
+  };
+}
+
 function environmentFormationMetadata(seed, body) {
   const rng = createRng(`${seed}:environment:${body.id}:v1`);
   let bondAlbedo = 0.3;
@@ -440,8 +478,9 @@ function shiftToBarycentricFrame(bodies) {
   }
 }
 
-export function generateSystem(seedText = 'ORIGIN-001') {
+export function generateSystem(seedText = 'ORIGIN-001', profileId = GENERATION_PROFILE_IDS.ORIGIN) {
   const seed = String(seedText || 'ORIGIN-001').trim().slice(0, 64);
+  const profile = resolveGenerationProfile(profileId);
   const rng = createRng(seed);
   const seedHash = hashSeed(seed);
   const massRatio = rng.range(0.68, 1.28);
@@ -470,7 +509,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
     generated: true,
   }];
 
-  const planetCount = rng.int(5, 9);
+  const planetCount = Number.isInteger(profile.planetCount) ? profile.planetCount : rng.int(5, 9);
   let semiMajor = PHYSICS.AU * rng.range(0.30, 0.54);
   let homeId = null;
   let bestHomeScore = Infinity;
@@ -548,18 +587,25 @@ export function generateSystem(seedText = 'ORIGIN-001') {
     .sort((a, b) => Math.abs(a.semiMajorAxis / habitableProxy - 1) - Math.abs(b.semiMajorAxis / habitableProxy - 1));
   if (candidates[0]) candidates[0].surfaceProfile = 'selected-future-surface';
 
-  const cometCount = rng.random() < 0.42 ? 1 : 2;
+  const cometCount = Number.isInteger(profile.guaranteedComets) ? profile.guaranteedComets : (rng.random() < 0.42 ? 1 : 2);
   bodies.push(...cometDefinitions(rng, starMass, starName, cometCount));
-  if (rng.random() < 0.62) bodies.push(roguePlanetDefinition(rng, starName, starMass));
+  if (profile.guaranteedRoguePlanet || rng.random() < 0.62) bodies.push(roguePlanetDefinition(rng, starName, starMass));
+
+  const compactCompanion = compactCompanionDefinition(seed, starMass, profile.compactCompanion);
+  if (compactCompanion) bodies.push(compactCompanion);
 
   shiftToBarycentricFrame(bodies);
   assignRotationMetadata(seed, bodies);
   assignEnvironmentFormationMetadata(seed, bodies);
-  const phenomena = [...generateCosmicPhenomena(seed, bodies), ...generateAnomalies(seed, bodies)];
+  const phenomena = [
+    ...generateCosmicPhenomena(seed, bodies, profile.phenomenonOptions),
+    ...generateAnomalies(seed, bodies, profile.anomalyOptions),
+  ];
 
   return {
     schemaVersion: 1,
     seed,
+    generationProfileId: profile.id,
     seedHash,
     starName,
     homeId: home.id,
@@ -567,6 +613,10 @@ export function generateSystem(seedText = 'ORIGIN-001') {
     phenomena,
     metadata: {
       generatedAtRuntime: true,
+      generationProfileId: profile.id,
+      generationProfileLabel: profile.label,
+      generationProfileScientificStatus: profile.scientificStatus,
+      mobileVisualParticleBudget: profile.mobileVisualParticleBudget,
       starSpectralClass: starClass,
       starTemperatureK: starTemp,
       luminositySolar,
@@ -576,6 +626,7 @@ export function generateSystem(seedText = 'ORIGIN-001') {
       moonCount: bodies.filter((body) => body.kind === BODY_KIND.MOON).length,
       cometCount: bodies.filter((body) => body.kind === BODY_KIND.COMET).length,
       roguePlanetCount: bodies.filter((body) => body.kind === BODY_KIND.ROGUE_PLANET).length,
+      compactCompanionCount: bodies.filter((body) => body.companionOfId === 'star-0').length,
       phenomenonCount: phenomena.length,
       anomalyCount: phenomena.filter((entry) => entry.anomaly).length,
       landablePlanetCount: bodies.filter((body) => body.kind === BODY_KIND.PLANET && body.landable).length,

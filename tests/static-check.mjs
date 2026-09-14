@@ -2,7 +2,7 @@ import { access, readFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 
 const required = [
-  'index.html','styles.css','src/main.js','src/app/app.js','src/core/constants.js','src/data/systemGenerator.js',
+  'index.html','styles.css','src/main.js','src/app/app.js','src/core/constants.js','src/data/systemGenerator.js','src/data/generationProfiles.js',
   'src/physics/gravity/directGravitySolver.js','src/physics/integrators/velocityVerlet.js','src/physics/orbitalMetrics.js',
   'src/physics/trajectoryPredictor.js','src/physics/planetaryProperties.js','src/physics/planetaryEnvironment.js','src/physics/atmosphericOptics.js','src/physics/shipDynamics.js','src/physics/flightComputer.js','src/physics/transitDrive.js','src/physics/frameOrbitInsertion.js','src/physics/massivePairStepControl.js','src/physics/impactResolver.js',
   'src/experiments/particles/spatialHashGrid.js','src/experiments/particles/particleExperiment.js','src/experiments/particles/particleExperimentManager.js',
@@ -14,14 +14,15 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 if (!html.includes('three@0.185.0')) throw new Error('Three.js version is not pinned.');
 if (!html.includes('./src/main.js')) throw new Error('Main module missing from shell.');
-if (!html.includes('Universe Lab v0.1.5.4.2')) throw new Error('Shell version is not v0.1.5.4.2.');
-if (!html.includes('<div class="brand">UNIVERSE LAB <span>v0.1.5.4.2</span></div>')) throw new Error('Visible top-left build badge is not v0.1.5.4.2.');
-if (!html.includes('IRRAD-1542')) throw new Error('IRRAD-1542 build marker missing.');
-if (pkg.version !== '0.1.5.4.2') throw new Error('package.json version mismatch.');
+if (!html.includes('Universe Lab v0.1.5.5')) throw new Error('Shell version is not v0.1.5.5.');
+if (!html.includes('<div class="brand">UNIVERSE LAB <span>v0.1.5.5</span></div>')) throw new Error('Visible top-left build badge is not v0.1.5.5.');
+if (!html.includes('ABYSSAL-155')) throw new Error('ABYSSAL-155 build marker missing.');
+if (pkg.version !== '0.1.5.5') throw new Error('package.json version mismatch.');
 if (!html.includes('id="warpQuick"')) throw new Error('Quick time-warp control missing.');
 if (!html.includes('id="morePanel"')) throw new Error('Flight/System control drawer missing.');
 if (!html.includes('id="engineeringPanel"') || !html.includes('id="engineeringClose"')) throw new Error('Dedicated Engineering/Diagnostics drawer missing.');
-if (!html.includes('./styles.css?v=1542') || !html.includes('./src/main.js?v=1542')) throw new Error('Build-version cache-busting tags missing.');
+if (!html.includes('./styles.css?v=155') || !html.includes('./src/main.js?v=155')) throw new Error('Build-version cache-busting tags missing.');
+if (!html.includes('id="generationProfile"') || !html.includes('value="abyssal"')) throw new Error('Universe generation profile selector missing.');
 if (html.includes('id="moreToggle"')) throw new Error('Redundant bottom MORE launcher must remain removed.');
 if (!html.includes('id="cockpitRestore"')) throw new Error('Cockpit restore failsafe missing.');
 if (!html.includes('id="approachButton"') || !html.includes('id="matchVelocity"') || !html.includes('id="engineModeButton"')) throw new Error('Scientific flight-computer controls missing.');
@@ -104,9 +105,9 @@ for (const token of ['enterObservation','currentCameraView','rendezvousExperimen
 const backendPolicy = await readFile(new URL('../src/render/backendPolicy.js', import.meta.url), 'utf8');
 for (const token of ['isAppleMobileWebKit','rendererBackendPolicy','MacIntel','maxTouchPoints','ios-webkit-presentation-isolation']) if (!backendPolicy.includes(token)) throw new Error(`Renderer backend policy token missing: ${token}`);
 const renderer = await readFile(new URL('../src/render/threeRenderer.js', import.meta.url), 'utf8');
-if (!main.includes("./app/app.js?v=154")) throw new Error('Main-to-app cache-busting import missing.');
-if (!app.includes("../render/threeRenderer.js?v=154") || !app.includes("../ui/hud.js?v=154") || !app.includes("../ui/systemMap.js?v=154")) throw new Error('App cache-busting imports missing.');
-if (!renderer.includes("./cockpitView.js?v=154")) throw new Error('Cockpit renderer cache-busting import missing.');
+if (!main.includes("./app/app.js?v=155")) throw new Error('Main-to-app cache-busting import missing.');
+if (!app.includes("../render/threeRenderer.js?v=155") || !app.includes("../ui/hud.js?v=155") || !app.includes("../ui/systemMap.js?v=155")) throw new Error('App cache-busting imports missing.');
+if (!renderer.includes("./cockpitView.js?v=155")) throw new Error('Cockpit renderer cache-busting import missing.');
 const cockpit = await readFile(new URL('../src/render/cockpitView.js', import.meta.url), 'utf8');
 for (const token of ['class CockpitView','NAVIGATION','FLIGHT','SCIENCE','SYSTEM DIAGNOSTICS','diagnostics-screen','drawDiagnosticsScreen','pick(clientX','cockpitAction','MAP','APPR','ENG','SCAN','OVR']) if (!cockpit.includes(token)) throw new Error(`3D cockpit token missing: ${token}`);
 for (const token of ['experimentVisuals','syncParticleExperiments','cosmicVisuals','syncCosmicPhenomena','PointsMaterial','particleExperiments = []','cosmicPhenomena = []','cameraView = null','renderShipView','renderObservationView','referenceFrame.centerOn(observer?.inertialPosition ?? ship.position)','centerStarfieldOnCamera']) if (!renderer.includes(token)) throw new Error(`Renderer integration token missing: ${token}`);
@@ -135,7 +136,9 @@ const atmosphericOptics = await readFile(new URL('../src/physics/atmosphericOpti
 for (const token of ['ATMOSPHERIC_OPTICS_MODEL_VERSION','rayleighVerticalOpticalDepthRgb','opticalAirMass','atmosphericScaleHeightMeters','solveSurfaceAtmosphericOptics','solveOrbitalAtmosphereLimb','Dry-air-like Rayleigh']) if (!atmosphericOptics.includes(token)) throw new Error(`Atmospheric optics token missing: ${token}`);
 for (const token of ['syncPlanetaryAtmosphereVisual','planetary-atmosphere-limb','THREE.BackSide']) if (!factory.includes(token)) throw new Error(`Orbital atmosphere-limb token missing: ${token}`);
 const versionJson = JSON.parse(await readFile(new URL('../VERSION.json', import.meta.url), 'utf8'));
-if (versionJson.buildMarker !== 'IRRAD-1542') throw new Error('VERSION.json build marker mismatch.');
+if (versionJson.buildMarker !== 'ABYSSAL-155') throw new Error('VERSION.json build marker mismatch.');
+if (!Array.isArray(versionJson.generationProfiles) || !versionJson.generationProfiles.includes('origin') || !versionJson.generationProfiles.includes('abyssal')) throw new Error('VERSION.json generation profiles missing.');
+if (!String(versionJson.abyssalSentinel || '').includes('420 AU') || !String(versionJson.abyssalSentinel || '').includes('Newtonian')) throw new Error('VERSION.json Abyssal Sentinel boundary missing.');
 if (!String(versionJson.atmosphericOpticsModel || '').includes('Rayleigh') || !String(versionJson.atmosphericOpticsModel || '').includes('aerosol/Mie')) throw new Error('VERSION.json atmospheric optics model boundary missing.');
 if (!String(versionJson.surfaceAtmosphericOptics || '').includes('Airless') && !String(versionJson.surfaceAtmosphericOptics || '').includes('airless')) throw new Error('VERSION.json surface atmosphere optics boundary missing.');
 if (!String(versionJson.orbitalAtmosphereLimb || '').includes('scale height')) throw new Error('VERSION.json orbital atmosphere limb capability missing.');

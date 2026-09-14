@@ -1,3 +1,15 @@
+## v0.1.5.5 — Abyssal Universe Profile Foundation
+
+- Added explicit Origin/Abyssal universe profiles with profile and seed kept separate.
+- Preserved Origin as the default and retained its established deterministic physical signature.
+- Added the bounded `ABYSSAL-001` extreme configuration: nine planets, two comets, a guaranteed rogue planet, enhanced existing visual phenomena, and 15–18 labeled anomalies.
+- Added Abyssal Sentinel as a physical 1.55-solar-mass magnetar in a deterministic 420 AU initialized wide-binary state with live Newtonian gravity.
+- Added optional schema-1 `generationProfileId` persistence; legacy/missing/unknown values safely resolve to Origin.
+- Added the mobile Universe Lab profile selector and profile-aware random seed prefixes.
+- Retained the 128-body direct-solver ceiling, 40,000-particle global mobile budget, iPhone/iPad WebKit WebGL2 policy, FRAME isolation and all existing scientific boundaries.
+
+---
+
 ## v0.1.5.4.2 — Stellar Irradiance & Daylight Realism Polish
 
 - Added pure read-only `src/render/stellarIrradiance.js`, reusing the canonical `stellarFluxWm2()` equation and the modeled stellar luminosity.

@@ -91,13 +91,18 @@ function roguePhenomenon(body) {
   };
 }
 
-export function generateCosmicPhenomena(seed, bodies) {
+export function generateCosmicPhenomena(seed, bodies, options = null) {
   const rng = createRng(`${seed}:cosmic-phenomena-v1`);
   const star = bodies.find((body) => body.kind === BODY_KIND.STAR);
   const planets = bodies.filter((body) => body.kind === BODY_KIND.PLANET);
   if (!star) return [];
 
-  const phenomena = [asteroidBeltDefinition(rng, star, planets, 1), supernovaRemnantDefinition(rng, star, 1)];
+  const asteroidBeltCount = Math.max(1, Math.min(3, Math.floor(Number(options?.asteroidBeltCount) || 1)));
+  const remnantCount = Math.max(1, Math.min(3, Math.floor(Number(options?.remnantCount) || 1)));
+  const ringLimit = Math.max(1, Math.min(5, Math.floor(Number(options?.ringLimit) || 3)));
+  const phenomena = [];
+  for (let serial = 1; serial <= asteroidBeltCount; serial += 1) phenomena.push(asteroidBeltDefinition(rng, star, planets, serial));
+  for (let serial = 1; serial <= remnantCount; serial += 1) phenomena.push(supernovaRemnantDefinition(rng, star, serial));
   const rogue = bodies.find((body) => body.kind === BODY_KIND.ROGUE_PLANET);
   if (rogue) phenomena.push(roguePhenomenon(rogue));
   let ringSerial = 1;
@@ -105,7 +110,7 @@ export function generateCosmicPhenomena(seed, bodies) {
     .filter((planet) => planet.planetType === 'gas' || planet.planetType === 'ice' || rng.random() < 0.22)
     .sort((a, b) => (a.planetType === 'gas' ? -1 : 1) - (b.planetType === 'gas' ? -1 : 1));
 
-  for (const planet of ringCandidates.slice(0, 3)) {
+  for (const planet of ringCandidates.slice(0, ringLimit)) {
     if (planet.planetType === 'gas' || rng.random() < 0.62) phenomena.push(ringDefinition(rng, planet, ringSerial++));
   }
 
