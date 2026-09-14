@@ -1,29 +1,3 @@
-# Universe Lab v0.1.5.5.2 — Deep-Space FRAME Travel Polish
-
-**Build marker:** `DEEPFRAME-1552`  
-**Save schema:** `1`  
-**Three.js:** `0.185.0`
-
-This focused travel update adds an optional **5,000c · DEEP** FRAME coordinate-rate tier for destinations more than 50 AU away. It is spacecraft-only and explicitly fictional. At 50 AU remaining it automatically caps itself to 1,000c, then uses the existing 500c / 100c / 10c / 1c close-arrival ramp. Swept massive-body guards, live detour planning, no-overshoot movement, exit velocity policy and ordinary celestial N-body evolution are unchanged.
-
-Physical iPhone recording review also confirmed that the reported up/down disappearance was the distant object leaving and re-entering the vertical camera field of view. The existing world camera far plane reaches roughly 32 AU and is intentionally unchanged here. Truly persistent identification of bodies beyond that render volume should use a future directional point/proxy layer rather than weakening depth precision for close planets and cockpit geometry.
-
----
-
-# Universe Lab v0.1.5.5.1 — Cockpit Depth Isolation Hotfix
-
-**Build marker:** `DEPTH-1551`  
-**Save schema:** `1`  
-**Three.js:** `0.185.0`
-
-This focused rendering hotfix prevents nearby planets and moons from depth-testing over the camera-mounted 3D cockpit. Ship view now renders the astronomical world on layer 0, preserves its color buffer, clears only depth, and composites the cockpit on layer 1. The fresh cockpit pass retains ordinary depth testing between cockpit parts, so the shell, bezels and translucent MFDs remain internally ordered while the outside universe stays visible through the canopy and smoked glass.
-
-Cockpit ray picking uses the same dedicated layer only for the duration of a cockpit touch query and restores the shared raycaster afterward. World/body picking therefore remains isolated. World and cockpit draw calls are accumulated into one frame diagnostic. Observation and surface modes keep their existing single-world render paths.
-
-No body radius, apparent angular size, camera attitude/FOV, gravity, collision, FRAME, landing, universe profile, save data or WebKit backend policy is changed. A planet may correctly fill the canopy at close range, but it can no longer visually enter the dashboard or MFDs.
-
----
-
 # Universe Lab v0.1.5.5 — Abyssal Universe Profile Foundation
 
 **Build marker:** `ABYSSAL-155`  
@@ -532,7 +506,7 @@ Older schema-1 saves remain valid. When loading an older save, deterministic lan
 - inertial velocity marker, PROGRADE / RETROGRADE, TURN & BURN
 - STOP RELATIVE
 - propulsion-safe APPROACH → BRAKING → CAPTURE → HOLD
-- explicitly fictional 1c / 10c / 100c / 500c / 1000c / range-gated 5000c DEEP FRAME coordinate-rate travel, isolated to the spacecraft
+- explicitly fictional 1c / 10c / 100c / 500c / 1000c FRAME coordinate-rate travel, isolated to the spacecraft
 - FRAME swept-body guards, target-frame velocity matching on normal exit, and preserved local velocity on forced safety dropout
 - direct Newtonian major-body gravity + velocity-Verlet
 - adaptive strong-gravity substeps + 10% c Newtonian model guard

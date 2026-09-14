@@ -8,16 +8,14 @@ function clamp(value, min, max) {
 // FRAME DRIVE is explicitly speculative spacecraft-only reference-frame translation. These are
 // coordinate-speed multipliers of c, not Newtonian spacecraft velocity and not a claim that FTL
 // travel is physical. The legacy module name is retained to avoid destabilizing existing imports.
-// The high tiers are intentional: 1 c still takes ~8.3 minutes per AU. The 5,000 c DEEP
-// tier is range-gated and falls back to 1,000 c inside 50 AU, so it shortens wide-companion
-// crossings without weakening the established close-arrival ramp or swept-body guards.
+// The high tiers are intentional: 1 c still takes ~8.3 minutes per AU, while 1,000 c crosses
+// 30 AU in roughly 15 real seconds before arrival ramp-down.
 export const TRANSIT_TIERS = Object.freeze([
   { multipleC: 1, label: '1 c' },
   { multipleC: 10, label: '10 c' },
   { multipleC: 100, label: '100 c' },
   { multipleC: 500, label: '500 c' },
   { multipleC: 1000, label: '1,000 c' },
-  { multipleC: 5000, label: '5,000 c · DEEP' },
 ]);
 
 export function normalizeTransitMultiple(value) {
@@ -117,8 +115,7 @@ export function effectiveTransitMultiple(maxMultipleC, distanceMeters, arrivalDi
   const remaining = Math.max(0, distanceMeters - Math.max(0, arrivalDistanceMeters));
   // Deliberately step down near arrival so the visual transition is readable even though the
   // swept guard makes overshooting impossible.
-  if (remaining > PHYSICS.AU * 50) return cap;
-  if (remaining > PHYSICS.AU * 10) return Math.min(cap, 1000);
+  if (remaining > PHYSICS.AU * 10) return cap;
   if (remaining > PHYSICS.AU * 2) return Math.min(cap, 500);
   if (remaining > PHYSICS.AU * 0.5) return Math.min(cap, 100);
   if (remaining > PHYSICS.AU * 0.10) return Math.min(cap, 10);

@@ -1,21 +1,3 @@
-# v0.1.5.5.2 architecture delta — range-gated DEEP FRAME
-
-`physics/transitDrive.js` adds one selectable 5,000c coordinate-rate tier without adding another drive or simulation authority. `effectiveTransitMultiple()` permits the selected maximum only while more than 50 AU remains. Inside 50 AU it caps the tier to 1,000c and then follows the pre-existing distance ramp. The same `advanceTransitPosition()`, arrival envelope, segment/sphere guard, route planner and target handoff remain authoritative.
-
-This does not increase Newtonian spacecraft velocity, simulation time warp, celestial velocity or gravitational integration rate. The renderer's approximately 32 AU world-camera far plane also remains unchanged. Long-range celestial persistence will require a separate camera-relative directional proxy/identification layer so close-view depth precision is not traded away.
-
----
-
-# v0.1.5.5.1 architecture delta — cockpit depth isolation
-
-The astronomical scene and camera-local cockpit retain one renderer and one ship-view camera but use separate Three.js layers. Every `CockpitView.group` descendant is assigned to layer 1 after construction; all ordinary world geometry remains on layer 0. Ship view renders layer 0 normally, disables automatic clearing only after that pass, clears depth without clearing color, then renders layer 1. The original camera layer mask and renderer `autoClear` value are restored in a `finally` boundary.
-
-This is a compositing boundary, not a second simulation or view model. Both passes use the same current projection and camera transform, so canopy alignment, portrait/landscape transforms and touchscreen coordinates remain consistent. Existing ambient/stellar lights opt into the cockpit layer; no additional dynamic light is created. MFD materials remain translucent with depth writing disabled, while depth testing stays enabled so cockpit geometry continues to occlude itself correctly.
-
-Renderer statistics disable per-pass auto-reset and explicitly reset once per displayed frame, allowing the diagnostics MFD to report the aggregate world-plus-cockpit draw count. Surface and observation paths reset once and render only their existing world view. Cockpit picking temporarily selects layer 1 and restores the raycaster mask before body picking can run.
-
----
-
 # v0.1.5.5 architecture delta — universe profiles and bounded compact companion
 
 `src/data/generationProfiles.js` is the single profile registry. `generateSystem(seed, profileId)` resolves unknown/missing identifiers to `origin`, so existing callers and schema-1 saves retain the accepted generator. Origin leaves its prior RNG call sequence intact. Abyssal changes generation only through explicit configuration and uses separate namespaced RNG streams for profile-only compact-object state.
@@ -343,7 +325,7 @@ When a pre-v0.1.4.3 schema-1 save loads, deterministic surface-capability metada
 
 ## Fictional FRAME DRIVE
 
-`physics/transitDrive.js` retains its legacy module/function names for compatibility, but v0.1.4.6.1.3 presents the feature as **FRAME DRIVE**. It remains separate from Three.js, major-body integration and local propulsion. It supplies 1c/10c/100c/500c/1000c plus the later range-gated 5000c DEEP **coordinate-rate** travel, live-target stand-off envelopes, arrival step-down, no-overshoot movement and swept massive-body route guards.
+`physics/transitDrive.js` retains its legacy module/function names for compatibility, but v0.1.4.6.1.3 presents the feature as **FRAME DRIVE**. It remains separate from Three.js, major-body integration and local propulsion. It supplies 1c/10c/100c/500c/1000c **coordinate-rate** travel, live-target stand-off envelopes, arrival step-down, no-overshoot movement and swept massive-body route guards.
 
 The isolation boundary is explicit:
 
